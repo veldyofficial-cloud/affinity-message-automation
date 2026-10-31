@@ -298,6 +298,7 @@
           <option value="PC">PC</option>
           <option value="DIGITAL_DRAWING">디지털 드로잉</option>
         </select>
+        <div id="mondayDevicePreview" class="note small" aria-live="polite">Infohub 기기: PC</div>
       </div>
     </div>
 
@@ -1509,11 +1510,20 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     $("auTzHint").value = r.dstLikely ? "이 지역은 서머타임 적용 가능" : "이 지역은 서머타임 미적용";
   }
 
+  function selectedMondayDeviceLabel(){
+    if ($("templateType").value === "PC") return "PC";
+    if ($("templateType").value === "DIGITAL_DRAWING"){
+      return $("deviceType").value === "갤탭" ? "GALAXY" : "IPAD";
+    }
+    return "선택 필요";
+  }
+
   function updateDeviceVisibility(){
-    const curriculumName = $("curriculumSelect").value;
-    const templateType = $("templateType")?.value;
-    const shouldShowDevice = DRAWING_DEVICE_COURSES.includes(curriculumName) || templateType === "DIGITAL_DRAWING";
-    $("deviceBox").style.display = shouldShowDevice ? "block" : "none";
+    // Show the device selector only when the class category matches the actual
+    // Monday device mapping. Drawing curriculum changes sync the category below.
+    const isDrawing = $("templateType").value === "DIGITAL_DRAWING";
+    $("deviceBox").style.display = isDrawing ? "block" : "none";
+    $("mondayDevicePreview").textContent = "Infohub 기기: " + selectedMondayDeviceLabel();
   }
 
   function updateDiscordAvailability(){
@@ -2154,7 +2164,7 @@ Affinity Universe
     const entries = r.items.map(i => `${i.date} · ${i.name}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
-    $("registrationPreview").textContent = `${WEEKDAY_GROUP_KO[r.weekday]} 그룹 · ${r.lessonCount}강 / 전체 휴강 ${r.holidayCount}건 / 개별 결석 ${absenceCount}회차\n${entries.join("\n")}`;
+    $("registrationPreview").textContent = `${WEEKDAY_GROUP_KO[r.weekday]} 그룹 · Infohub 기기 ${selectedMondayDeviceLabel()} · ${r.lessonCount}강 / 전체 휴강 ${r.holidayCount}건 / 개별 결석 ${absenceCount}회차\n${entries.join("\n")}`;
   }
 
   function displaySelectedStudents(){
@@ -2276,6 +2286,11 @@ Affinity Universe
     $("templateType").addEventListener("change", ()=>{
       updateDeviceVisibility();
       updateDiscordAvailability();
+      refreshRegistrationPreview();
+    });
+    $("deviceType").addEventListener("change", ()=>{
+      updateDeviceVisibility();
+      refreshRegistrationPreview();
     });
     syncMessageTypeUI();
     updateDiscordAvailability();
@@ -2504,8 +2519,16 @@ Affinity Universe
         $("curriculumUrl").value = CURRICULUM_MAP[v] || "";
       }
 
+      // The curriculum can expose iPad/Galaxy controls. Keep its class
+      // category in sync so selecting Galaxy never accidentally sends PC.
+      const expectedTemplate = DRAWING_DEVICE_COURSES.includes(v) ? "DIGITAL_DRAWING" : "PC";
+      if($("templateType").value !== expectedTemplate){
+        $("templateType").value = expectedTemplate;
+        $("templateType").dispatchEvent(new Event("change"));
+      }
       updateMondayItemName();
       updateDeviceVisibility();
+      refreshRegistrationPreview();
     });
 
     $("generate").addEventListener("click", ()=>{
