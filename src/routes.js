@@ -1,4 +1,5 @@
 import { allowedOrigin, allStudentItems, BOARD_ID, STUDENT_DB_ID, COL, derivePlan, htmlEscape, json, monday } from './monday.js';
+import {TEACHERS, isAllowedTeacher, teacherById} from './teachers.js';
 const validId = value => Number.isSafeInteger(value) && value > 0;
 
 export async function lookup(request, env) {
@@ -8,14 +9,9 @@ export async function lookup(request, env) {
     const input = await request.json();
     const q = String(input.query||'').trim().toLowerCase();
     if (q.length < 2 || q.length > 100) return json({ok:false,error:'학생 이름은 2~100자로 입력하세요.'},400);
-    const [students, teachers] = await Promise.all([
-      allStudentItems(env),
-      monday('query { users(limit: 200) { id name } }',{},env),
-    ]);
+    const students = await allStudentItems(env);
     const found = students.filter(x=>x.name.toLocaleLowerCase().includes(q)).slice(0,30);
-    const teacherValues = Array.from(new Map((teachers.users||[]).map(x=>[String(x.id),x])).values());
-    return json({ok:true,students:found.map(x=>({id:x.id,name:x.name})),
-      teachers:teacherValues.map(x=>({id:x.id,name:x.name})).sort((a,b)=>a.name.localeCompare(b.name,'ko'))});
+    return json({ok:true,students:found.map(x=>({id:x.id,name:x.name})),teachers:TEACHERS});
   }catch(err) {return json({ok:false,error:`학생/강사 조회 실패: ${err.message}`},502);}
 }
 async function fingerprint(value) {
@@ -42,17 +38,16 @@ export async function approve(request, env, email) {
     if (!studentIds.length || studentIds.length>20 || !studentIds.every(validId)) throw new Error('학생을 검색 결과에서 선택해 주세요.');
     if (p.classType==='ONE_ON_ONE' && studentIds.length!==1) throw new Error('1:1 클래스는 학생 한 명만 연결해야 합니다.');
     if (p.classType==='GROUP' && studentIds.length<2) throw new Error('그룹 클래스는 학생 두 명 이상이 필요합니다.');
-    if (!validId(Number(p.teacherId))) throw new Error('담당 강사를 선택해 주세요.');
+    if (!validId(Number(p.teacherId)) || !isAllowedTeacher(p.teacherId)) throw new Error('승인된 강사 13명 중에서 담당 강사를 선택해 주세요.');
     const plan=derivePlan(p);
-    if (p.classType==='GROUP' && plan.schedule.some(x=>x.reason==='수강생 요청 휴강'))
-      throw new Error('그룹의 개별 휴강은 별도의 결석인원 지정이 필요합니다.');
     const records=await monday(`query ($ids:[ID!]) {items(ids:$ids) { id name board { id } }}`,
       {ids:studentIds.map(String)},env);
     if ((records.items||[]).length!==studentIds.length || records.items.some(x=>String(x.board?.id)!==String(STUDENT_DB_ID)))
       throw new Error('STUDENT DB에 속하지 않는 학생이 포함되었습니다.');
     const users=await monday('query ($ids:[ID!]) { users(ids:$ids) { id name } }',
       {ids:[String(p.teacherId)]},env);
-    if ((users.users||[]).length!==1) throw new Error('담당 강사 계정이 유효하지 않습니다.');
+    if ((users.users||[]).length!==1 || String(users.users[0].name||'').trim().toUpperCase()!==teacherById.get(Number(p.teacherId)).name)
+      throw new Error('담당 강사 계정 정보가 목록과 일치하지 않습니다. 관리자에게 문의해 주세요.');
     const duration=p.classType==='GROUP'?'60m':'40m';
     const device=p.templateType==='DIGITAL_DRAWING' ? (p.deviceType==='갤탭'?'GALAXY':'IPAD') : 'PC';
 
@@ -60,7 +55,7 @@ export async function approve(request, env, email) {
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
       itemName:p.itemName.trim(),studentIds:studentIds.slice().sort((a,b)=>a-b),
       teacherId:Number(p.teacherId),device,duration, time:p.kstTime24,
-      schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name}))});
+      schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
     if (!state.accepted) return json({ok:false,duplicate:true,itemUrl:state.itemUrl||'',
@@ -89,8 +84,10 @@ export async function approve(request, env, email) {
       const columns={
         [COL.subDate]:{date:row.date},
         [COL.subMinutes]:{label:row.kind==='CLOSED'?'휴강':duration},
-        [COL.subAttendance]:String(row.kind==='CLOSED'?0:studentIds.length),
-        ...(row.kind==='CLOSED'?{[COL.subAbsentees]:{item_ids:studentIds}}:{}),
+        // Individual absence is attached to its LESSON, not an extra holiday.
+        [COL.subAttendance]:String(row.kind==='CLOSED'?0:studentIds.length-(row.absentStudentIds||[]).length),
+        ...(row.kind==='LESSON' && row.absentStudentIds?.length
+          ? {[COL.subAbsentees]:{item_ids:row.absentStudentIds}} : {}),
       };
       await monday(`mutation ($parentId:ID!, $name:String!, $values:JSON!) {
         create_subitem(parent_item_id:$parentId,item_name:$name,column_values:$values) {id}
@@ -100,8 +97,8 @@ export async function approve(request, env, email) {
     const body=`<div>${htmlEscape(p.message).replace(/\r?\n/g,'<br>')}</div>`;
     await monday(`mutation ($itemId:ID!, $body:String!) { create_update(item_id:$itemId,body:$body){id} }`,
       {itemId:String(parentId),body},env);
-    await storage.finish(registryKey,'complete',{itemUrl,parentId,lessons:plan.lessonCount,holidays:plan.holidayCount,by:email});
-    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount});
+    await storage.finish(registryKey,'complete',{itemUrl,parentId,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,by:email});
+    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons});
   }catch(err) {
     // Do not retry automatically when a network error occurred after a write was attempted.
     if (reserved && registryKey) {

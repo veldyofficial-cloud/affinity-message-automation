@@ -30,3 +30,13 @@ Cloudflare 관리자로 강사들을 초대할 필요가 없습니다. 대신 Ac
 Cloudflare Zero Trust Access 무료 플랜은 일반적으로 50명 이하 조직 규모에 맞춰 제공됩니다. 사용자 수가 이를 초과하면 요금제를 검토해야 합니다.
 
 상세 가이드: [DEPLOY_KO.md](DEPLOY_KO.md)
+
+## 안내문·강사·결석 (2026-10-31 업데이트)
+
+- 클래스 커리큘럼은 `[DRAWING] BASIC`, `[PICTURE BOOK] DIPLOMA`, `[ART BOOK DESIGN] LV.4`, `[MARKETING] MANAGEMENT`, `[BRANDING] PERSONAL COURSE` 등 **영문 코드형 이름**으로 표시합니다. 기존 온라인 커리큘럼 URL 슬러그는 유지하며 `[BRANDING] PERSONAL COURSE`에 별도 URL은 붙이지 않습니다.
+- Infohub 강사 선택은 확인된 13명 `OLIVIA, ONYU, AYEONG, DOORI, HANNAH, JIMIN, JUNWON, RARA, SEONYE, SHU, SION, SYEON, ZOEY`만 허용합니다. 사용자 ID 화이트리스트는 서버 `src/teachers.js`에 있으며 실제 Monday API 조회로 계정명까지 검증합니다.
+- **그룹 전체 수강생 요청 휴강**: 휴강 날짜의 하위아이템 이름 `수강생 요청 휴강`, `DATE` 해당 날짜, `MIN=휴강`, `출석=0`. 수업 회차는 건너뛰며 필요하면 예상 종강일이 늘어납니다.
+- **그룹의 일부 수강생 요청 결석**: 먼저 해당 그룹 **모든 수강생**을 STUDENT DB에서 선택하고, 결석할 수강생만 체크합니다. 해당 날짜의 기존 `LESSON NN` 하위아이템은 유지하고 `DATE`·`MIN=60m` 그대로 두며, **결석인원** 컬럼에 선택한 STUDENT DB 학생을 연결하고 **출석**은 그룹 전체 인원에서 결석 인원을 제외한 수로 기록합니다. 수업 회차와 예상 종강일을 밀지 않습니다.
+- 서버는 전체 휴강과 개별 결석이 같은 날짜로 겹치는 상황, 대상 학생이 그룹 외의 학생인 경우, 모든 학생을 개별 결석 처리하려는 경우, 정규 요일 밖의 날짜 및 미승인 강사 ID를 **쓰기 전에** 거절합니다.
+
+**주의:** 서버 등록 대상은 여전히 실제 Infohub 보드이므로 실제 `승인하고 먼데이에 등록` 버튼으로 테스트하지 마세요. 별도 테스트 보드에 컬럼·그룹 ID를 맞춘 후 먼저 검증해야 합니다.

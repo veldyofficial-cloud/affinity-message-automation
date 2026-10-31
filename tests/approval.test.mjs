@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/worker-core.js';
 import {derivePlan, BOARD_ID, COL} from '../src/monday.js';
+import {TEACHERS,isAllowedTeacher} from '../src/teachers.js';
 
 const origin='https://affinity-infohub-approval.account.workers.dev';
 const TEAM_DOMAIN='https://testteam.cloudflareaccess.com';
@@ -30,28 +31,30 @@ async function jwt({email='veldy.official@gmail.com',aud=[AUD],tamper=false}={})
 }
 
 async function mockServices() {
- const keys=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
- signingKey=keys.privateKey;
- jwk={...(await crypto.subtle.exportKey('jwk',keys.publicKey)),kid:'test-kid',use:'sig',alg:'RS256'};
+ if (!signingKey){
+  const keys=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
+  signingKey=keys.privateKey;
+  jwk={...(await crypto.subtle.exportKey('jwk',keys.publicKey)),kid:'test-kid',use:'sig',alg:'RS256'};
+ }
  globalThis.fetch=async(url,options={})=>{
   if(String(url)===TEAM_DOMAIN+'/cdn-cgi/access/certs') return Response.json({keys:[jwk]});
   if(String(url)==='https://api.monday.com/v2'){
     const call=JSON.parse(options.body);currentRequests.push(call);
     const q=call.query;let data;
-    if(q.includes('items(ids:')) data={items:[{id:'14500123',name:'Demo Student',board:{id:'1879266175'}}]};
-    else if(q.includes('users(ids:')) data={users:[{id:'14500999',name:'Demo Teacher'}]};
-    else if(q.includes('users(limit:')) data={users:[{id:'14500999',name:'Demo Teacher'}]};
+    if(q.includes('items(ids:')) data={items:(call.variables.ids||[]).map(id=>({id,name:`Demo Student ${id}`,board:{id:'1879266175'}}))};
+    else if(q.includes('users(ids:')) data={users:(call.variables.ids||[]).map(id=>{const t=TEACHERS.find(t=>t.id===Number(id));return t?{id,name:t.name}:null;}).filter(Boolean)};
     else if(q.includes('items_page(')) data={boards:[{items_page:{cursor:null,items:[{id:'14500123',name:'Demo Student'}]}}]};
     else if(q.includes('create_item(')){
       assert.equal(call.variables.boardId,String(BOARD_ID));
       const cols=JSON.parse(call.variables.values);
-      assert.deepEqual(cols[COL.studentRelation],{item_ids:[14500123]});
+      assert.ok(cols[COL.studentRelation].item_ids.includes(14500123));
+      assert.ok(isAllowedTeacher(cols[COL.teacher].personsAndTeams[0].id));
       data={create_item:{id:'999900000',url:'https://veldyofficials-team.monday.com/boards/1888467610/pulses/999900000'}};
     }else if(q.includes('create_subitem(')){
       const cols=JSON.parse(call.variables.values);
       assert.ok(cols[COL.subDate].date);
-      assert.equal(cols[COL.subAttendance],call.variables.name==='수강생 요청 휴강'?'0':'1');
-      assert.ok(['40m','휴강'].includes(cols[COL.subMinutes].label));
+      assert.ok(Number.isSafeInteger(Number(cols[COL.subAttendance])));
+      assert.ok(['40m','60m','휴강'].includes(cols[COL.subMinutes].label));
       data={create_subitem:{id:'999900001'}};
     }else if(q.includes('create_update(')){
       assert.match(call.variables.body,/\[BRANDING\] PERSONAL COURSE/);
@@ -63,7 +66,7 @@ async function mockServices() {
  };
 }
 function input(){return {approvalId:'example-approval-12345',studentName:'Demo Student',itemName:'[BRANDING] PERSONAL COURSE',
- studentIds:[14500123],teacherId:14500999,messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'PC',deviceType:'아이패드',studentLocation:'DOMESTIC',weekday:'월',startDay:'2026-11-02',endDay:'2026-11-30',lessonCount:4,explicitLessonCount:4,kstTime24:{hh:19,mm:0},closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],schedule:[
+ studentIds:[14500123],teacherId:62032468,messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'PC',deviceType:'아이패드',studentLocation:'DOMESTIC',weekday:'월',startDay:'2026-11-02',endDay:'2026-11-30',lessonCount:4,explicitLessonCount:4,kstTime24:{hh:19,mm:0},closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],schedule:[
  {date:'2026-11-02',kind:'LESSON',name:'LESSON 01'},
  {date:'2026-11-09',kind:'CLOSED',name:'수강생 요청 휴강'},
  {date:'2026-11-16',kind:'LESSON',name:'LESSON 02'},
@@ -87,7 +90,8 @@ test('secure Monday approval flow and deduplication',async()=>{
  assert.equal(resp.status,200,await resp.clone().text());
  const students=await resp.json();
  assert.equal(students.students.length,1);
- assert.equal(students.teachers.length,1);
+ assert.equal(students.teachers.length,13);
+ assert.deepEqual(students.teachers.map(t=>t.name),TEACHERS.map(t=>t.name));
  const inputs=input();
  const plan=derivePlan(inputs);
  assert.equal(plan.lessonCount,4);
@@ -103,6 +107,8 @@ test('secure Monday approval flow and deduplication',async()=>{
  resp=await worker.fetch(request('/api/approve',token,{...inputs,approvalId:'different-click-id'}),env,{});
  assert.equal(resp.status,409,'Duplicate must be rejected even with fresh client approvalId');
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,1,'No second parent created');
+ resp=await worker.fetch(request('/api/approve',token,{...inputs,teacherId:14500999}),env,{});
+ assert.equal(resp.status,400,'Non-roster instructor cannot write to Infohub');
  resp=await worker.fetch(request('/api/approve',token,{...inputs,weekday:'일'}),env,{});
  assert.equal(resp.status,400,'Sunday group unsupported');
  resp=await worker.fetch(request('/',token,undefined,'GET'),env,{});
@@ -111,5 +117,46 @@ test('secure Monday approval flow and deduplication',async()=>{
  assert.equal(resp.headers.get('Cache-Control'),'private, no-store, max-age=0');
  resp=await worker.fetch(request('/',token,undefined,'GET'),{...env,POLICY_AUD:''},{});
  assert.equal(resp.status,503,'Missing security config fails closed');
+ globalThis.fetch=realFetch;
+});
+
+test('GROUP full closure and individual absence write into distinct subitem fields',async()=>{
+ await mockServices();
+ const token=await jwt();
+ currentRequests=[];
+ const group={...input(),itemName:'[PICTURE BOOK] DIPLOMA — GROUP TEST',classType:'GROUP',
+ studentIds:[14500123,14500124,14500125],teacherId:62107534,
+ closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],
+ absences:[{date:'2026-11-16',studentIds:[14500124]}],
+ schedule:[
+ {date:'2026-11-02',kind:'LESSON',name:'LESSON 01',absentStudentIds:[]},
+ {date:'2026-11-09',kind:'CLOSED',name:'수강생 요청 휴강'},
+ {date:'2026-11-16',kind:'LESSON',name:'LESSON 02',absentStudentIds:[14500124]},
+ {date:'2026-11-23',kind:'LESSON',name:'LESSON 03',absentStudentIds:[]},
+ {date:'2026-11-30',kind:'LESSON',name:'LESSON 04',absentStudentIds:[]},
+ ]};
+ assert.equal(derivePlan(group).lessonCount,4);
+ assert.equal(derivePlan(group).absenceLessons,1);
+ const resp=await worker.fetch(request('/api/approve',token,group),env,{});
+ assert.equal(resp.status,200,await resp.clone().text());
+ const result=await resp.json();
+ assert.equal(result.absenceLessons,1);
+ const subitems=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ assert.equal(subitems.length,5);
+ const closed=JSON.parse(subitems.find(x=>x.variables.name==='수강생 요청 휴강').variables.values);
+ assert.equal(closed[COL.subDate].date,'2026-11-09');
+ assert.equal(closed[COL.subMinutes].label,'휴강');
+ assert.equal(closed[COL.subAttendance],'0');
+ assert.equal(closed[COL.subAbsentees],undefined);
+ const lesson=JSON.parse(subitems.find(x=>x.variables.name==='LESSON 02').variables.values);
+ assert.equal(lesson[COL.subMinutes].label,'60m');
+ assert.equal(lesson[COL.subAttendance],'2');
+ assert.deepEqual(lesson[COL.subAbsentees],{item_ids:[14500124]});
+ for(const invalid of [
+  {...group,absences:[{date:'2026-11-09',studentIds:[14500124]}]},
+  {...group,absences:[{date:'2026-11-16',studentIds:[14500123,14500124,14500125]}]},
+  {...group,absences:[{date:'2026-11-16',studentIds:[14500129]}]},
+  {...group,absences:[{date:'2026-11-17',studentIds:[14500124]}]},
+ ]) assert.throws(()=>derivePlan(invalid));
  globalThis.fetch=realFetch;
 });

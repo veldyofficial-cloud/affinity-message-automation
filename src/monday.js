@@ -104,6 +104,26 @@ export function derivePlan(input) {
   if (input.studentLocation==='OVERSEAS' && input.dstMode==='TEACHER_CHANGE') {
     throw new Error('강사 한국시간이 바뀌는 DST 모드는 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다.');
   }
+  // Individual absences never cancel a GROUP lesson or move its end date.
+  const selectedStudentIds = Array.from(new Set((input.studentIds||[]).map(Number))).sort((a,b)=>a-b);
+  const absences = Array.isArray(input.absences) ? input.absences : [];
+  if (input.absences != null && !Array.isArray(input.absences)) throw new Error('개별 결석 데이터 형식이 올바르지 않습니다.');
+  if (absences.length && input.classType !== 'GROUP') throw new Error('개별 결석은 그룹 클래스에만 등록할 수 있습니다.');
+  if (absences.length && selectedStudentIds.length < 2) throw new Error('그룹 인원을 먼저 연결해 주세요.');
+  const absenceMap = new Map();
+  for(const absence of absences){
+    if (!absence || typeof absence !== 'object') throw new Error('개별 결석 형식이 올바르지 않습니다.');
+    const d=dateFromISO(absence.date);
+    if(d<start || d>end || d.getUTCDay()!==DAY[input.weekday]) throw new Error(`개별 결석 ${absence.date}이 수업 기간 또는 요일과 다릅니다.`);
+    if(absenceMap.has(absence.date)) throw new Error(`개별 결석 ${absence.date} 날짜가 중복되었습니다.`);
+    if(!Array.isArray(absence.studentIds)) throw new Error('결석 인원 목록을 확인해 주세요.');
+    const ids=absence.studentIds.map(Number);
+    if(ids.some(id=>!Number.isSafeInteger(id) || id<=0) || new Set(ids).size!==ids.length ||
+       !ids.length || ids.length>=selectedStudentIds.length || ids.some(id=>!selectedStudentIds.includes(id))) {
+      throw new Error(`${absence.date} 결석 인원이 그룹에 속한 일부 수강생인지 확인해 주세요.`);
+    }
+    absenceMap.set(absence.date,ids.sort((a,b)=>a-b));
+  }
   const closures = new Map();
   for (const x of input.closures || []) {
     const d = dateFromISO(x.date);
@@ -113,6 +133,9 @@ export function derivePlan(input) {
     if (closures.has(x.date)) throw new Error(`중복 휴강일: ${x.date}`);
     const reason = String(x.name||'휴강').trim().slice(0,100);
     closures.set(x.date,reason||'휴강');
+  }
+  for(const date of absenceMap.keys()) if(closures.has(date)) {
+    throw new Error(`${date} 그룹 전체 휴강과 개별 결석은 동시에 등록할 수 없습니다.`);
   }
   let cursor = new Date(start.getTime());
   while(cursor.getUTCDay()!==DAY[input.weekday]) cursor = addDays(cursor,1);
@@ -127,20 +150,27 @@ export function derivePlan(input) {
       schedule.push({date,kind:'CLOSED',name,reason});
     }else {
       lessonNo+=1;
-      schedule.push({date,kind:'LESSON',name:`LESSON ${String(lessonNo).padStart(2,'0')}`});
+      schedule.push({date,kind:'LESSON',name:`LESSON ${String(lessonNo).padStart(2,'0')}`,
+        absentStudentIds:absenceMap.get(date)||[]});
     }
     cursor=addDays(cursor,7);
   }
   if (!schedule.length) throw new Error('수업 기간에 해당 요일이 없습니다.');
+  for(const date of absenceMap.keys()) {
+    if(!schedule.some(row=>row.date===date && row.kind==='LESSON')) throw new Error(`개별 결석 ${date}의 수업 회차를 찾을 수 없습니다.`);
+  }
   if (schedule.length > 32) throw new Error('하위아이템 32건을 초과하는 일정은 무료 서버에서 자동 등록하지 않습니다.');
   if (input.explicitLessonCount && Number(input.explicitLessonCount)!==lessonNo) {
     throw new Error(`입력 회차(${input.explicitLessonCount})와 실제 회차(${lessonNo})가 다릅니다.`);
   }
   if (Number(input.lessonCount)!==lessonNo) throw new Error('프론트엔드의 수업 회차 계산과 서버 결과가 다릅니다.');
-  const client = Array.isArray(input.schedule) ? input.schedule.map(({date,kind,name})=>({date,kind,name})) : [];
-  const server = schedule.map(({date,kind,name})=>({date,kind,name}));
+  const client = Array.isArray(input.schedule) ? input.schedule.map(({date,kind,name,absentStudentIds})=>({
+    date,kind,name,absentStudentIds:Array.isArray(absentStudentIds)?absentStudentIds.map(Number).sort((a,b)=>a-b):[]
+  })) : [];
+  const server = schedule.map(({date,kind,name,absentStudentIds})=>({date,kind,name,absentStudentIds:absentStudentIds||[]}));
   if(JSON.stringify(client)!==JSON.stringify(server)) throw new Error('승인 일정이 서버 검증 결과와 다릅니다. 문구를 다시 생성해 주세요.');
-  return {groupId,schedule,lessonCount:lessonNo,holidayCount:schedule.length-lessonNo};
+  return {groupId,schedule,lessonCount:lessonNo,holidayCount:schedule.length-lessonNo,
+    absenceLessons:schedule.filter(row=>row.absentStudentIds?.length).length};
 }
 
 export function htmlEscape(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
