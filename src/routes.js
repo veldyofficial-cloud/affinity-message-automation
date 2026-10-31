@@ -49,7 +49,10 @@ export async function approve(request, env, email) {
     if ((users.users||[]).length!==1 || String(users.users[0].name||'').trim().toUpperCase()!==teacherById.get(Number(p.teacherId)).name)
       throw new Error('담당 강사 계정 정보가 목록과 일치하지 않습니다. 관리자에게 문의해 주세요.');
     const duration=p.classType==='GROUP'?'60m':'40m';
-    const device=p.templateType==='DIGITAL_DRAWING' ? (p.deviceType==='갤탭'?'GALAXY':'IPAD') : 'PC';
+    const device = p.templateType === 'PC' ? 'PC' :
+      p.templateType === 'DIGITAL_DRAWING' && p.deviceType === '아이패드' ? 'IPAD' :
+      p.templateType === 'DIGITAL_DRAWING' && p.deviceType === '갤탭' ? 'GALAXY' : null;
+    if (!device) throw new Error('선택한 클래스 구분과 기기를 확인해 주세요.');
 
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
