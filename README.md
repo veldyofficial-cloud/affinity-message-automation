@@ -7,6 +7,11 @@
 - 중복 등록 방지: SQLite-backed Durable Object
 - 검증: `npm test`, `python3 tests/ui_check.py` (모의 API; 운영 DB에 쓰지 않음)
 
+
+## 최초 Cloudflare 빌드 확인
+
+GitHub 연결 직후 Cloudflare가 `You can now push a commit ... to start your first build`라고 표시하는 경우, 이 저장소의 `main` 브랜치에 새 커밋을 푸시하면 첫 Workers Builds 배포가 시작됩니다. 배포 성공 여부는 Cloudflare **Deployments**의 빌드 로그로 확인하세요. 배포가 성공해도 `MONDAY_API_TOKEN`, `TEAM_DOMAIN`, `POLICY_AUD`, `ACCESS_ALLOWED_EMAILS` 설정과 별도 테스트 보드 검증 전에는 운영 Infohub의 승인 버튼을 사용하지 마세요.
+
 ## 배포 설정
 
 **권장 방식: 현재 실패한 Cloudflare Worker `infohub-approval-cloudflare`를 재사용하고 Git 연결만 변경**합니다. 신규 Cloudflare 프로젝트를 만드는 경우에는 `wrangler.jsonc`의 `name`과 Cloudflare Worker 프로젝트명을 동일하게 맞춰야 합니다.
