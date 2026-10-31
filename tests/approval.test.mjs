@@ -160,3 +160,28 @@ test('GROUP full closure and individual absence write into distinct subitem fiel
  ]) assert.throws(()=>derivePlan(invalid));
  globalThis.fetch=realFetch;
 });
+
+test('records the actual iPad, Galaxy and PC status labels on Infohub parent items',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ for(const [template,raw,label] of [
+   ['PC','아이패드','PC'],
+   ['DIGITAL_DRAWING','아이패드','IPAD'],
+   ['DIGITAL_DRAWING','갤탭','GALAXY']
+ ]){
+   const p={...input(),itemName:'[DRAWING] BASIC '+label+' mock device test',
+      templateType:template,deviceType:raw};
+   const resp=await worker.fetch(request('/api/approve',token,p),env,{});
+   assert.equal(resp.status,200,await resp.clone().text());
+   const writes=currentRequests.filter(x=>x.query.includes('create_item('));
+   const actual=JSON.parse(writes.at(-1).variables.values)[COL.device];
+   assert.deepEqual(actual,{label});
+ }
+ const beforeWrites=currentRequests.filter(x=>x.query.includes('create_item(')).length;
+ const invalid={...input(),itemName:'[DRAWING] INVALID',templateType:'DIGITAL_DRAWING',deviceType:'not-valid'};
+ const rejected=await worker.fetch(request('/api/approve',token,invalid),env,{});
+ assert.equal(rejected.status,400);
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,beforeWrites);
+ globalThis.fetch=realFetch;
+});
