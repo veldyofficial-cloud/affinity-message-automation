@@ -2166,10 +2166,19 @@ Affinity Universe
     refreshRegistrationPreview();
   }
 
+  // Fragment never enters the HTTP URL; use a header on protected API calls.
+  function sharedLinkKey(){
+    const hash=new URLSearchParams(window.location.hash.replace(/^#/,""));
+    const key=hash.get("key") || "";
+    return /^[a-f0-9]{64}$/.test(key) ? key : "";
+  }
   async function postIntegration(path, body){
     let response;
     try{
-      response = await fetch(path,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const headers={"Content-Type":"application/json"};
+      const key=sharedLinkKey();
+      if(key) headers["X-Affinity-Link-Key"]=key;
+      response = await fetch(path,{method:"POST",credentials:"same-origin",headers,body:JSON.stringify(body)});
     }catch(e){
       throw new Error("Cloudflare API 서버에 연결하지 못했습니다. 로그인 상태와 배포 설정을 확인해 주세요.");
     }

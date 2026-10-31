@@ -1,5 +1,8 @@
 # AFFINITY UNIVERSE · 안내메시지 자동화
 
+> Optional no-login shared-link mode: see [SHARED_LINK_SETUP_KO.md](SHARED_LINK_SETUP_KO.md). Student lookup and Monday writes require a separate 256-bit key carried in the shared URL; this does not expose the Monday API token. Current Cloudflare Access login remains the default until explicitly switched.
+
+
 밸디의 별도 GitHub 저장소 `veldyofficial-cloud/affinity-message-automation`에서 Cloudflare Workers로 배포하는 내부 도구입니다. 기존 인트라넷 저장소는 변경하지 않습니다.
 
 ## 기능

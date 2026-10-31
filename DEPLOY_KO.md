@@ -1,5 +1,8 @@
 # Cloudflare 강사 이용 및 먼데이 Infohub 등록 배포 가이드
 
+> Optional no-login shared-link mode: see [SHARED_LINK_SETUP_KO.md](SHARED_LINK_SETUP_KO.md). Student lookup and Monday writes require a separate 256-bit key carried in the shared URL; this does not expose the Monday API token. Current Cloudflare Access login remains the default until explicitly switched.
+
+
 ## 현재 구성
 
 - 소스: `https://github.com/veldyofficial-cloud/affinity-message-automation` → `main`

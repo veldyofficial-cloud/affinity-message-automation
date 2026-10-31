@@ -29,11 +29,11 @@ export function json(body, status=200) {
 }
 
 export function allowedOrigin(request) {
-  // Same-origin UI and API on a GitHub-connected Vercel deployment.
+  // Check the actual request URL, not the optional Host header.
   const origin = request.headers.get('origin');
-  const host = request.headers.get('host');
-  if (!origin || !host) return true; // CLI/non-browser requests still need auth.
-  try { return new URL(origin).host === host; } catch { return false; }
+  if (!origin) return true; // Non-browser clients still require a link key.
+  try { return new URL(origin).origin === new URL(request.url).origin; }
+  catch { return false; }
 }
 
 export async function monday(query, variables={}, env={}) {

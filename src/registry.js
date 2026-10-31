@@ -19,6 +19,7 @@ export class ApprovalRegistry extends DurableObject {
         updated_at TEXT NOT NULL
       )
     `);
+    this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS shared_rate_limits (key TEXT NOT NULL, scope TEXT NOT NULL, window_started INTEGER NOT NULL, used INTEGER NOT NULL, PRIMARY KEY(key,scope))');
     this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS instructor_attempts (
         email TEXT PRIMARY KEY,
@@ -68,6 +69,20 @@ export class ApprovalRegistry extends DurableObject {
     this.ctx.storage.sql.exec('UPDATE instructors SET active=?,updated_at=? WHERE email=?',
       active?1:0,new Date().toISOString(),email);
     return {ok:true,email,active};
+  }
+  async consumeSharedRate(key,scope,limit,windowMs) {
+    if(!/^[a-f0-9]{64}$/.test(key) || !['write','lookup'].includes(scope)) {
+      throw new Error('Invalid shared-link rate-limit key');
+    }
+    const now=Date.now();
+    const row=this.ctx.storage.sql.exec('SELECT window_started,used FROM shared_rate_limits WHERE key=? AND scope=?',key,scope).toArray()[0];
+    if(!row || now-Number(row.window_started)>=windowMs || Number(row.window_started)>now) {
+      this.ctx.storage.sql.exec('INSERT INTO shared_rate_limits(key,scope,window_started,used) VALUES(?,?,?,1) ON CONFLICT(key,scope) DO UPDATE SET window_started=excluded.window_started,used=1',key,scope,now);
+      return {allowed:true};
+    }
+    if(Number(row.used)>=limit) return {allowed:false};
+    this.ctx.storage.sql.exec('UPDATE shared_rate_limits SET used=used+1 WHERE key=? AND scope=?',key,scope);
+    return {allowed:true};
   }
   async reserve(key) {
     if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('Invalid approval fingerprint');

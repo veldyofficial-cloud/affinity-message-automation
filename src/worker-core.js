@@ -1,4 +1,5 @@
 import {authenticate} from './access.js';
+import {isSharedLinkMode, authorizeSharedLink, sharedLinkRateLimit} from './shared-link.js';
 import {approve,lookup} from './routes.js';
 import {json} from './monday.js';
 import {enabled, enrollInstructor, instructorRole, listInstructors, updateInstructor} from './instructor-access.js';
@@ -8,6 +9,7 @@ const secureHeaders = {
   'X-Content-Type-Options':'nosniff',
   'Referrer-Policy':'no-referrer',
   'X-Frame-Options':'DENY',
+  'X-Robots-Tag':'noindex, nofollow, noarchive',
 };
 function locked(error,status) {
   return new Response(error,{status,headers:{'Content-Type':'text/plain; charset=utf-8',...secureHeaders}});
@@ -23,6 +25,31 @@ async function asset(request,env,overridePath) {
 }
 export default {
   async fetch(request,env,ctx) {
+    // Public form; every student lookup and approval still requires 256-bit link key.
+    // Existing Cloudflare Access flow remains the default until opt-in.
+    if (isSharedLinkMode(env)) {
+      const path=new URL(request.url).pathname;
+      if (path==='/admin' || path==='/admin.html' || path==='/admin.js' ||
+          path==='/onboarding' || path==='/onboarding.html' || path==='/onboarding.js' ||
+          path.startsWith('/api/auth/') || path.startsWith('/api/admin/')) {
+        return locked('This route is unavailable in shared-link mode.',404);
+      }
+      if (path.startsWith('/api/')) {
+        const access=await authorizeSharedLink(request,env);
+        if(!access.ok) return json({ok:false,error:access.error},access.status);
+        if(path==='/api/health' && request.method==='GET') {
+          return json({ok:true,mode:'shared_link',registry:Boolean(env.REGISTRY),monday:Boolean(env.MONDAY_API_TOKEN)});
+        }
+        if(request.method!=='POST') return json({ok:false,error:'POST only'},405);
+        const limit=await sharedLinkRateLimit(request,env,path);
+        if(!limit.allowed) return json({ok:false,error:limit.error},limit.status||429);
+        if(path==='/api/lookup') return lookup(request,env);
+        if(path==='/api/approve') return approve(request,env,'shared-link');
+        return json({ok:false,error:'API route not found'},404);
+      }
+      if(request.method!=='GET' && request.method!=='HEAD') return locked('Method not allowed.',405);
+      return asset(request,env);
+    }
     const identity=await authenticate(request,env);
     if (!identity.ok) return locked(identity.error,identity.status);
     const path=new URL(request.url).pathname;
