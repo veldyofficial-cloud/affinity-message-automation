@@ -24,5 +24,6 @@
         "ApprovalRegistry"
       ]
     }
-  ]
+  ],
+  "keep_vars": true
 }
