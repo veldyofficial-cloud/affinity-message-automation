@@ -1,29 +1,32 @@
-# Affinity Universe · 안내메시지 자동화
+# AFFINITY UNIVERSE · 안내메시지 자동화
 
-**독립 GitHub 저장소** `veldyofficial-cloud/affinity-message-automation`로 배포하는 Cloudflare Worker 프로젝트입니다. 기존 인트라넷 저장소 `veldyofficial-cloud/AFFINITY`를 사용하지 않습니다.
+밸디의 별도 GitHub 저장소 `veldyofficial-cloud/affinity-message-automation`에서 Cloudflare Workers로 배포하는 내부 도구입니다. 기존 인트라넷 저장소는 변경하지 않습니다.
 
-- 프런트엔드: `public/index.html` (블루 테마, 영문 Poppins / 국문 Noto Sans KR, 클래스 안내 메시지 생성 및 승인)
-- 백엔드: `src/` (Cloudflare Access JWT 검증, Monday GraphQL API, Infohub 생성)
-- 중복 등록 방지: SQLite-backed Durable Object
-- 검증: `npm test`, `python3 tests/ui_check.py` (모의 API; 운영 DB에 쓰지 않음)
+## 기능
 
+- `public/index.html`: 클래스 안내문 생성 (영문 Poppins, 국문 Noto Sans KR), Infohub 승인 및 먼데이 DB 등록
+- `src/`: Cloudflare Access JWT 서명 검증, 안전한 강사 초대 등록, Monday API, 중복 등록 방지
+- `public/onboarding.html`: 개인 Gmail 등 **본인 이메일 로그인 + 최초 1회 강사용 초대코드** 등록
+- `/admin`: 배포 관리자 이메일에서만 열리는 강사 등록 현황 및 개별 차단/복구
+- `tests/`: 모의 Access JWT 및 Monday API 테스트. 실제 운영 보드에 테스트 데이터 생성하지 않음
 
-## 최초 Cloudflare 빌드 확인
+## 강사 로그인 방식
 
-GitHub 연결 직후 Cloudflare가 `You can now push a commit ... to start your first build`라고 표시하는 경우, 이 저장소의 `main` 브랜치에 새 커밋을 푸시하면 첫 Workers Builds 배포가 시작됩니다. 배포 성공 여부는 Cloudflare **Deployments**의 빌드 로그로 확인하세요. 배포가 성공해도 `MONDAY_API_TOKEN`, `TEAM_DOMAIN`, `POLICY_AUD`, `ACCESS_ALLOWED_EMAILS` 설정과 별도 테스트 보드 검증 전에는 운영 Infohub의 승인 버튼을 사용하지 마세요.
+Cloudflare 관리자로 강사들을 초대할 필요가 없습니다. 대신 Access의 One-time PIN 로그인(유효 이메일 인증)을 활성화하고, 강사들에게 별도 **강사용 초대코드**를 안전한 채널로 전달합니다. 인증된 이메일과 유효한 초대코드가 일치한 경우에만 Durable Object에 강사 이용 권한이 저장됩니다. 이후에는 초대코드 재입력 없이 본인 이메일로 이용하며, 관리자가 `/admin`에서 즉시 차단할 수 있습니다.
 
-## 배포 설정
+중요: 강사용 초대코드는 **먼데이 API 토큰과 다른 값**이며, 강사 전원에게 같은 권한으로 Infohub 학생 조회 및 새 클래스 생성을 허용합니다. 유출 시 재발급하고 기존 등록 계정을 확인해야 합니다. 강사의 먼데이 계정 보유 여부를 검사하지 않습니다. 이는 사용자별 먼데이 OAuth 구현과는 다른 방식입니다.
 
-**권장 방식: 현재 실패한 Cloudflare Worker `infohub-approval-cloudflare`를 재사용하고 Git 연결만 변경**합니다. 신규 Cloudflare 프로젝트를 만드는 경우에는 `wrangler.jsonc`의 `name`과 Cloudflare Worker 프로젝트명을 동일하게 맞춰야 합니다.
+## 설정 체크리스트
 
-1. **GitHub**: `veldyofficial-cloud` 사용자에서 **Private** 저장소 `affinity-message-automation`를 만듭니다. 기본 브랜치는 `main`을 사용합니다.
-2. **GitHub 업로드**: 이 저장소의 루트에 `wrangler.jsonc`, `package.json`, `public/`, `src/`, `tests/` 등을 넣습니다. (`applications/...` 하위 폴더를 만들지 않습니다.)
-3. **Cloudflare**: Workers & Pages → `infohub-approval-cloudflare` → Settings → Builds → 기존 `AFFINITY` 연결 **Disconnect** → 새 저장소 `affinity-message-automation`으로 **Connect**.
-4. **Build 설정**: Production branch `main`, Path `/` (또는 기본값), Build command 비워두기, Deploy command `npx wrangler deploy`, Preview builds OFF.
-5. **보안 유지**: Cloudflare Access `All traffic`을 유지하고 이메일 기반 Allow 정책을 적용합니다. 개인 계정을 자동 허용하는 OAuth 방식은 아직 구현되어 있지 않습니다.
-6. **서버 변수**: `Settings → Variables and Secrets`에서 `MONDAY_API_TOKEN` (Secret), `TEAM_DOMAIN`, `POLICY_AUD`, `ACCESS_ALLOWED_EMAILS` (Text)를 런타임 변수로 구성합니다. API 토큰을 GitHub, 채팅, Build variables에 입력하지 마세요.
-7. **검증**: Cloudflare 빌드 로그 확인 → Access 로그인 후 `/api/health` 응답의 `access`, `registry`, `monday`가 모두 true인지 확인 → 별도 테스트 보드에서 기록 검증 후 운영 사용.
+1. Cloudflare Access 보호 범위 `All traffic` 유지. `One-time PIN` 로그인 활성화. Access 정책은 `Allow → Include → Login Methods: One-time PIN`으로 설정하여 **인증된 이메일에만** 토큰을 발급하게 합니다. `Bypass` 또는 공개 접근은 금지합니다.
+2. Worker `Settings → Variables and Secrets`: `TEAM_DOMAIN`, `POLICY_AUD` (Text), `ACCESS_ALLOWED_EMAILS` (관리자 이메일 목록, Text), `INSTRUCTOR_INVITE_CODE` (길고 무작위한 24자 이상 코드, **Secret**), `MONDAY_API_TOKEN` (**Secret**).
+3. `https://<your-worker>.workers.dev/` 로그인 후 관리자는 바로 안내문 생성기를 이용하고, 처음 접속한 강사는 초대코드 화면이 표시되는지 확인합니다.
+4. 관리자는 `/admin`에서 등록 강사 목록을 확인하고 차단/복구할 수 있습니다.
+5. `/api/health`에서 `access`, `registry`, `monday` 상태 확인. 이 응답은 API 토큰의 유효성까지 검증하지 않습니다.
+6. **반드시 별도 테스트 보드에서 쓰기 검증을 마친 뒤 운영용 승인을 사용하세요.** 현재 `src/monday.js`의 보드 ID는 **운영 Infohub**로 고정되어 있습니다.
 
-배포 전에는 실제 `🌐 AF CLASS INFO HUB` (1888467610), `🌐 AF STUDENT DB` (1879266175)의 ID와 컬럼을 확인해야 합니다. 본 프로젝트는 API 토큰만 설정한 채 승인 버튼을 클릭하면 실제 운영 보드를 변경할 수 있습니다. 반드시 테스트 보드로 먼저 검증하세요.
+관리자 이메일로 등록할 주소는 `ACCESS_ALLOWED_EMAILS`에 포함되어 있어야 합니다. 모든 직원 주소를 여기에 넣을 필요는 없습니다. 초대코드 설정이 없으면 초대 등록은 자동으로 비활성화되며, 기존 관리자만 접근할 수 있습니다.
 
-상세 안내: [DEPLOY_KO.md](DEPLOY_KO.md)
+Cloudflare Zero Trust Access 무료 플랜은 일반적으로 50명 이하 조직 규모에 맞춰 제공됩니다. 사용자 수가 이를 초과하면 요금제를 검토해야 합니다.
+
+상세 가이드: [DEPLOY_KO.md](DEPLOY_KO.md)

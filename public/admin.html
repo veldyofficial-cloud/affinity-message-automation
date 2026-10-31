@@ -1,0 +1,14 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Affinity Universe | 강사 이용 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f8ff;color:#203250;font:14px/1.7 Poppins,'Noto Sans KR',sans-serif;padding:28px 18px}main{max-width:980px;margin:auto;background:white;border:1px solid #e0e8f5;border-radius:17px;padding:28px}h1{font-size:24px;margin:0 0 5px}p{color:#64748b}a{color:#2d63ff}button{border:1px solid #c8d6fa;border-radius:8px;padding:8px 12px;font:600 14px Poppins,'Noto Sans KR',sans-serif;background:#edf3ff;color:#154bca;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.danger{color:#a31f35;border-color:#f5cdd5;background:#fff3f5}table{width:100%;border-collapse:collapse}th,td{padding:12px 8px;border-bottom:1px solid #edf1f8;text-align:left;word-break:break-all}th{color:#58708c;font-weight:600}#status{min-height:24px}small{color:#64748b}
+</style><script src="/admin.js" defer></script></head><body><main>
+<div style="font-weight:700;color:#2d63ff">AFFINITY UNIVERSE</div><h1>강사 이용 권한 관리</h1>
+<p>초대코드로 등록한 강사 이메일의 이용 권한을 관리합니다. 차단 즉시 다음 요청부터 수강생 조회와 먼데이 등록이 중단됩니다.</p>
+<p><a href="/">← 안내메시지 자동화 프로그램</a></p>
+<button id="refresh" type="button">강사 목록 새로고침</button><div id="status" role="status" aria-live="polite"></div>
+<div style="overflow-x:auto"><table><thead><tr><th>이메일</th><th>상태</th><th>최초 등록</th><th>관리</th></tr></thead><tbody id="users"></tbody></table></div>
+<small>신규 강사는 Cloudflare Access 이메일 인증 후 운영팀에서 전달한 초대코드로 최초 1회 등록합니다. 등록이 차단된 이메일은 초대코드 재입력으로 복구할 수 없습니다.</small>
+</main></body></html>

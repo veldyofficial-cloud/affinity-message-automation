@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Affinity Universe | 강사 이용 등록</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;--blue:#2d63ff;--ink:#203250;--line:#dce6fa;--muted:#64748b}
+*{box-sizing:border-box}body{margin:0;background:#f5f8ff;color:var(--ink);font:14px/1.7 Poppins,'Noto Sans KR',sans-serif;display:grid;place-items:center;min-height:100svh;padding:20px}
+main{width:min(100%,480px);background:white;border:1px solid var(--line);border-radius:18px;padding:32px;box-shadow:0 12px 40px #d5e3ff55}
+h1{font-size:24px;line-height:1.45;margin:0 0 9px}h2{font-size:18px;margin:0 0 12px}p{margin:0 0 22px;color:var(--muted)}label{font-size:14px;font-weight:600;display:block;margin-bottom:7px}input{width:100%;font:inherit;padding:12px 13px;border-radius:9px;border:1px solid var(--line)}input:focus{outline:2px solid #c7d8ff}button{background:var(--blue);color:#fff;font:600 14px Poppins,'Noto Sans KR',sans-serif;border:0;border-radius:9px;padding:13px 17px;margin-top:14px;width:100%;cursor:pointer}button:disabled{opacity:.6;cursor:wait}small{color:var(--muted)}#feedback{min-height:24px;margin-top:12px;color:#b91c1c}#email{font-weight:600;color:#193361;word-break:break-all}
+</style>
+<script src="/onboarding.js" defer></script>
+</head><body><main>
+<div style="color:#2d63ff;font-weight:700;margin-bottom:10px">AFFINITY UNIVERSE</div>
+<h1>강사 이용 등록</h1>
+<p>이메일 인증이 완료됐습니다. 첫 이용 시에만 운영팀에서 전달받은 <strong>강사용 초대코드</strong>를 입력해 주세요. 등록 후에는 같은 이메일로 바로 이용할 수 있습니다.</p>
+<label>인증된 이메일</label><div id="email">확인 중...</div>
+<form id="enrollForm" autocomplete="off"><label for="inviteCode" style="margin-top:20px">강사용 초대코드</label><input type="password" id="inviteCode" name="inviteCode" autocomplete="off" minlength="1" maxlength="256" required placeholder="운영팀에서 안내받은 코드" aria-describedby="inviteHelp"><small id="inviteHelp">초대코드는 담당자로부터 별도로 전달받으세요. 먼데이 API 키와 다른 값입니다.</small><button id="enrollBtn" type="submit">등록하고 시작하기</button></form>
+<div id="feedback" role="status" aria-live="polite"></div>
+<small>본인의 인증 이메일과 초대코드가 확인되어야 수강생 검색 및 먼데이 등록이 가능합니다.</small>
+</main></body></html>

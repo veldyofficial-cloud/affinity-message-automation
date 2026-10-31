@@ -1,6 +1,7 @@
 import {authenticate} from './access.js';
 import {approve,lookup} from './routes.js';
 import {json} from './monday.js';
+import {enabled, enrollInstructor, instructorRole, listInstructors, updateInstructor} from './instructor-access.js';
 
 const secureHeaders = {
   'Cache-Control':'private, no-store, max-age=0',
@@ -11,24 +12,56 @@ const secureHeaders = {
 function locked(error,status) {
   return new Response(error,{status,headers:{'Content-Type':'text/plain; charset=utf-8',...secureHeaders}});
 }
+async function asset(request,env,overridePath) {
+  if (!env.ASSETS) return locked('정적 HTML 파일 설정이 없습니다.',503);
+  const url=new URL(request.url);
+  if (overridePath) url.pathname=overridePath;
+  const res=await env.ASSETS.fetch(new Request(url, request));
+  const h=new Headers(res.headers);
+  Object.entries(secureHeaders).forEach(([k,v])=>h.set(k,v));
+  return new Response(res.body,{status:res.status,statusText:res.statusText,headers:h});
+}
 export default {
   async fetch(request,env,ctx) {
-    const auth=await authenticate(request,env);
-    if (!auth.ok) return locked(auth.error,auth.status);
+    const identity=await authenticate(request,env);
+    if (!identity.ok) return locked(identity.error,identity.status);
     const path=new URL(request.url).pathname;
+    let role;
+    try { role=await instructorRole(identity,env); }
+    catch { return locked('강사 권한 저장소에 연결할 수 없습니다. 담당자에게 문의해 주세요.',503); }
+    if (path==='/api/auth/status' && request.method==='GET') {
+      return json({ok:true,email:identity.email,role:role||'pending',enrollmentEnabled:enabled(env)});
+    }
+    if (path==='/api/auth/enroll' && request.method==='POST') {
+      if(identity.isAdmin) return json({ok:false,error:'관리자는 별도 등록이 필요하지 않습니다.'},400);
+      return enrollInstructor(identity,request,env);
+    }
+    if (path.startsWith('/api/admin/')) {
+      if(role!=='admin') return json({ok:false,error:'관리자 전용 기능입니다.'},403);
+      if(path==='/api/admin/instructors' && request.method==='GET') return listInstructors(env);
+      if(path==='/api/admin/instructors' && request.method==='POST') return updateInstructor(request,env);
+      return json({ok:false,error:'지원하지 않는 관리자 요청입니다.'},404);
+    }
+    if (path==='/admin' || path==='/admin.html' || path==='/admin.js') {
+      if(role!=='admin') return locked('관리자만 접근할 수 있습니다.',403);
+      if(request.method!=='GET' && request.method!=='HEAD') return locked('잘못된 요청입니다.',405);
+      return asset(request,env,path==='/admin'?'/admin.html':undefined);
+    }
+    if (!role) {
+      if (path.startsWith('/api/')) return json({ok:false,error:'등록된 강사만 학생 데이터 및 등록 기능을 이용할 수 있습니다.'},403);
+      if (request.method!=='GET' && request.method!=='HEAD') return locked('잘못된 요청입니다.',405);
+      if (!enabled(env)) return locked('강사 초대 등록이 준비되지 않았습니다. 운영 담당자에게 문의해 주세요.',403);
+      return asset(request,env,path==='/onboarding.js'?'/onboarding.js':'/onboarding.html');
+    }
     if (path.startsWith('/api/')) {
       if (path==='/api/health' && request.method==='GET')
         return json({ok:true,access:true,registry:Boolean(env.REGISTRY),monday:Boolean(env.MONDAY_API_TOKEN)});
       if (request.method!=='POST') return json({ok:false,error:'POST 요청만 지원합니다.'},405);
       if(path==='/api/lookup') return lookup(request,env);
-      if(path==='/api/approve') return approve(request,env,auth.email);
+      if(path==='/api/approve') return approve(request,env,identity.email);
       return json({ok:false,error:'해당 API를 찾을 수 없습니다.'},404);
     }
-    if(!env.ASSETS) return locked('정적 HTML 파일 설정이 없습니다.',503);
-    if(request.method!=='GET' && request.method!=='HEAD') return locked('잘못된 요청입니다.',405);
-    const res=await env.ASSETS.fetch(request);
-    const h=new Headers(res.headers);
-    Object.entries(secureHeaders).forEach(([k,v])=>h.set(k,v));
-    return new Response(res.body,{status:res.status,statusText:res.statusText,headers:h});
+    if (request.method!=='GET' && request.method!=='HEAD') return locked('잘못된 요청입니다.',405);
+    return asset(request,env);
   },
 };

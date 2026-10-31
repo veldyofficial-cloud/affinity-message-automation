@@ -1,0 +1,7 @@
+# Local development placeholders only. NEVER put actual tokens in GitHub.
+MONDAY_API_TOKEN=REPLACE_WITH_LOCAL_TEST_TOKEN_ONLY
+TEAM_DOMAIN=https://YOUR_TEAM.cloudflareaccess.com
+POLICY_AUD=REPLACE_WITH_ACCESS_APPLICATION_AUDIENCE
+ACCESS_ALLOWED_EMAILS=veldy.official@gmail.com,affinityuniverse.flow@gmail.com
+# Add only in local, never set to a real code here. Cloudflare production uses a Secret.
+INSTRUCTOR_INVITE_CODE=REPLACE_WITH_LONG_RANDOM_STRING_24_CHARACTERS_OR_MORE

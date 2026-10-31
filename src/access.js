@@ -54,9 +54,8 @@ export async function authenticate(request, env) {
     }
     if (typeof payload.email !== 'string' || !payload.email.includes('@')) throw new Error('직원 이메일 확인 실패');
     const emails = String(env.ACCESS_ALLOWED_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-    if (!emails.length) return {ok:false,status:503,error:'승인 직원 이메일 목록을 먼저 설정해 주세요.'};
-    if (!emails.includes(payload.email.toLowerCase())) return {ok:false,status:403,error:'승인 권한이 없는 직원 계정입니다.'};
-    let keys = await getCerts(domain);
+    if (!emails.length) return {ok:false,status:503,error:'관리자 이메일 설정이 완료되지 않았습니다.'};
+      let keys = await getCerts(domain);
     let jwk = keys.find(k=>k.kid===header.kid && k.kty==='RSA');
     if (!jwk) {
       keys = await getCerts(domain,true); // key rotation
@@ -68,7 +67,7 @@ export async function authenticate(request, env) {
     const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key,
       fromBase64Url(encodedSignature), new TextEncoder().encode(`${encodedHeader}.${encodedBody}`));
     if (!valid) throw new Error('JWT 서명 검증 실패');
-    return {ok:true, email:payload.email.toLowerCase()};
+    return {ok:true, email:payload.email.toLowerCase(), isAdmin: emails.includes(payload.email.toLowerCase())};
   } catch {
     return {ok:false,status:403,error:'Cloudflare Access 인증이 유효하지 않습니다. 다시 로그인해 주세요.'};
   }

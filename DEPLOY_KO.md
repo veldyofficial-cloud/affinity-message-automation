@@ -1,60 +1,63 @@
-# 새 GitHub 저장소로 분리하고 Cloudflare 재연결하기
+# Cloudflare 강사 이용 및 먼데이 Infohub 등록 배포 가이드
 
-## 1. 왜 따로 분리하나요?
+## 현재 구성
 
-기존 `veldyofficial-cloud/AFFINITY`의 루트 `index.html`은 **인트라넷**입니다. 이번 프로젝트의 루트 `public/index.html`이 **안내메시지 자동 생성기**입니다. 기존 프로젝트의 `main`을 변경하지 않습니다.
+- 소스: `https://github.com/veldyofficial-cloud/affinity-message-automation` → `main`
+- Worker: `infohub-approval-cloudflare`
+- Root directory: `/` / Deploy command: `npx wrangler deploy`
+- GitHub에 Push하면 Cloudflare Workers Builds 자동 배포. 기존 `AFFINITY` 인트라넷 저장소와 무관합니다.
 
-## 2. GitHub: 사용자 최초 1회 작업
+## 1. Cloudflare Access 이메일 로그인 설정
 
-1. https://github.com/new 를 엽니다.
-2. Owner `veldyofficial-cloud`, Repository name `affinity-message-automation`, Visibility **Private**.
-3. `Add a README file` 체크를 켜고 `Create repository`를 누릅니다. 이 초기 README는 후속 푸시로 교체합니다.
-4. 저장소가 만들어지면 `https://github.com/veldyofficial-cloud/affinity-message-automation` 주소를 ChatGPT에 전달해 주세요. 현재 연결된 GitHub 도구는 **기존 저장소의 파일 추가/커밋은 가능하지만 신규 저장소 생성은 지원하지 않습니다.**
+Cloudflare Dashboard → Zero Trust → Integrations → Identity providers → Add new identity provider → **One-time PIN**.
 
-## 3. Cloudflare: 기존 실패 Worker 재사용
+Zero Trust → Access controls → Policies → 새 `Allow` 정책을 만들고, `Include → Login Methods → One-time PIN`을 선택합니다. 이 정책을 Workers & Pages의 `infohub-approval-cloudflare` Access 애플리케이션에 연결합니다. **Scope는 All traffic**입니다. 인증된 이메일을 요구하고, 사용자가 검증된 Cloudflare Access JWT를 받아야 합니다. `Bypass` 정책과 `Everyone` 직접 공개 접근을 사용하지 마세요. 권장 세션 시간 24시간~7일.
 
-현재 실패 화면에 보이는 Worker: `infohub-approval-cloudflare`.
+중요: 이 정책 자체는 유효 이메일 소유자에게 로그인 창을 보여줍니다. **실제 수강생 DB와 승인 기능은 서버의 강사용 초대코드 등록 여부를 다시 검사**합니다. 새 강사 등록 기능이 설정되지 않았다면 모든 비관리자 요청은 차단됩니다.
 
-1. Cloudflare 대시보드 → Workers & Pages → `infohub-approval-cloudflare`.
-2. Settings → Builds → Git Repository → **Disconnect** (기존 인트라넷 저장소 연결만 해제; 배포된 코드 삭제는 아님).
-3. **Connect** 버튼에서 `veldyofficial-cloud/affinity-message-automation` 선택.
-4. Production branch `main`.
-5. **Path** `/` (프로젝트가 새 저장소의 루트에 들어있기 때문).
-6. Build command 비워두기 / Deploy command `npx wrangler deploy` / Preview builds OFF.
-7. Worker `infohub-approval-cloudflare`와 `wrangler.jsonc`의 `name`이 일치하는지 확인하고 배포를 시작합니다.
+## 2. Worker 런타임 변수 (Build variables가 아님)
 
-Cloudflare 공식 절차: https://developers.cloudflare.com/workers/ci-cd/builds/ (기존 Worker 저장소 변경 시 Disconnect 후 Connect).
+Workers & Pages → `infohub-approval-cloudflare` → Settings → Runtime variables and secrets → Add variable.
 
-## 4. 직원 계정 접근
-
-- Cloudflare Access: Scope = **All traffic**.
-- 기존 `Cloudflare account` 정책은 Cloudflare 관리 계정 구성원만 허용합니다. 개인 Gmail 팀원들이 자유롭게 쓰려면 **Cloudflare Zero Trust의 Access Allow → Emails 정책**을 추가하고 OTP 또는 사용 가능한 IdP로 로그인하게 해야 합니다.
-- 코드에도 `ACCESS_ALLOWED_EMAILS` 서버 변수의 이메일 목록에 포함되어야 사용됩니다. 예: `veldy.official@gmail.com,affinityuniverse.flow@gmail.com`.
-- **모든 개인 계정을 사전 등록 없이 허용하려면** 별도의 Monday OAuth 사용자 인증/Infohub 권한 검증 구현이 필요합니다. 현 코드에서는 지원되지 않습니다. 모든 방문자에게 서비스를 공개하지 마세요.
-
-## 5. 서버 환경 변수 / 실제 DB 쓰기 활성화
-
-Workers & Pages → Worker → Settings → Variables and Secrets.
-
-| 이름 | 유형 | 사용처 |
+| 이름 | 유형 | 입력 |
 | --- | --- | --- |
-| `MONDAY_API_TOKEN` | **Secret** | monday API GraphQL 호출 |
-| `TEAM_DOMAIN` | Text | Cloudflare Access 조직 도메인 예 `https://xxxxx.cloudflareaccess.com` |
-| `POLICY_AUD` | Text | Cloudflare Access Application AUD JWT 검증 |
-| `ACCESS_ALLOWED_EMAILS` | Text | 콤마로 구분한 직원 메일 목록 |
+| `TEAM_DOMAIN` | Text | Access 팀 도메인 (예 `https://xxxxx.cloudflareaccess.com`) |
+| `POLICY_AUD` | Text | Access Application Audience(AUD) Tag |
+| `ACCESS_ALLOWED_EMAILS` | Text | 배포 관리자 이메일 목록 (예: `veldy.official@gmail.com`) |
+| `INSTRUCTOR_INVITE_CODE` | **Secret** | 비밀번호 생성기로 만든 길고 무작위한 24자 이상 초대코드 |
+| `MONDAY_API_TOKEN` | **Secret** | Infohub 읽기/쓰기 권한이 있는 먼데이 계정에서 발급한 API 토큰 |
 
-`MONDAY_API_TOKEN`은 Cloudflare 자체 Build API token(`affinity-infohub-builds`)과 **전혀 다른 값**입니다. API 키를 절대로 GitHub 저장소나 채팅에 붙여 넣지 마세요.
+`INSTRUCTOR_INVITE_CODE`는 먼데이 키가 아닙니다. API 키와 초대코드를 GitHub, 채팅, 공개 문서, Build variables에 올리지 마세요. 환경 변수 수정 후 새 버전을 배포하고 Access 보호가 작동하는지 확인하세요.
 
-설정 전에도 사용자 본문 데이터는 자동으로 업로드되지 않습니다. 승인 요청은 인증과 설정이 모두 충족되는 경우에만 진행됩니다.
+`TEAM_DOMAIN`은 Zero Trust 팀 설정에서, `POLICY_AUD`는 해당 Access 애플리케이션 설정에서 확인합니다. `ACCESS_ALLOWED_EMAILS`가 비어 있으면 모든 접근을 차단하도록 코드가 설계되어 있습니다.
 
-## 6. 운영 전 테스트
+## 3. 접속 주소 및 관리자 페이지
 
-- `https://<your-worker>.workers.dev/api/health` 를 로그인된 브라우저로 열었을 때 `ok/access/registry/monday` 확인.
-- 프런트엔드 안내문이 `[BRANDING] PERSONAL COURSE`를 표시하고 별도 링크가 없는지 확인.
-- 테스트 보드에만 `LESSON`과 `휴강` 하위아이템이 생기는지 확인. 현재 서버 코드가 **운영 Infohub ID에 고정**되어 있으므로 그대로 승인하는 것은 금지.
-- 수업 회차, 요일 그룹, 날짜, 강사, 학생, 메시지 업데이트를 실데이터와 대조.
-- 승인 실패나 부분등록 시 자동 재시도를 하지 말고 기록을 확인.
+Workers & Pages → Worker → Domains에서 `workers.dev` 활성화. **All traffic Access 보호를 먼저 확인**하세요.
 
-## 7. 초기 설정 이후
+- 프로그램: `https://infohub-approval-cloudflare.veldy-official.workers.dev/` (배포 URL 활성화 필요)
+- 관리자 강사 명단: 위 주소 뒤에 `/admin`
+- 인증 상태: `/api/auth/status`
+- 바인딩 상태: `/api/health`
 
-프로덕션 브랜치 `main`으로 코드를 Push하면 Cloudflare Workers Builds가 `npx wrangler deploy`를 실행하여 자동 배포합니다. API 토큰은 클라우드 서버에 계속 저장되므로 직원이 매번 입력할 필요는 없습니다.
+관리자 이메일은 바로 프로그램 접근. 강사는 Cloudflare 이메일 1회용 PIN으로 로그인하고 처음 한 번만 강사용 초대코드를 입력합니다. 성공하면 그 이메일의 이용 권한을 저장합니다. 등록된 강사는 이후 세션 만료 시 이메일로 다시 로그인하지만 초대코드는 다시 입력하지 않습니다.
+
+관리자는 `/admin`에서 강사별 이용 차단 및 복구를 할 수 있습니다. 차단 시 저장된 초대코드 인증 정보와 관계없이 다음 요청부터 학생 조회와 먼데이 등록이 중단됩니다. 별도 Monday OAuth나 개인별 API 토큰은 필요하지 않습니다.
+
+**관리자가 초대코드를 한 번 안전한 채널로 전달하면 해당 코드를 가진 사람이 스스로 등록할 수 있다는 점을 인지해야 합니다.** 초대코드 유출이 의심되면 Secret을 교체하고 `/admin`에서 등록된 이메일을 점검합니다.
+
+## 4. 안전한 운영 검증
+
+1. Access 보호가 켜진 상태에서 관리자 로그인 성공 여부 확인.
+2. 비등록 개인 이메일은 초대코드 화면만 나오고, `/api/lookup`, `/api/approve` 접근이 차단되는지 확인.
+3. 강사 개인 이메일 로그인 및 초대코드 1회 등록 후 정상 화면 확인. 관리자 `/admin`에서 등록 계정 표시되는지 확인.
+4. `/api/health`의 `access`, `registry`, `monday`가 true인지 확인. 이는 API 토큰의 실제 권한 검증을 뜻하지 않습니다.
+5. 테스트용 별도 먼데이 보드에서 학생 연결, LESSON, 휴강, 날짜, 안내 메시지 업데이트가 정확한지 확인.
+6. 현재 `src/monday.js`는 **운영 보드 IDs 1888467610 / 1879266175로 고정**되어 있습니다. 테스트 보드 ID/그룹/컬럼 ID로 변경하기 전에는 **승인 버튼을 클릭하지 마세요**.
+7. 테스트가 통과한 뒤 운영 보드 설정을 되돌리고 직원들에게 주소와 초대코드를 각각 안전하게 전달합니다.
+
+## 5. 무료 플랜 조건과 한계
+
+Cloudflare Zero Trust Free는 일반적으로 50명 미만 팀을 위한 플랜입니다. 전 강사를 포함한 이용자가 50명을 넘으면 유료 플랜 검토가 필요합니다. 직원 수뿐 아니라 로그인한 사용자의 수를 확인하세요.
+
+각 강사가 자신의 먼데이 계정을 가지지 않아도 서버의 밸디 먼데이 토큰으로 Infohub에 데이터를 등록할 수 있습니다. 다만 모든 승인된 강사가 동일한 서버 권한으로 접근하므로 수강생 데이터 접근 범위와 운영 절차를 함께 관리해야 합니다. 이는 정식 사용자별 Monday OAuth 권한 구조가 아닙니다.
