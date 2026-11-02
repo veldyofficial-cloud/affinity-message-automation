@@ -1322,7 +1322,7 @@
     const preview = $("expectedEndPreview");
     if(!preview) return;
 
-    if($("messageType").value !== "CLASS"){
+    if(["MAKEUP_40","MAKEUP_30"].includes($("messageType").value)){
       preview.value = "단일 일정에는 사용하지 않음";
       return;
     }
@@ -1332,7 +1332,7 @@
       return;
     }
 
-    const lessonCount = Number($("lessonCount").value);
+    const lessonCount = $("messageType").value==="TRIAL"?4:Number($("lessonCount").value);
     if(![4,8,10,12].includes(lessonCount)){
       preview.value = "";
       return;
@@ -1847,12 +1847,12 @@ Step 4. 사진 구성
     const lessonCount = Number($("lessonCount").value);
     let isExpectedEnd = false;
 
-    if(messageType === "CLASS" && !endDay){
-      if(![4,8,10,12].includes(lessonCount)){
+    if((messageType === "CLASS" || messageType==="TRIAL") && !endDay){
+      if(messageType!=="TRIAL" && ![4,8,10,12].includes(lessonCount)){
         return { ok:false, error:"종강일을 비운 경우 수업 회차(4강/8강/10강/12강)를 선택해 주세요." };
       }
 
-      endDay = calculateExpectedEndDate(startDay, weekday, lessonCount, effectiveClosedList);
+      endDay = calculateExpectedEndDate(startDay, weekday, messageType==="TRIAL"?4:lessonCount, effectiveClosedList);
       if(!endDay){
         return { ok:false, error:"휴강일을 반영한 예상 종강일을 계산하지 못했습니다." };
       }
@@ -1879,7 +1879,7 @@ Step 4. 사진 구성
       return { ok:false, error:"해외 수강생은 시간대 설정이 필요합니다." };
     }
 
-    if(messageType !== "CLASS"){
+    if(messageType === "MAKEUP_40" || messageType === "MAKEUP_30"){
       const singleText = buildMakeupOrTrialMessage({
         messageType,
         templateType,
@@ -2083,8 +2083,11 @@ Affinity Universe
     const el = $("mondayItemName");
     if(!el || mondayNameWasEdited) return;
     const v = $("curriculumSelect").value;
-    el.value = v === BRANDING_COURSE_LABEL ? "[BRANDING] PERSONAL COURSE"
-      : v === CUSTOM_COURSE_LABEL ? "" : v;
+    const base=v===BRANDING_COURSE_LABEL?"[BRANDING] PERSONAL COURSE":v===CUSTOM_COURSE_LABEL?"":v;
+    const type=$("messageType").value;
+    const lesson="LESSON "+String(Number($("makeupLessonNumber").value)||1).padStart(2,"0");
+    el.value=type==="TRIAL" ? base.replace(/\]\s*.*$/,"] TRIAL 🚀") :
+      (type==="MAKEUP_40"||type==="MAKEUP_30") ? base+" | "+lesson+" "+(type==="MAKEUP_40"?"보강":"보충") : base;
   }
 
   // Monday personnel IDs verified read-only against the account's active teacher roster.
@@ -2301,11 +2304,13 @@ Affinity Universe
 
     function syncMessageTypeUI(){
       const v = $("messageType").value;
-      const isSingle = v !== "CLASS";
+      const isSingle = v==="MAKEUP_40"||v==="MAKEUP_30";
+      $("makeupLessonBox").style.display=isSingle?"block":"none";
+      if(v==="TRIAL")$("lessonCount").value="4";
        $("endDay").disabled = isSingle;
        updateEndDateVisualState();
       $("endDay").closest("div").style.opacity = isSingle ? "0.45" : "1";
-      $("lessonCount").disabled = isSingle;
+      $("lessonCount").disabled = isSingle || v==="TRIAL";
       $("lessonCount").closest("div").style.opacity = isSingle ? "0.45" : "1";
       document.querySelector('label[for="startDay"]').textContent = isSingle ? "일정일(필수)" : "클래스 시작일(필수)";
       document.querySelector('label[for="endDay"]').textContent = isSingle ? "종료일 사용 안 함" : "클래스 종료일(선택)";
