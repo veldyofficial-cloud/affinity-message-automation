@@ -1757,12 +1757,16 @@ Step 4. 사진 구성
       return;
     }
 
+    const messageType = $("messageType").value;
     const startDay = $("startDay").value;
-    let endDay = (messageType === "CLASS" || messageType==="TRIAL") ? $("endDay").value : $("startDay").value;
+    // Regular and trial classes extend over multiple weeks; makeup/supplement
+    // are single sessions. The preview must match the final notice.
+    let endDay = (messageType === "CLASS" || messageType === "TRIAL")
+      ? $("endDay").value : startDay;
     const weekday = $("weekday").value;
 
-    if($("messageType")?.value === "CLASS" && !endDay){
-      const lessonCount = Number($("lessonCount").value);
+    if((messageType === "CLASS" || messageType === "TRIAL") && !endDay){
+      const lessonCount = messageType === "TRIAL" ? 4 : Number($("lessonCount").value);
       endDay = calculateExpectedEndDate(startDay, weekday, lessonCount, getEffectiveClosedList()) || "";
     }
     const amPm = $("amPm").value;
@@ -1816,7 +1820,10 @@ Step 4. 사진 구성
     }
 
     const startDay = $("startDay").value;
-    let endDay = $("messageType")?.value === "CLASS" ? $("endDay").value : $("startDay").value;
+    // Trial is a four-lesson course: show its last class date, including
+    // closure-driven extensions, rather than repeating its start date.
+    let endDay = (messageType === "CLASS" || messageType === "TRIAL")
+      ? $("endDay").value : startDay;
     const weekday = $("weekday").value;
     const amPm = $("amPm").value;
     const korTimeStr = $("korTime").value.trim();
