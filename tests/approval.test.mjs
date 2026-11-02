@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/worker-core.js';
-import {derivePlan, BOARD_ID, COL} from '../src/monday.js';
+import {derivePlan, infohubDstLabel, BOARD_ID, COL} from '../src/monday.js';
 import {TEACHERS,isAllowedTeacher} from '../src/teachers.js';
 
 const origin='https://affinity-infohub-approval.account.workers.dev';
@@ -39,9 +39,13 @@ async function mockServices() {
  globalThis.fetch=async(url,options={})=>{
   if(String(url)===TEAM_DOMAIN+'/cdn-cgi/access/certs') return Response.json({keys:[jwk]});
   if(String(url)==='https://api.monday.com/v2'){
-    const call=JSON.parse(options.body);currentRequests.push(call);
+    const call=JSON.parse(options.body);currentRequests.push({...call,authToken:options.headers.Authorization});
     const q=call.query;let data;
-    if(q.includes('items(ids:')) data={items:(call.variables.ids||[]).map(id=>({id,name:`Demo Student ${id}`,board:{id:'1879266175'},column_values:[{id:'text_mksvtgc8',text:`student${id}@example.com`}] }))};
+    if(q.includes('me {id name email}')){
+      const flow=options.headers.Authorization==='MOCK_FLOW_TOKEN';
+      data={me:{id:flow?'777':'62032468',name:flow?'AFFINITY FLOW':'OLIVIA',email:flow?'affinityuniverse.flow@gmail.com':'veldy.official@gmail.com'},boards:[{id:String(BOARD_ID)}]};
+    }
+    else if(q.includes('items(ids:')) data={items:(call.variables.ids||[]).map(id=>({id,name:`Demo Student ${id}`,board:{id:'1879266175'},column_values:[{id:'text_mksvtgc8',text:`student${id}@example.com`}] }))};
     else if(q.includes('users(ids:')) data={users:(call.variables.ids||[]).map(id=>{const t=TEACHERS.find(t=>t.id===Number(id));return t?{id,name:t.name}:null;}).filter(Boolean)};
     else if(q.includes('items_page(')) data={boards:[{items_page:{cursor:null,items:[{id:'14500123',name:'Demo Student'}]}}]};
     else if(q.includes('create_item(')){
@@ -58,7 +62,7 @@ async function mockServices() {
       data={create_subitem:{id:'999900001'}};
     }else if(q.includes('create_update(')){
       assert.match(call.variables.body,/\[BRANDING\] PERSONAL COURSE/);
-      data={create_update:{id:'999900002'}};
+      data={create_update:{id:'999900002',creator:{id:'777',name:options.headers.Authorization==='MOCK_FLOW_TOKEN'?'AFFINITY FLOW':'OLIVIA'}}};
     }else throw new Error(`Unexpected monday query: ${q}`);
     return Response.json({data});
   }
@@ -223,5 +227,45 @@ test('PC emails and subitem notes appear in mocked Monday create_item/create_sub
  const lesson=JSON.parse(currentRequests.filter(x=>x.query.includes('create_subitem(')).at(-1).variables.values);
  assert.equal(lesson[COL.subMemo],'보강 요청 사유');
  assert.equal(lesson[COL.subAttendance],'1');
+ globalThis.fetch=realFetch;
+});
+
+
+test('DST reflects KST-fixed choice and not student geographic location',async()=>{
+ assert.equal(infohubDstLabel({studentLocation:'DOMESTIC',dstMode:'AUTO'}),'🇰🇷');
+ assert.equal(infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'STUDENT_CHANGE'}),'🇰🇷');
+ assert.equal(infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'AUTO'}),'🌐');
+ assert.throws(()=>infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'unsupported'}));
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ for(const [mode,label] of [['STUDENT_CHANGE','🇰🇷'],['AUTO','🌐']]){
+  const resp=await worker.fetch(request('/api/approve',token,{...input(),itemName:'DST TEST '+mode,
+     studentLocation:'OVERSEAS',dstMode:mode,templateType:'IPAD'}),env,{});
+  assert.equal(resp.status,200,await resp.clone().text());
+  const cols=JSON.parse(currentRequests.filter(x=>x.query.includes('create_item(')).at(-1).variables.values);
+  assert.deepEqual(cols[COL.domesticOrOverseas],{label});
+ }
+ globalThis.fetch=realFetch;
+});
+
+test('Flow token only posts the update and wrong account blocks before DB writes',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const flowEnv={...env,MONDAY_UPDATE_API_TOKEN:'MOCK_FLOW_TOKEN'};
+ const msg={...input(),itemName:'FLOW COMMENT TEST'};
+ const resp=await worker.fetch(request('/api/approve',token,msg),flowEnv,{});
+ assert.equal(resp.status,200,await resp.clone().text());
+ const rows=currentRequests;
+ assert.equal(rows.find(x=>x.query.includes('me {id name email}')).authToken,'MOCK_FLOW_TOKEN');
+ assert.equal(rows.find(x=>x.query.includes('create_update(')).authToken,'MOCK_FLOW_TOKEN');
+ assert.equal(rows.find(x=>x.query.includes('create_item(')).authToken,'MOCK_TOKEN');
+ assert.equal((await resp.json()).updateAuthor,'AFFINITY FLOW');
+ currentRequests=[];
+ const bad=await worker.fetch(request('/api/approve',token,{...msg,itemName:'FLOW BAD TOKEN TEST'}),
+ {...env,MONDAY_UPDATE_API_TOKEN:'MOCK_TOKEN'},{});
+ assert.equal(bad.status,400);
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
  globalThis.fetch=realFetch;
 });
