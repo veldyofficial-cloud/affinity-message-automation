@@ -66,7 +66,7 @@ async function mockServices() {
  };
 }
 function input(){return {approvalId:'example-approval-12345',studentName:'Demo Student',itemName:'[BRANDING] PERSONAL COURSE',
- studentIds:[14500123],teacherId:62032468,messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'PC',deviceType:'아이패드',studentLocation:'DOMESTIC',weekday:'월',startDay:'2026-11-02',endDay:'2026-11-30',lessonCount:4,explicitLessonCount:4,kstTime24:{hh:19,mm:0},closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],schedule:[
+ studentIds:[14500123],teacherId:62032468,messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'PC',studentLocation:'DOMESTIC',weekday:'월',startDay:'2026-11-02',endDay:'2026-11-30',lessonCount:4,explicitLessonCount:4,kstTime24:{hh:19,mm:0},closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],schedule:[
  {date:'2026-11-02',kind:'LESSON',name:'LESSON 01'},
  {date:'2026-11-09',kind:'CLOSED',name:'수강생 요청 휴강'},
  {date:'2026-11-16',kind:'LESSON',name:'LESSON 02'},
@@ -165,23 +165,21 @@ test('records the actual iPad, Galaxy and PC status labels on Infohub parent ite
  await mockServices();
  currentRequests=[];
  const token=await jwt();
- for(const [template,raw,label] of [
-   ['PC','아이패드','PC'],
-   ['DIGITAL_DRAWING','아이패드','IPAD'],
-   ['DIGITAL_DRAWING','갤탭','GALAXY']
- ]){
-   const p={...input(),itemName:'[DRAWING] BASIC '+label+' mock device test',
-      templateType:template,deviceType:raw};
+ for(const selected of ['PC','IPAD','GALAXY']){
+   // Even stale deviceType values must not change the upper selection.
+   const p={...input(),itemName:'[DRAWING] BASIC '+selected+' mock device test',
+      templateType:selected,deviceType:selected==='GALAXY'?'아이패드':'갤탭'};
    const resp=await worker.fetch(request('/api/approve',token,p),env,{});
    assert.equal(resp.status,200,await resp.clone().text());
    const writes=currentRequests.filter(x=>x.query.includes('create_item('));
-   const actual=JSON.parse(writes.at(-1).variables.values)[COL.device];
-   assert.deepEqual(actual,{label});
+   assert.deepEqual(JSON.parse(writes.at(-1).variables.values)[COL.device],{label:selected});
  }
  const beforeWrites=currentRequests.filter(x=>x.query.includes('create_item(')).length;
- const invalid={...input(),itemName:'[DRAWING] INVALID',templateType:'DIGITAL_DRAWING',deviceType:'not-valid'};
- const rejected=await worker.fetch(request('/api/approve',token,invalid),env,{});
- assert.equal(rejected.status,400);
+ for(const bad of ['','DIGITAL_DRAWING','GALAXY_IPAD','ipad']){
+   const rejected=await worker.fetch(request('/api/approve',token,
+     {...input(),itemName:'[DRAWING] INVALID '+bad,templateType:bad}),env,{});
+   assert.equal(rejected.status,400);
+ }
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,beforeWrites);
  globalThis.fetch=realFetch;
 });

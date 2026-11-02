@@ -111,7 +111,7 @@ export function derivePlan(input) {
     throw new Error('한국시간 값이 올바르지 않습니다.');
   }
   if (!['ONE_ON_ONE','GROUP'].includes(input.classType)) throw new Error('수업 유형이 올바르지 않습니다.');
-  if (!['PC','DIGITAL_DRAWING'].includes(input.templateType)) throw new Error('기기 유형이 올바르지 않습니다.');
+  if (!['PC','IPAD','GALAXY'].includes(input.templateType)) throw new Error('상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요.');
   if (!['DOMESTIC','OVERSEAS'].includes(input.studentLocation)) throw new Error('국내/해외 설정 오류입니다.');
   if (input.studentLocation==='OVERSEAS' && input.dstMode==='TEACHER_CHANGE') {
     throw new Error('강사 한국시간이 바뀌는 DST 모드는 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다.');

@@ -76,10 +76,11 @@ export async function approve(request, env, email) {
     }).filter(Boolean);
     const emailText=p.templateType==='PC'?[...new Set(studentEmails)].join(';'):'';
     if(emailText.length>3000)throw new Error('연결된 이메일이 너무 깁니다.');
-    const device = p.templateType === 'PC' ? 'PC' :
-      p.templateType === 'DIGITAL_DRAWING' && p.deviceType === '아이패드' ? 'IPAD' :
-      p.templateType === 'DIGITAL_DRAWING' && p.deviceType === '갤탭' ? 'GALAXY' : null;
-    if (!device) throw new Error('선택한 클래스 구분과 기기를 확인해 주세요.');
+    // Single source of truth: upper PC/IPAD/GALAXY choice -> Monday device label.
+    const device=p.templateType;
+    if (!['PC','IPAD','GALAXY'].includes(device)) {
+      throw new Error('상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요.');
+    }
 
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,

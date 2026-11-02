@@ -294,11 +294,14 @@
       </div>
       <div>
         <label for="templateType">클래스 구분</label>
-        <select id="templateType">
+        <select id="templateType" required>
+          <option value="">기기를 선택해 주세요</option>
           <option value="PC">PC</option>
-          <option value="DIGITAL_DRAWING">디지털 드로잉</option>
+          <option value="IPAD">IPAD</option>
+          <option value="GALAXY">GALAXY</option>
         </select>
-        <div id="mondayDevicePreview" class="note small" aria-live="polite">Infohub 기기: PC</div>
+        <div id="mondayDevicePreview" class="note small" aria-live="polite">Infohub 기기: 선택 필요</div>
+        <div class="note small">선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 그대로 등록됩니다. 커리큘럼 변경 시에도 유지됩니다.</div>
       </div>
     </div>
 
@@ -539,19 +542,6 @@
       <div>
         <label for="curriculumUrl">커리큘럼 URL 코드(자동)</label>
         <input id="curriculumUrl" type="text" placeholder="예: DrawingBasic" />
-      </div>
-    </div>
-
-    <div id="deviceBox" style="display:none; margin-top:10px">
-      <div class="row">
-        <div>
-          <label for="deviceType">기기</label>
-          <select id="deviceType">
-            <option value="아이패드">아이패드</option>
-            <option value="갤탭">갤럭시 탭</option>
-          </select>
-        </div>
-        <div></div>
       </div>
     </div>
 
@@ -1520,18 +1510,12 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function selectedMondayDeviceLabel(){
-    if ($("templateType").value === "PC") return "PC";
-    if ($("templateType").value === "DIGITAL_DRAWING"){
-      return $("deviceType").value === "갤탭" ? "GALAXY" : "IPAD";
-    }
-    return "선택 필요";
+    // Only the upper class-category choice determines Monday device status.
+    const selected = $("templateType").value;
+    return ["PC","IPAD","GALAXY"].includes(selected) ? selected : "선택 필요";
   }
 
-  function updateDeviceVisibility(){
-    // Show the device selector only when the class category matches the actual
-    // Monday device mapping. Drawing curriculum changes sync the category below.
-    const isDrawing = $("templateType").value === "DIGITAL_DRAWING";
-    $("deviceBox").style.display = isDrawing ? "block" : "none";
+  function updateMondayDevicePreview(){
     $("mondayDevicePreview").textContent = "Infohub 기기: " + selectedMondayDeviceLabel();
   }
 
@@ -1558,7 +1542,8 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
 
   function buildDrawingDeviceLine(curriculumName, deviceType){
     const requiresAppDownload = curriculumName === "[DRAWING] BASIC";
-    const deviceAndPen = deviceType === "갤탭"
+    if (deviceType === "PC") return "PC 및 수업에 필요한 프로그램 준비";
+    const deviceAndPen = deviceType === "GALAXY"
       ? "갤럭시 탭과 S펜 충전 필수"
       : "아이패드와 애플 펜슬 충전 필수";
 
@@ -1613,7 +1598,7 @@ ${participationText}`;
   function buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType){
     const hasDiscord = discord && discord !== "해당없음";
 
-    if(templateType === "DIGITAL_DRAWING"){
+    if(templateType === "IPAD" || templateType === "GALAXY"){
       const firstLine = hasDiscord
         ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장`
         : `• 수업 시작 5분 전 접속 권장`;
@@ -1640,7 +1625,7 @@ ${firstLine}
   function buildTrialParticipationGuide(templateType, curriculumName, discord, deviceType){
     const hasDiscord = discord && discord !== "해당없음";
 
-    if(templateType === "DIGITAL_DRAWING"){
+    if(templateType === "IPAD" || templateType === "GALAXY"){
       const firstLine = hasDiscord
         ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장`
         : `• 수업 시작 5분 전 접속 권장`;
@@ -1690,7 +1675,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
     return formatFullDateLine("🇰🇷", startDay, weekday, amPm, korTimeDisplay);
   }
 
-  function buildMakeupOrTrialMessage({ messageType, templateType, deviceType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl }){
+  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl }){
     const scheduleLines = buildSingleScheduleLines({ startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag });
 
     if(messageType === "MAKEUP_40" || messageType === "MAKEUP_30"){
@@ -1705,7 +1690,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
 [${titleLabel}] (${minutes})
 ${scheduleLines}
 
-${buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType)}
+${buildSimpleParticipationGuide(templateType, curriculumName, discord, templateType)}
 
 감사합니다.
 Affinity Universe
@@ -1729,7 +1714,7 @@ ${scheduleLines}
 ${learningProcessText}
 ${learningLinkText}
 
-${buildTrialParticipationGuide(templateType, curriculumName, discord, deviceType)}
+${buildTrialParticipationGuide(templateType, curriculumName, discord, templateType)}
 
 감사합니다.
 Affinity Universe
@@ -1817,11 +1802,13 @@ Step 4. 사진 구성
   function buildMessage(){
     const messageType = $("messageType").value;
     const templateType = $("templateType").value;
+    if (!["PC","IPAD","GALAXY"].includes(templateType)) {
+      return {ok:false,error:"상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요."};
+    }
     const studentName = $("studentName").value.trim();
     const classType = $("classType").value;
     const siblingType = $("siblingType").value;
     let discord = $("discord").value.trim();
-    const deviceType = $("deviceType").value;
 
     // 메시지 종류가 보강이고 PC 수업이면 디스코드 안내를 강제로 제외합니다.
     if((messageType === "MAKEUP_40" || messageType === "MAKEUP_30") && templateType === "PC"){
@@ -1883,7 +1870,6 @@ Step 4. 사진 구성
       const singleText = buildMakeupOrTrialMessage({
         messageType,
         templateType,
-        deviceType,
         discord,
         startDay,
         weekday,
@@ -2017,12 +2003,10 @@ ${noteLine ? noteLine + "\n" : ""}`;
       siblingType === "SISTER"
         ? `[${studentName} 클래스 일정]`
         : `[클래스 일정]`;
-    const participationGuideText = buildParticipationGuide(curriculumName, discord, deviceType);
+    const participationGuideText = buildParticipationGuide(curriculumName, discord, templateType);
     const additionalGuideText = getAdditionalGuideText(curriculumName);
 
-    const introLine = templateType === "DIGITAL_DRAWING"
-      ? "Affinity Universe: 좋은 소식을 알려드립니다."
-      : "Affinity Universe: 좋은 소식을 알려드립니다.";
+    const introLine = "Affinity Universe: 좋은 소식을 알려드립니다.";
 
     const customCourseName = $("customCourseName").value.trim();
     if(curriculumName === CUSTOM_COURSE_LABEL && !customCourseName){
@@ -2102,7 +2086,7 @@ Affinity Universe
   ];
 
   function registrationFingerprint(){
-    const ids = ["mondayLanguage","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType", "deviceType",
+    const ids = ["mondayLanguage","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
       "startDay", "endDay", "lessonCount", "weekday", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
@@ -2124,6 +2108,9 @@ Affinity Universe
     return rows;
   }
   function buildRegistrationPlan(){
+    if (!["PC","IPAD","GALAXY"].includes($("templateType").value)) {
+      return {ok:false,error:"상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요."};
+    }
     const messageType=$("messageType").value;
     const single=messageType==="MAKEUP_40"||messageType==="MAKEUP_30";
     const weekday = $("weekday").value;
@@ -2318,18 +2305,14 @@ Affinity Universe
       showAlert(v==="CLASS"?"클래스 일정 양식입니다.":v==="TRIAL"?"트라이얼 4회 일정입니다.":"보강/보충 1회 일정입니다.","ok");
       updateLocalPreview();
       updateExpectedEndPreview();
-      updateDeviceVisibility();
+      updateMondayDevicePreview();
       updateDiscordAvailability();
     }
 
     $("messageType").addEventListener("change", syncMessageTypeUI);
     $("templateType").addEventListener("change", ()=>{
-      updateDeviceVisibility();
+      updateMondayDevicePreview();
       updateDiscordAvailability();
-      refreshRegistrationPreview();
-    });
-    $("deviceType").addEventListener("change", ()=>{
-      updateDeviceVisibility();
       refreshRegistrationPreview();
     });
     syncMessageTypeUI();
@@ -2559,15 +2542,9 @@ Affinity Universe
         $("curriculumUrl").value = CURRICULUM_MAP[v] || "";
       }
 
-      // The curriculum can expose iPad/Galaxy controls. Keep its class
-      // category in sync so selecting Galaxy never accidentally sends PC.
-      const expectedTemplate = DRAWING_DEVICE_COURSES.includes(v) ? "DIGITAL_DRAWING" : "PC";
-      if($("templateType").value !== expectedTemplate){
-        $("templateType").value = expectedTemplate;
-        $("templateType").dispatchEvent(new Event("change"));
-      }
+      // Curriculum changes must never overwrite the user's explicit device selection.
       updateMondayItemName();
-      updateDeviceVisibility();
+      updateMondayDevicePreview();
       refreshRegistrationPreview();
     });
 
@@ -2647,7 +2624,6 @@ Affinity Universe
           messageType:$("messageType").value,
           classType:$("classType").value,
           templateType:$("templateType").value,
-          deviceType:$("deviceType").value,
           studentLocation:$("studentLocation").value,
           weekday:plan.weekday,
           startDay:plan.startDay,
@@ -2685,12 +2661,11 @@ Affinity Universe
       $("subMemo").value="";
       $("subMemos").value="";
       $("messageType").value = "CLASS";
-      $("templateType").value = "PC";
+      $("templateType").value = "";
       $("studentName").value = "";
       $("classType").value = "ONE_ON_ONE";
       $("siblingType").value = "BROTHER";
       $("discord").value = "해당없음";
-      $("deviceType").value = "아이패드";
       $("startDay").value = "";
        $("endDay").value = "";
        updateEndDateVisualState();
@@ -2741,7 +2716,6 @@ Affinity Universe
       $("curriculumUrl").value = "";
       $("customCourseName").value = "";
       $("customCourseBox").style.display = "none";
-      $("deviceBox").style.display = "none";
       $("curriculumUrl").disabled = false;
       $("curriculumSelect").dispatchEvent(new Event("change"));
 
@@ -2766,7 +2740,7 @@ Affinity Universe
     syncClosedNamePresetByLocation();
     updateLocalPreview();
     updateExpectedEndPreview();
-    updateDeviceVisibility();
+    updateMondayDevicePreview();
     updateMondayItemName();
     displaySelectedStudents();
     refreshRegistrationPreview();
