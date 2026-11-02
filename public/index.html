@@ -406,10 +406,10 @@
         <label for="dstMode">썸머타임 옵션</label>
         <select id="dstMode">
           <option value="AUTO">자동(표기 없음)</option>
-          <option value="STUDENT_CHANGE">썸머타임 때 수강생 시간 변경</option>
+          <option value="STUDENT_CHANGE">썸머타임 때 수강생 시간 변경 (한국 시간 고정)</option>
           <option value="TEACHER_CHANGE">썸머타임 때 강사만 바뀜</option>
         </select>
-        <div class="note small">해외일 때는 한국/현지 모두 같은 수업 순간(instant) 기준으로 계산됩니다.</div>
+        <div class="note small">수강생 시간 변경은 한국시간 고정으로 먼데이 DST 🇰🇷에 등록됩니다. 자동 설정은 기존 🌐 표기를 유지합니다.</div>
       </div>
     </div>
 
@@ -665,6 +665,52 @@
     "[BRANDING] PERSONAL COURSE":"",
   };
 
+  // Display names for [학습 과정] only. Monday item title remains English.
+  const CURRICULUM_KO_LABELS=Object.freeze({
+    "[ART BOOK DESIGN] LV.1": "아트북 디자인 LV.1",
+    "[ART BOOK DESIGN] LV.2": "아트북 디자인 LV.2",
+    "[ART BOOK DESIGN] LV.3": "아트북 디자인 LV.3",
+    "[ART BOOK DESIGN] LV.4": "아트북 디자인 LV.4",
+    "[ART BOOK DESIGN] LV.5": "아트북 디자인 LV.5",
+    "[PICTURE BOOK] FOUNDATION": "그림책 파운데이션",
+    "[PICTURE BOOK] DIPLOMA": "그림책 디플로마",
+    "[PICTURE BOOK] EDITOR": "그림책 에디터",
+    "[DRAWING] BASIC": "디지털 드로잉 베이직",
+    "[DRAWING] PRO": "디지털 드로잉 프로",
+    "[DRAWING] BOOK": "디지털 드로잉북",
+    "[DRAWING] LANDSCAPE": "디지털 드로잉 LANDSCAPE",
+    "[ANIMATION] BASIC": "애니메이션 BASIC",
+    "[ANIMATION] PRO": "애니메이션 PRO",
+    "[DRAWING] FIGURE": "디지털 드로잉 FIGURE",
+    "[CHARACTER IP] GOODS DESIGN": "캐릭터 IP GOODS DESIGN",
+    "[CHARACTER IP] EMOTICON DESIGN": "캐릭터 IP EMOTICON DESIGN",
+    "[AFFINITY] MASTER": "어피니티 MASTER",
+    "[VIDEO] BASIC": "영상 BASIC",
+    "[VIDEO] PRO": "영상 PRO",
+    "[VIDEO] EDITOR": "영상 EDITOR",
+    "[MOTION] GRAPHICS": "모션 GRAPHICS",
+    "[MOTION] BOOK ANIMATION": "모션 BOOK ANIMATION",
+    "[MOTION] PORTFOLIO": "모션 PORTFOLIO",
+    "[VIDEO] CREATOR": "영상 CREATOR",
+    "[MOTION] CAVALRY": "모션 CAVALRY",
+    "[SCRATCH] BASIC": "스크래치 BASIC",
+    "[SCRATCH] PRO": "스크래치 PRO",
+    "[CODE] PLAY BOOK": "코드 PLAY BOOK",
+    "[HTML] BEGINNER": "HTML BEGINNER",
+    "[HTML] BASIC": "HTML BASIC",
+    "[HTML] PRO": "HTML PRO",
+    "[JAVASCRIPT] BASIC": "자바스크립트 BASIC",
+    "[JAVASCRIPT] PRO": "자바스크립트 PRO",
+    "[MESSAGE DESIGN] STORY CRAFTING": "메시지 디자인 STORY CRAFTING",
+    "[MESSAGE DESIGN] ART ESSAY": "메시지 디자인 ART ESSAY",
+    "[MESSAGE DESIGN] IDENTITY BOOK": "메시지 디자인 IDENTITY BOOK",
+    "[MESSAGE DESIGN] PUBLISHING": "메시지 디자인 PUBLISHING",
+    "[WEB DESIGN] PRO MASTER": "웹 디자인 PRO MASTER",
+    "[WEB DESIGN] PROFILE": "웹 디자인 PROFILE",
+    "[MARKETING] MANAGEMENT": "마케팅 MANAGEMENT",
+    "[BRANDING] PERSONAL COURSE": "[BRANDING] PERSONAL COURSE",
+  });
+  function curriculumForNotice(code) {return CURRICULUM_KO_LABELS[code]||code;}
   const CURRICULUM_GROUPS = [
     { group:"Picture Book / Art Book", items:["[ART BOOK DESIGN] LV.1","[ART BOOK DESIGN] LV.2","[ART BOOK DESIGN] LV.3","[ART BOOK DESIGN] LV.4","[ART BOOK DESIGN] LV.5","[PICTURE BOOK] FOUNDATION","[PICTURE BOOK] DIPLOMA","[PICTURE BOOK] EDITOR"] },
     { group:"Digital Drawing / Animation", items:["[DRAWING] BASIC","[DRAWING] PRO","[DRAWING] BOOK","[DRAWING] LANDSCAPE","[ANIMATION] BASIC","[ANIMATION] PRO","[DRAWING] FIGURE"] },
@@ -1703,7 +1749,7 @@ Affinity Universe
 
     const learningProcessText = curriculumName === CUSTOM_COURSE_LABEL
       ? "개별 맞춤 커리큘럼"
-      : (curriculumName === BRANDING_COURSE_LABEL ? "[BRANDING] PERSONAL COURSE" : curriculumName);
+      : curriculumForNotice(curriculumName);
 
     return `Affinity Universe: Trial  Class 일정 안내
 
@@ -2022,7 +2068,7 @@ ${noteLine ? noteLine + "\n" : ""}`;
 
     const learningProcessText = curriculumName === CUSTOM_COURSE_LABEL
       ? `1:1 ${customCourseName} 클래스는 개별 맞춤 커리큘럼으로 진행됩니다.`
-      : (curriculumName === BRANDING_COURSE_LABEL ? "[BRANDING] PERSONAL COURSE" : curriculumName);
+      : curriculumForNotice(curriculumName);
 
     const learningLinkText = (curriculumName === CUSTOM_COURSE_LABEL || curriculumName === BRANDING_COURSE_LABEL)
       ? ""
