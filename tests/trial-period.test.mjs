@@ -108,3 +108,29 @@ test('VIBE BASIC appears in Code Design and uses its URL and Korean notice name'
   assert.doesNotMatch(result.text,/\[학습 과정\]\n\[VIBE\] BASIC/);
  }
 });
+
+
+test('Notice Korean names match the requested terminology, without changing Monday codes',()=>{
+ const expected={
+  '[ART BOOK DESIGN] LV.4':'아트북 디자인 LV.4',
+  '[PICTURE BOOK] FOUNDATION':'픽처북 파운데이션',
+  '[DRAWING] BASIC':'디지털 드로잉 베이직',
+  '[VIBE] BASIC':'바이브코딩 베이직',
+  '[HTML] PRO':'HTML 프로',
+  '[CODE] PLAY BOOK':'플레이북',
+  '[CHARACTER IP] GOODS DESIGN':'굿즈 디자인',
+  '[DRAWING] BOOK':'디지털 드로잉 북',
+  '[WEB DESIGN] PRO MASTER':'웹 디자인 프로 마스터',
+  '[MARKETING] MANAGEMENT':'마케팅 매니지먼트',
+ };
+ const app=harness({type:'CLASS'});
+ for(const [code,label] of Object.entries(expected)){
+  assert.equal(app.ko[code],label);
+  app.get('curriculumSelect').value=code;
+  app.get('curriculumUrl').value=app.english[code];
+  const notice=app.buildMessage();
+  assert.equal(notice.ok,true,notice.error);
+  assert.ok(notice.text.includes('[학습 과정]\n'+label+'\n'));
+  assert.ok(notice.text.includes('https://affinityuniverse.com/'+app.english[code]));
+ }
+});
