@@ -290,7 +290,7 @@
           <option value="MAKEUP_30">보충</option>
           <option value="TRIAL">트라이얼</option>
         </select>
-        <div class="note small">클래스는 기존 장기 수업 안내, 보강/보충/트라이얼은 단일 일정 안내로 생성됩니다.</div>
+        <div class="note small">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div>
       </div>
       <div>
         <label for="templateType">클래스 구분</label>
@@ -1536,7 +1536,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function updateDiscordAvailability(){
-    const isMakeupPc = $("messageType").value === "MAKEUP_40" && $("templateType").value === "PC";
+    const isMakeupPc = ["MAKEUP_40","MAKEUP_30"].includes($("messageType").value) && $("templateType").value === "PC";
     const discordSelect = $("discord");
 
     if(isMakeupPc){
@@ -1695,7 +1695,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
 
     if(messageType === "MAKEUP_40" || messageType === "MAKEUP_30"){
       const title = messageType === "MAKEUP_40" ? "보강" : "보충";
-      const minutes = messageType === "MAKEUP_40" ? (classType === "GROUP" ? "1h" : "40m") : "30m";
+      const minutes = classType === "GROUP" ? "1h" : "40m";
       const titleLabel = (siblingType === "SISTER" && studentName)
         ? `${studentName} ${title}`
         : title;
@@ -1824,7 +1824,7 @@ Step 4. 사진 구성
     const deviceType = $("deviceType").value;
 
     // 메시지 종류가 보강이고 PC 수업이면 디스코드 안내를 강제로 제외합니다.
-    if(messageType === "MAKEUP_40" && templateType === "PC"){
+    if((messageType === "MAKEUP_40" || messageType === "MAKEUP_30") && templateType === "PC"){
       discord = "해당없음";
     }
 
