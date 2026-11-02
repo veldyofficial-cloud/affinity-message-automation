@@ -1,0 +1,27 @@
+name: Verify Infohub approval
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node API mock tests
+        run: npm test
+      - name: Inline browser script syntax check
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import vm from 'node:vm';
+          const html=fs.readFileSync('public/index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
+          if(!scripts.length) throw new Error('Missing inline script');
+          scripts.forEach((s,i)=>new vm.Script(s[1],{filename:'inline-'+i+'.js'}));
+          console.log('Validated',scripts.length,'inline scripts');
+          NODE
