@@ -592,7 +592,16 @@
       <div class="note">접근 권한은 Cloudflare Access 직원 로그인으로 확인합니다. 매번 관리자 키를 입력할 필요가 없습니다.</div>
       <label for="mondayItemName">먼데이 상위아이템명</label>
       <input id="mondayItemName" type="text" placeholder="커리큘럼에 맞는 상위아이템명" />
-      <label for="studentSearchQuery">STUDENT DB 학생 검색</label>
+      <label for="mondayLanguage">상위아이템 언어</label>
+<select id="mondayLanguage"><option value="KR">KR</option><option value="ENG">ENG</option></select>
+<div id="makeupLessonBox" style="display:none"><label for="makeupLessonNumber">보강/보충 회차</label>
+<select id="makeupLessonNumber"><option value="1">LESSON 01</option><option value="2">LESSON 02</option><option value="3">LESSON 03</option><option value="4">LESSON 04</option><option value="5">LESSON 05</option><option value="6">LESSON 06</option><option value="7">LESSON 07</option><option value="8">LESSON 08</option><option value="9">LESSON 09</option><option value="10">LESSON 10</option><option value="11">LESSON 11</option><option value="12">LESSON 12</option><option value="13">LESSON 13</option><option value="14">LESSON 14</option><option value="15">LESSON 15</option><option value="16">LESSON 16</option><option value="17">LESSON 17</option><option value="18">LESSON 18</option><option value="19">LESSON 19</option><option value="20">LESSON 20</option><option value="21">LESSON 21</option><option value="22">LESSON 22</option><option value="23">LESSON 23</option><option value="24">LESSON 24</option></select></div>
+<label for="subMemo">하위아이템 공통 MEMO (선택)</label>
+<textarea id="subMemo" style="height:90px;min-height:75px" placeholder="예: 개인 사정으로 보강 요청"></textarea>
+<label for="subMemos">날짜별 MEMO (선택)</label>
+<textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
+<div class="note small">한 줄에 YYYY-MM-DD | 메모. 날짜별 메모가 공통 메모보다 우선합니다.</div>
+<label for="studentSearchQuery">STUDENT DB 학생 검색</label>
       <div class="lookup-row">
         <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
         <button id="studentSearch" type="button" class="secondary">검색</button>
@@ -2090,7 +2099,7 @@ Affinity Universe
   ];
 
   function registrationFingerprint(){
-    const ids = ["messageType", "studentName", "classType", "templateType", "deviceType",
+    const ids = ["mondayLanguage","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType", "deviceType",
       "startDay", "endDay", "lessonCount", "weekday", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
@@ -2098,15 +2107,29 @@ Affinity Universe
       individualAbsences:normalizeIndividualAbsences(individualAbsences)});
   }
 
+  function parseSubMemos(){
+    const rows=[];
+    for(const raw of $("subMemos").value.split(/\r?\n/)){
+      if(!raw.trim())continue;
+      const pos=raw.indexOf("|");
+      if(pos<0)throw new Error("날짜별 메모는 날짜 | 내용 형식이어야 합니다.");
+      const date=raw.slice(0,pos).trim(),memo=raw.slice(pos+1).trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!memo)throw new Error("날짜별 MEMO를 확인해 주세요.");
+      rows.push({date,memo});
+    }
+    if(rows.length>32||new Set(rows.map(r=>r.date)).size!==rows.length)throw new Error("MEMO 날짜 중복 또는 개수 초과");
+    return rows;
+  }
   function buildRegistrationPlan(){
-    if($("messageType").value !== "CLASS") return {ok:false, error:"현재 자동 등록은 정규 클래스만 지원합니다. 보강·보충·트라이얼의 보드 규칙은 별도 연결이 필요합니다."};
+    const messageType=$("messageType").value;
+    const single=messageType==="MAKEUP_40"||messageType==="MAKEUP_30";
     const weekday = $("weekday").value;
     if($("studentLocation").value === "OVERSEAS" && $("dstMode").value === "TEACHER_CHANGE")
       return {ok:false,error:"강사 한국시간이 바뀌는 DST 옵션은 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다."};
     if(!WEEKDAY_GROUP_KO[weekday]) return {ok:false, error:"Infohub에는 일요일(SUN) 그룹이 없습니다. 해당 클래스의 그룹을 먼저 지정해야 합니다."};
     const startDay = $("startDay").value;
-    let endDay = $("endDay").value;
-    const count = Number($("lessonCount").value);
+    let endDay = single?$("startDay").value:$("endDay").value;
+    const count=single?1:messageType==="TRIAL"?4:Number($("lessonCount").value);
     if(!startDay) return {ok:false,error:"클래스 시작일을 입력해 주세요."};
     const closures = getEffectiveClosedList();
     if(!endDay){
@@ -2114,6 +2137,16 @@ Affinity Universe
       endDay = calculateExpectedEndDate(startDay, weekday, count, closures);
     }
     if(!endDay || endDay < startDay) return {ok:false,error:"시작일과 종료일을 확인해 주세요."};
+    if(single){
+      if(closures.length||individualAbsences.length)return {ok:false,error:"단일 수업에는 휴강/결석 일정을 지정할 수 없습니다."};
+      if(getWeekdayKoFromISO(startDay)!==weekday)return {ok:false,error:"수업일과 요일을 일치시켜 주세요."};
+      const num=Number($("makeupLessonNumber").value);
+      if(!Number.isInteger(num)||num<1||num>24)return {ok:false,error:"회차를 선택해 주세요."};
+      const kst=parseKorTimeTo24h($("amPm").value,$("korTime").value.trim());
+      if(!kst)return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
+      const label=messageType==="MAKEUP_40"?"보강":"보충";
+      return {ok:true,startDay,endDay:startDay,weekday,kst,items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],lessonCount:1,holidayCount:0};
+    }
     const closedDates = new Map(closures.map(x => [x.date, x.name || "휴강"]));
     const absentMap = new Map();
     const selectedIds = new Set(Array.from(selectedStudentRecords.keys()).map(Number));
@@ -2150,6 +2183,7 @@ Affinity Universe
       cursor = addDaysUTC(cursor,7);
     }
     if(!items.length) return {ok:false,error:"기간 안에 수업 요일이 없습니다."};
+    if(messageType==="TRIAL"&&lessonNo!==4)return {ok:false,error:"트라이얼 수업은 정확히 4회차여야 합니다."};
     if($("endDay").value && [4,8,10,12].includes(count) && count !== lessonNo){
       return {ok:false,error:`수업 회차 ${count}강과 실제 일정 ${lessonNo}강이 다릅니다. 종료일이나 회차를 수정해 주세요.`};
     }
@@ -2546,6 +2580,8 @@ Affinity Universe
     });
 
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
+    $("makeupLessonNumber").addEventListener("change",()=>{mondayNameWasEdited=false;updateMondayItemName();});
+    ["mondayLanguage","subMemo","subMemos"].forEach(id=>$(id).addEventListener("input",refreshRegistrationPreview));
     $("studentSearch").addEventListener("click", async ()=>{
       const query = $("studentSearchQuery").value.trim() || $("studentName").value.trim();
       if(query.length < 2){ $("studentResults").textContent = "학생 이름을 두 글자 이상 입력해 주세요."; return; }
@@ -2568,7 +2604,10 @@ Affinity Universe
       const feedback = $("approveFeedback");
       feedback.replaceChildren();
       if(partialRegistrationLocked){feedback.textContent="이전 등록이 일부 진행되었습니다. 중복 등록을 막기 위해 관리자 확인이 필요합니다.";return;}
+      let subMemos;
+      try{subMemos=parseSubMemos();}catch(e){feedback.textContent=e.message;return;}
       const plan = buildRegistrationPlan();
+      if(plan.ok&&subMemos.some(x=>!plan.items.some(i=>i.date===x.date))){feedback.textContent="날짜별 MEMO의 날짜가 수업 일정에 없습니다.";return;}
       if(!plan.ok){ feedback.textContent=plan.error; return; }
       const res = buildMessage();
       if(!res.ok){ feedback.textContent=res.error; return; }
@@ -2608,6 +2647,10 @@ Affinity Universe
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
+          makeupLessonNumber:Number($("makeupLessonNumber").value),
+          language:$("mondayLanguage").value,
+          subMemo:$("subMemo").value.trim(),
+          subMemos,
           explicitLessonCount:Number($("lessonCount").value) || null,
           kstTime24:plan.kst,
           closures:getEffectiveClosedList(),
@@ -2631,6 +2674,10 @@ Affinity Universe
     });
 
     $("reset").addEventListener("click", ()=>{
+      $("mondayLanguage").value="KR";
+      $("makeupLessonNumber").value="1";
+      $("subMemo").value="";
+      $("subMemos").value="";
       $("messageType").value = "CLASS";
       $("templateType").value = "PC";
       $("studentName").value = "";
