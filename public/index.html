@@ -643,11 +643,9 @@
     "[AFFINITY] MASTER":"AffinityMaster",
     "[VIDEO] BASIC":"VideoBasic",
     "[VIDEO] PRO":"VideoPro",
-    "[VIDEO] EDITOR":"VideoEditor",
     "[MOTION] GRAPHICS":"Motiongraphics",
     "[MOTION] BOOK ANIMATION":"BookAnimation",
     "[MOTION] PORTFOLIO":"Motionfolio",
-    "[VIDEO] CREATOR":"VIDEOCREATOR",
     "[MOTION] CAVALRY":"CAVALRY",
     "[SCRATCH] BASIC":"ScratchBasic",
     "[SCRATCH] PRO":"ScratchPro",
@@ -690,13 +688,11 @@
     "[AFFINITY] DESIGNER": "어피니티 디자이너",
     "[AFFINITY] PHOTO": "어피니티 포토",
     "[AFFINITY] MASTER": "어피니티 마스터",
-    "[VIDEO] BASIC": "영상 베이직",
-    "[VIDEO] PRO": "영상 프로",
-    "[VIDEO] EDITOR": "비디오 에디터",
+    "[VIDEO] BASIC": "비디오 베이직",
+    "[VIDEO] PRO": "비디오 프로",
     "[MOTION] GRAPHICS": "모션 그래픽스",
     "[MOTION] BOOK ANIMATION": "북 애니메이션",
     "[MOTION] PORTFOLIO": "모션 포트폴리오",
-    "[VIDEO] CREATOR": "영상 크리에이터",
     "[MOTION] CAVALRY": "캐벌리 모션",
     "[SCRATCH] BASIC": "스크래치 베이직",
     "[SCRATCH] PRO": "스크래치 프로",
@@ -721,7 +717,7 @@
     { group:"Picture Book / Art Book", items:["[ART BOOK DESIGN] LV.1","[ART BOOK DESIGN] LV.2","[ART BOOK DESIGN] LV.3","[ART BOOK DESIGN] LV.4","[ART BOOK DESIGN] LV.5","[PICTURE BOOK] FOUNDATION","[PICTURE BOOK] DIPLOMA","[PICTURE BOOK] EDITOR"] },
     { group:"Digital Drawing / Animation", items:["[DRAWING] BASIC","[DRAWING] PRO","[DRAWING] BOOK","[DRAWING] LANDSCAPE","[ANIMATION] BASIC","[ANIMATION] PRO","[DRAWING] FIGURE"] },
     { group:"Character / IP", items:["[CHARACTER IP] GOODS DESIGN","[CHARACTER IP] EMOTICON DESIGN"] },
-    { group:"Video / Motion", items:["[VIDEO] BASIC","[VIDEO] PRO","[VIDEO] EDITOR", "[MOTION] GRAPHICS","[MOTION] BOOK ANIMATION","[MOTION] PORTFOLIO","[VIDEO] CREATOR","[MOTION] CAVALRY"] },
+    { group:"Video / Motion", items:["[VIDEO] BASIC","[VIDEO] PRO", "[MOTION] GRAPHICS","[MOTION] BOOK ANIMATION","[MOTION] PORTFOLIO","[MOTION] CAVALRY"] },
     { group:"Code Design", items:["[VIBE] BASIC","[SCRATCH] BASIC","[SCRATCH] PRO","[CODE] PLAY BOOK","[HTML] BEGINNER","[HTML] BASIC","[HTML] PRO","[JAVASCRIPT] BASIC","[JAVASCRIPT] PRO"] },
     { group:"Message Design", items:["[MESSAGE DESIGN] STORY CRAFTING","[MESSAGE DESIGN] ART ESSAY","[MESSAGE DESIGN] IDENTITY BOOK","[MESSAGE DESIGN] PUBLISHING"] },
     { group:"Web Design / Branding / Marketing", items:["[WEB DESIGN] PRO MASTER","[WEB DESIGN] PROFILE","[MARKETING] MANAGEMENT","[BRANDING] PERSONAL COURSE"] },
@@ -1588,10 +1584,6 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   /*********************
    * 참여 안내 / 추가 안내
    *********************/
-  const VIDEO_CREATOR_PREP_GUIDE = `[수업 준비 안내]
-• 클래스 진행을 위해 CapCut Pro 유료 결제가 필요합니다.
-• 18세 미만 수강생의 경우, 부모님 계정으로 Google Chrome을 사용해주시기 바랍니다.`;
-
   function buildDrawingDeviceLine(curriculumName, deviceType){
     const requiresAppDownload = curriculumName === "[DRAWING] BASIC";
     if (deviceType === "PC") return "PC 및 수업에 필요한 프로그램 준비";
@@ -1605,7 +1597,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function buildParticipationGuide(curriculumName, discord, deviceType){
-    const videoCourses = ["[VIDEO] BASIC","[VIDEO] PRO", "[VIDEO] EDITOR", "[VIDEO] CREATOR"];
+    const videoCourses = ["[VIDEO] BASIC","[VIDEO] PRO"];
     const hasDiscord = discord && discord !== "해당없음";
     const isDrawingDeviceCourse = DRAWING_DEVICE_COURSES.includes(curriculumName);
 
@@ -1626,12 +1618,6 @@ ${firstLine}
       const participationText = `[수업 참여 안내]
 • ${hasDiscord ? `수업 시작 5분 전, 디스코드 ${discord} 채널 입장` : "수업 시작 5분 전 접속 권장"}
 • 수업 전 카카오톡 알림 발송`;
-
-      if(curriculumName === "[VIDEO] CREATOR"){
-        return `${VIDEO_CREATOR_PREP_GUIDE}
-
-${participationText}`;
-      }
 
       return participationText;
     }
@@ -1774,7 +1760,7 @@ Affinity Universe
   }
 
   function getAdditionalGuideText(curriculumName){
-    if(curriculumName === "[VIDEO] BASIC" || curriculumName === "[VIDEO] PRO" || curriculumName === "[VIDEO] EDITOR"){
+    if(curriculumName === "[VIDEO] BASIC" || curriculumName === "[VIDEO] PRO"){
       return `[CapCut 사전 안내]
 • Cap Cut Pro 구독 필수 (월 19,800원)
 
