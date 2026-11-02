@@ -1773,7 +1773,7 @@ Step 4. 사진 구성
     }
 
     const startDay = $("startDay").value;
-    let endDay = $("messageType")?.value === "CLASS" ? $("endDay").value : $("startDay").value;
+    let endDay = (messageType === "CLASS" || messageType==="TRIAL") ? $("endDay").value : $("startDay").value;
     const weekday = $("weekday").value;
 
     if($("messageType")?.value === "CLASS" && !endDay){
@@ -2311,10 +2311,11 @@ Affinity Universe
        updateEndDateVisualState();
       $("endDay").closest("div").style.opacity = isSingle ? "0.45" : "1";
       $("lessonCount").disabled = isSingle || v==="TRIAL";
-      $("lessonCount").closest("div").style.opacity = isSingle ? "0.45" : "1";
+      $("lessonCount").closest("div").style.opacity = (isSingle||v==="TRIAL") ? "0.45" : "1";
       document.querySelector('label[for="startDay"]').textContent = isSingle ? "일정일(필수)" : "클래스 시작일(필수)";
-      document.querySelector('label[for="endDay"]').textContent = isSingle ? "종료일 사용 안 함" : "클래스 종료일(선택)";
-      showAlert(v === "CLASS" ? "클래스 일정 양식입니다." : "단일 일정 안내 양식입니다. 출력에는 하루 일정만 표시됩니다.", "ok");
+      document.querySelector('label[for="endDay"]').textContent = isSingle ? "종료일 사용 안 함" : v==="TRIAL"?"트라이얼 종료일(4회)":"클래스 종료일(선택)";
+      mondayNameWasEdited=false; updateMondayItemName();
+      showAlert(v==="CLASS"?"클래스 일정 양식입니다.":v==="TRIAL"?"트라이얼 4회 일정입니다.":"보강/보충 1회 일정입니다.","ok");
       updateLocalPreview();
       updateExpectedEndPreview();
       updateDeviceVisibility();
