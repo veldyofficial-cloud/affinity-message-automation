@@ -29,6 +29,7 @@ export async function approve(request, env, email) {
   let registryKey='';
   let reserved=false;
   let completed=0;
+  let parentCreatedAt=0;
   try {
     const p=await request.json();
     if (!p || typeof p!=='object') throw new Error('승인 요청이 올바르지 않습니다.');
@@ -111,6 +112,7 @@ export async function approve(request, env, email) {
       create_item(board_id:$boardId,group_id:$groupId,item_name:$name,column_values:$values) {id url}
     }`,{boardId:String(BOARD_ID),groupId:plan.groupId,name:p.itemName.trim(),values:JSON.stringify(parentColumns)},env);
     parentId=created.create_item?.id||'';
+    parentCreatedAt=Date.now();
     itemUrl=created.create_item?.url||`https://veldyofficials-team.monday.com/boards/${BOARD_ID}/pulses/${parentId}`;
     if (!parentId) throw new Error('상위아이템 ID를 확인할 수 없습니다.');
 
@@ -132,8 +134,46 @@ export async function approve(request, env, email) {
     const body=`<div>${htmlEscape(p.message).replace(/\r?\n/g,'<br>')}</div>`;
     await monday(`mutation ($itemId:ID!, $body:String!) { create_update(item_id:$itemId,body:$body){id} }`,
       {itemId:String(parentId),body},env);
-    await storage.finish(registryKey,'complete',{itemUrl,parentId,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,by:email});
-    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons});
+
+    // Live Infohub workflow 1939876933 currently clears the '기기' column
+    // after create_item, even when the API created the parent with IPAD/GALAXY.
+    // Only reassert the exact validated device after that automation's usual
+    // completion window. This does NOT alter any other parent columns, student
+    // links, subitems, comments or workflow configuration.
+    //
+    // Remove the 'Clear column value: 기기' step from the Monday workflow to
+    // eliminate this wait and the underlying race. Until then, fail closed
+    // if the final persisted device does not match the instructor's choice.
+    const configuredGrace = Number(env.DEVICE_CLEAR_GRACE_MS);
+    const deviceGraceMs = Number.isFinite(configuredGrace) && configuredGrace >= 0
+      ? Math.min(30000,configuredGrace) : 20000;
+    const remainingGraceMs = Math.max(0,deviceGraceMs-(Date.now()-parentCreatedAt));
+    if (remainingGraceMs) await new Promise(resolve=>setTimeout(resolve,remainingGraceMs));
+
+    const restored=await monday(`mutation ($boardId:ID!, $itemId:ID!, $values:JSON!) {
+      change_multiple_column_values(board_id:$boardId,item_id:$itemId,column_values:$values) {id}
+    }`,{
+      boardId:String(BOARD_ID),itemId:String(parentId),
+      values:JSON.stringify({[COL.device]:{label:device}}),
+    },env);
+    if(String(restored.change_multiple_column_values?.id||'')!==String(parentId)) {
+      throw new Error('기기 라벨 재적용 결과의 아이템 ID가 일치하지 않습니다.');
+    }
+    let persistedDevice='';
+    for(let check=0;check<3;check++){
+      const state=await monday(`query ($ids:[ID!]) {
+        items(ids:$ids) {id column_values(ids:["color_mm2zrwb9"]){id text}}
+      }`,{ids:[String(parentId)]},env);
+      persistedDevice=String(state.items?.[0]?.column_values?.find(v=>v.id===COL.device)?.text||'').trim();
+      if(persistedDevice===device)break;
+      if(check<2) await new Promise(resolve=>setTimeout(resolve,1000));
+    }
+    if(persistedDevice!==device) {
+      throw new Error(`먼데이 기기 라벨 검증 실패: 선택값 ${device}, 저장값 ${persistedDevice||'미설정'}. 신규 아이템 생성 시 기기 컬럼을 초기화하는 먼데이 자동화를 확인해 주세요.`);
+    }
+
+    await storage.finish(registryKey,'complete',{itemUrl,parentId,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device,by:email});
+    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device});
   }catch(err) {
     // Do not retry automatically when a network error occurred after a write was attempted.
     if (reserved && registryKey) {
