@@ -185,3 +185,45 @@ test('records the actual iPad, Galaxy and PC status labels on Infohub parent ite
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,beforeWrites);
  globalThis.fetch=realFetch;
 });
+
+
+test('Makeup/supplement are single subitems; trial has exactly four lessons',async()=>{
+  const original=input();
+  for(const [type,suffix] of [['MAKEUP_40','보강'],['MAKEUP_30','보충']]){
+    const p={...original,messageType:type,startDay:'2026-11-02',endDay:'2026-11-02',
+      makeupLessonNumber:7,lessonCount:1,explicitLessonCount:null,closures:[],absences:[],
+      schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 07 '+suffix,absentStudentIds:[]}]};
+    const plan=derivePlan(p);
+    assert.equal(plan.lessonCount,1);
+    assert.equal(plan.schedule[0].name,'LESSON 07 '+suffix);
+    assert.equal(plan.schedule.length,1);
+    assert.throws(()=>derivePlan({...p,endDay:'2026-11-09'}));
+    assert.throws(()=>derivePlan({...p,makeupLessonNumber:25}));
+  }
+  const trial={...original,messageType:'TRIAL',lessonCount:4,explicitLessonCount:4};
+  const plan=derivePlan(trial);
+  assert.equal(plan.lessonCount,4);
+  assert.equal(plan.schedule.filter(x=>x.kind==='LESSON').length,4);
+  assert.throws(()=>derivePlan({...trial,lessonCount:3}));
+});
+
+test('PC emails and subitem notes appear in mocked Monday create_item/create_subitem',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const p={...input(),itemName:'[PICTURE BOOK] DIPLOMA | LESSON 07 보강',
+   messageType:'MAKEUP_40',closures:[],absences:[],
+   lessonCount:1,explicitLessonCount:null,makeupLessonNumber:7,endDay:'2026-11-02',
+   language:'ENG',subMemo:'공통 메모',subMemos:[{date:'2026-11-02',memo:'보강 요청 사유'}],
+   schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 07 보강',absentStudentIds:[]}]};
+ const response=await worker.fetch(request('/api/approve',token,p),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const parent=JSON.parse(currentRequests.filter(x=>x.query.includes('create_item(')).at(-1).variables.values);
+ assert.deepEqual(parent[COL.state],{label:'보강'});
+ assert.deepEqual(parent[COL.language],{label:'ENG'});
+ assert.equal(parent[COL.email],'student14500123@example.com');
+ const lesson=JSON.parse(currentRequests.filter(x=>x.query.includes('create_subitem(')).at(-1).variables.values);
+ assert.equal(lesson[COL.subMemo],'보강 요청 사유');
+ assert.equal(lesson[COL.subAttendance],'1');
+ globalThis.fetch=realFetch;
+});
