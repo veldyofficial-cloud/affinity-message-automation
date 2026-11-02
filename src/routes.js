@@ -40,7 +40,9 @@ export async function approve(request, env, email) {
     if (p.classType==='GROUP' && studentIds.length<2) throw new Error('그룹 클래스는 학생 두 명 이상이 필요합니다.');
     if (!validId(Number(p.teacherId)) || !isAllowedTeacher(p.teacherId)) throw new Error('승인된 강사 13명 중에서 담당 강사를 선택해 주세요.');
     const plan=derivePlan(p);
+    p.language=p.language||'KR';
     if(!['KR','ENG'].includes(p.language)) throw new Error('상위아이템 언어는 KR 또는 ENG를 선택해 주세요.');
+    p.subMemo=p.subMemo||'';
     if(typeof p.subMemo!=='string' || p.subMemo.length>1500) throw new Error('하위아이템 메모는 1500자 이내로 입력해 주세요.');
     const detailMemos=Array.isArray(p.subMemos)?p.subMemos:[];
     if(detailMemos.some(row=>!row || typeof row.date!=='string' || typeof row.memo!=='string' || row.memo.length>1500)) {
