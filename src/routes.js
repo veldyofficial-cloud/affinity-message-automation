@@ -1,4 +1,4 @@
-import { allowedOrigin, allStudentItems, BOARD_ID, STUDENT_DB_ID, COL, derivePlan, htmlEscape, json, monday } from './monday.js';
+import { allowedOrigin, allStudentItems, BOARD_ID, STUDENT_DB_ID, COL, derivePlan, infohubDstLabel, htmlEscape, json, monday } from './monday.js';
 import {TEACHERS, isAllowedTeacher, teacherById} from './teachers.js';
 const validId = value => Number.isSafeInteger(value) && value > 0;
 
@@ -83,6 +83,18 @@ export async function approve(request, env, email) {
       throw new Error('상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요.');
     }
 
+    // Verify the optional dedicated comment writer before changing any live board data.
+    const updateToken=String(env.MONDAY_UPDATE_API_TOKEN||'').trim();
+    let updateAuthor=null;
+    if(updateToken){
+      const author=await monday('query ($ids:[ID!]) { me {id name email} boards(ids:$ids){id} }',
+        {ids:[String(BOARD_ID)]},env,updateToken);
+      if(String(author.me?.email||'').trim().toLowerCase()!=='affinityuniverse.flow@gmail.com')
+        throw new Error('말풍선 작성 계정은 affinityuniverse.flow@gmail.com 이어야 합니다.');
+      if(!(author.boards||[]).some(b=>String(b.id)===String(BOARD_ID)))
+        throw new Error('어피니티 플로우 계정에 Infohub 접근 권한이 없습니다.');
+      updateAuthor=String(author.me.name||'AFFINITY FLOW');
+    }
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
       itemName:p.itemName.trim(),studentIds:studentIds.slice().sort((a,b)=>a-b),
@@ -103,7 +115,7 @@ export async function approve(request, env, email) {
       [COL.time]:{hour:p.kstTime24.hh,minute:p.kstTime24.mm},
       [COL.duration]:{label:duration},
       [COL.device]:{label:device},
-      [COL.domesticOrOverseas]:{label:p.studentLocation==='OVERSEAS'?'🌐':'🇰🇷'},
+      [COL.domesticOrOverseas]:{label:infohubDstLabel(p)},
       [COL.teacher]:{personsAndTeams:[{id:Number(p.teacherId),kind:'person'}]},
       [COL.studentRelation]:{item_ids:studentIds},
     };
@@ -132,8 +144,11 @@ export async function approve(request, env, email) {
       completed+=1;
     }
     const body=`<div>${htmlEscape(p.message).replace(/\r?\n/g,'<br>')}</div>`;
-    await monday(`mutation ($itemId:ID!, $body:String!) { create_update(item_id:$itemId,body:$body){id} }`,
-      {itemId:String(parentId),body},env);
+    const posted=await monday(`mutation ($itemId:ID!, $body:String!) {
+      create_update(item_id:$itemId,body:$body){id creator{id name}}
+    }`,{itemId:String(parentId),body},env,updateToken||undefined);
+    if(!posted.create_update?.id) throw new Error('말풍선 등록 결과를 확인할 수 없습니다.');
+    if(updateToken)updateAuthor=String(posted.create_update.creator?.name||updateAuthor);
 
     // Live Infohub workflow 1939876933 currently clears the '기기' column
     // after create_item, even when the API created the parent with IPAD/GALAXY.
@@ -173,7 +188,7 @@ export async function approve(request, env, email) {
     }
 
     await storage.finish(registryKey,'complete',{itemUrl,parentId,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device,by:email});
-    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device});
+    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device,dstLabel:infohubDstLabel(p),updateAuthor});
   }catch(err) {
     // Do not retry automatically when a network error occurred after a write was attempted.
     if (reserved && registryKey) {
