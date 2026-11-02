@@ -69,7 +69,7 @@ export async function approve(request, env, email) {
     const studentEmails=studentIds.map(id=>{
       const student=records.items.find(item=>Number(item.id)===id);
       const email=String(student?.column_values?.find(col=>col.id===COL.studentEmail)?.text||'').trim();
-      if(p.templateType==='PC' && (!email || !/^[^\\s@;]+@[^\\s@;]+\\.[^\\s@;]+$/.test(email))) {
+      if(p.templateType==='PC' && (!email || !/^[^\s@;]+@[^\s@;]+\.[^\s@;]+$/.test(email))) {
         throw new Error(`PC 수강생 ${student?.name||id}의 STUDENT DB EMAIL을 확인해 주세요.`);
       }
       return email;
