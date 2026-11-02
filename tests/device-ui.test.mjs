@@ -11,9 +11,11 @@ test('Only the upper class category selects PC, IPAD, or GALAXY',()=>{
  assert.doesNotMatch(html,/id="deviceType"|id="deviceBox"|DIGITAL_DRAWING/);
 });
 test('Curriculum change preserves device and approval uses top selection',()=>{
- const handler=html.match(/\$\("curriculumSelect"\)\.addEventListener\("change",\(\)=>\{([\s\S]*?)\n    \}\);/);
- assert.ok(handler);
- assert.doesNotMatch(handler[1],/templateType"\)\.value\s*=/);
+ const begin=html.indexOf('$("curriculumSelect").addEventListener("change", ()=>{');
+ const end=html.indexOf('    $("generate").addEventListener',begin);
+ assert.ok(begin>=0&&end>begin,'Curriculum listener exists');
+ const handler=html.slice(begin,end);
+ assert.doesNotMatch(handler,/templateType"\)\.value\s*=/);
  assert.match(html,/const selected = \$\("templateType"\)\.value;/);
  assert.match(html,/templateType:\$\("templateType"\)\.value/);
  assert.doesNotMatch(html,/deviceType:\$\("deviceType"\)\.value/);
