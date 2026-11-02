@@ -10,15 +10,15 @@ assert.ok(inline,'Program inline script must exist');
 const lastInit=/^\s*init\(\);\s*$/m;
 assert.match(inline[1],lastInit);
 const code=inline[1].replace(lastInit,
-  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,english:CURRICULUM_MAP};\n');
+  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,english:CURRICULUM_MAP,groups:CURRICULUM_GROUPS};\n');
 
-function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[]}={}){
+function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
  const fields={
    messageType:type, templateType:'PC',studentName:'테스트 수강생',
    classType:'GROUP',siblingType:'BROTHER',discord:'해당없음',
    startDay:'2026-11-02',endDay,weekday:'월',lessonCount:'4',
-   amPm:'오전',korTime:'9',curriculumSelect:'[ART BOOK DESIGN] LV.4',
-   curriculumUrl:'Upper-intermediate',
+   amPm:'오전',korTime:'9',curriculumSelect:curriculum,
+   curriculumUrl:courseSlug,
    studentLocation:timeZone==='Asia/Seoul'?'DOMESTIC':'OVERSEAS',
    dstMode:'AUTO',tzSelect:timeZone,
    countryInput:timeZone==='Asia/Seoul'?'한국':'캐나다',
@@ -92,5 +92,19 @@ test('Regular and trial bubbles show Korean learning-course name without changin
   assert.match(m.text,/\[학습 과정\]\n아트북 디자인 LV\.4\nhttps:\/\/affinityuniverse\.com\/Upper-intermediate/);
   assert.doesNotMatch(m.text,/\[학습 과정\]\n\[ART BOOK DESIGN\] LV\.4/);
   assert.deepEqual(Object.keys(app.english).filter(k=>!app.ko[k]),[]);
+ }
+});
+
+
+test('VIBE BASIC appears in Code Design and uses its URL and Korean notice name',()=>{
+ for(const type of ['CLASS','TRIAL']){
+  const app=harness({type,curriculum:'[VIBE] BASIC',courseSlug:'VIBEBASIC'});
+  assert.equal(app.english['[VIBE] BASIC'],'VIBEBASIC');
+  assert.equal(app.ko['[VIBE] BASIC'],'바이브코딩 베이직');
+  assert.ok(app.groups.find(group=>group.group==='Code Design').items.includes('[VIBE] BASIC'));
+  const result=app.buildMessage();
+  assert.equal(result.ok,true,result.error);
+  assert.match(result.text,/\[학습 과정\]\n바이브코딩 베이직\nhttps:\/\/affinityuniverse\.com\/VIBEBASIC/);
+  assert.doesNotMatch(result.text,/\[학습 과정\]\n\[VIBE\] BASIC/);
  }
 });
