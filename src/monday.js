@@ -12,6 +12,10 @@ export const GROUP_IDS = Object.freeze({
 });
 export const COL = Object.freeze({
   type: 'color_mm2zqs4',
+  state: 'color1',
+  language: 'color_mkzhrz0c',
+  email: 'text3',
+  studentEmail: 'text_mksvtgc8',
   time: 'hour',
   duration: 'color_mm07m65v',
   device: 'color_mm2zrwb9',
@@ -21,6 +25,7 @@ export const COL = Object.freeze({
   subDate: 'date65',
   subMinutes: 'color_mm00mmcy',
   subAttendance: 'numeric_mm01zfhb',
+  subMemo: 'text42',
   subAbsentees: 'board_relation_mm4cpb0k',
 });
 
@@ -86,11 +91,18 @@ export function addDays(d, count) {const x=new Date(d.getTime());x.setUTCDate(x.
 export function iso(d) {return d.toISOString().slice(0,10);}
 
 export function derivePlan(input) {
-  if (input.messageType !== 'CLASS') throw new Error('정규 클래스만 자동 등록할 수 있습니다.');
+  if (!['CLASS','MAKEUP_40','MAKEUP_30','TRIAL'].includes(input.messageType)) {
+    throw new Error('지원하지 않는 수업 유형입니다.');
+  }
+  const single = input.messageType==='MAKEUP_40' || input.messageType==='MAKEUP_30';
   const groupId = GROUP_IDS[input.weekday];
   if (!groupId) throw new Error('선택한 요일에 해당하는 Infohub 그룹이 없습니다.');
   const start = dateFromISO(input.startDay);
-  const end = dateFromISO(input.endDay);
+  // Makeup/supplement are one lesson and have no end date; trial is four lessons.
+  const end = single ? start : dateFromISO(input.endDay);
+  if (single && input.endDay && input.endDay!==input.startDay) {
+    throw new Error('보강/보충은 종강일이 없는 1회 수업입니다.');
+  }
   if (start > end) throw new Error('종료일은 시작일보다 이전일 수 없습니다.');
   if ((end-start)/(24*60*60*1000) > 366) throw new Error('1년을 초과하는 일정은 자동 등록하지 않습니다.');
   if (!input.kstTime24 || !Number.isInteger(input.kstTime24.hh) || !Number.isInteger(input.kstTime24.mm)
@@ -104,6 +116,28 @@ export function derivePlan(input) {
   if (input.studentLocation==='OVERSEAS' && input.dstMode==='TEACHER_CHANGE') {
     throw new Error('강사 한국시간이 바뀌는 DST 모드는 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다.');
   }
+  if(single){
+    if ((input.closures||[]).length || (input.absences||[]).length) {
+      throw new Error('보강/보충 한 회차에는 전체 휴강과 개별 결석 일정을 별도로 등록하지 않습니다.');
+    }
+    if(start.getUTCDay()!==DAY[input.weekday]) throw new Error('보강/보충의 요일과 일정일이 다릅니다.');
+    const lessonNo=Number(input.makeupLessonNumber);
+    if(!Number.isSafeInteger(lessonNo) || lessonNo<1 || lessonNo>24) {
+      throw new Error('보강/보충의 회차는 LESSON 01~24 중에서 선택해 주세요.');
+    }
+    if(Number(input.lessonCount)!==1) throw new Error('보강/보충은 한 회차만 등록할 수 있습니다.');
+    const suffix=input.messageType==='MAKEUP_40'?'보강':'보충';
+    const name='LESSON '+String(lessonNo).padStart(2,'0')+' '+suffix;
+    const schedule=[{date:input.startDay,kind:'LESSON',name,absentStudentIds:[]}];
+    const client=Array.isArray(input.schedule)?input.schedule:[];
+    if(client.length!==1 || client[0].date!==schedule[0].date ||
+      client[0].kind!=='LESSON' || client[0].name!==name ||
+      (client[0].absentStudentIds||[]).length) {
+      throw new Error('단일 수업 일정이 서버 검증 결과와 다릅니다.');
+    }
+    return {groupId,schedule,lessonCount:1,holidayCount:0,absenceLessons:0};
+  }
+
   // Individual absences never cancel a GROUP lesson or move its end date.
   const selectedStudentIds = Array.from(new Set((input.studentIds||[]).map(Number))).sort((a,b)=>a-b);
   const absences = Array.isArray(input.absences) ? input.absences : [];
@@ -156,6 +190,7 @@ export function derivePlan(input) {
     cursor=addDays(cursor,7);
   }
   if (!schedule.length) throw new Error('수업 기간에 해당 요일이 없습니다.');
+  if(input.messageType==='TRIAL' && lessonNo!==4) throw new Error('트라이얼은 휴강을 제외한 정확히 4회차로 등록해야 합니다. 종강일을 확인해 주세요.');
   for(const date of absenceMap.keys()) {
     if(!schedule.some(row=>row.date===date && row.kind==='LESSON')) throw new Error(`개별 결석 ${date}의 수업 회차를 찾을 수 없습니다.`);
   }
