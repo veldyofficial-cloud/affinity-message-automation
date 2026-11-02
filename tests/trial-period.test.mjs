@@ -10,7 +10,7 @@ assert.ok(inline,'Program inline script must exist');
 const lastInit=/^\s*init\(\);\s*$/m;
 assert.match(inline[1],lastInit);
 const code=inline[1].replace(lastInit,
-  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;}};\n');
+  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,english:CURRICULUM_MAP};\n');
 
 function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[]}={}){
  const fields={
@@ -81,4 +81,16 @@ test('Domestic trial has Korean dates while makeup remains a single session',()=
  assert.equal(single.ok,true,single.error);
  assert.match(single.text,/2026\. 11\. 01 \(일\) 5 PM/);
  assert.doesNotMatch(single.text,/수업 기간 :/);
+});
+
+
+test('Regular and trial bubbles show Korean learning-course name without changing URL',()=>{
+ for(const type of ['CLASS','TRIAL']){
+  const app=harness({type});
+  const m=app.buildMessage();
+  assert.equal(m.ok,true,m.error);
+  assert.match(m.text,/\[학습 과정\]\n아트북 디자인 LV\.4\nhttps:\/\/affinityuniverse\.com\/Upper-intermediate/);
+  assert.doesNotMatch(m.text,/\[학습 과정\]\n\[ART BOOK DESIGN\] LV\.4/);
+  assert.deepEqual(Object.keys(app.english).filter(k=>!app.ko[k]),[]);
+ }
 });
