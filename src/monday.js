@@ -41,8 +41,9 @@ export function allowedOrigin(request) {
   catch { return false; }
 }
 
-export async function monday(query, variables={}, env={}) {
-  const token = env.MONDAY_API_TOKEN;
+export async function monday(query, variables={}, env={}, tokenOverride) {
+  // Only create_update uses an optional token owned by the Flow account.
+  const token = tokenOverride ?? env.MONDAY_API_TOKEN;
   if (!token) throw new Error('MONDAY_API_TOKEN 서버 환경 변수가 설정되지 않았습니다.');
   const response = await fetch('https://api.monday.com/v2', {
     method: 'POST',
@@ -59,6 +60,14 @@ export async function monday(query, variables={}, env={}) {
   return body.data;
 }
 
+// DST indicates the fixed reference clock during summer-time transitions.
+export function infohubDstLabel({studentLocation,dstMode}) {
+  if(studentLocation==='DOMESTIC') return '🇰🇷';
+  if(studentLocation!=='OVERSEAS') throw new Error('국내/해외 설정 오류입니다.');
+  if(dstMode==='STUDENT_CHANGE') return '🇰🇷'; // KST fixed; student changes local time.
+  if(dstMode==='AUTO'||dstMode==='TEACHER_CHANGE'||dstMode==null||dstMode==='') return '🌐';
+  throw new Error('썸머타임 옵션이 올바르지 않습니다.');
+}
 export async function allStudentItems(env, limitPages=6) {
   const first = await monday(`query ($boardId: [ID!]) {
     boards(ids: $boardId) { items_page(limit: 500) { cursor items { id name } } }
