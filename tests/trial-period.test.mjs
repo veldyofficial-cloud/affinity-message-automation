@@ -12,7 +12,7 @@ assert.match(inline[1],lastInit);
 const code=inline[1].replace(lastInit,
   '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;}};\n');
 
-function harness({type='TRIAL',endDay='',timeZone='America/Edmonton',closures=[]}={}){
+function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[]}={}){
  const fields={
    messageType:type, templateType:'PC',studentName:'테스트 수강생',
    classType:'GROUP',siblingType:'BROTHER',discord:'해당없음',
