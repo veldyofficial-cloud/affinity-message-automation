@@ -41,7 +41,7 @@ async function mockServices() {
   if(String(url)==='https://api.monday.com/v2'){
     const call=JSON.parse(options.body);currentRequests.push(call);
     const q=call.query;let data;
-    if(q.includes('items(ids:')) data={items:(call.variables.ids||[]).map(id=>({id,name:`Demo Student ${id}`,board:{id:'1879266175'}}))};
+    if(q.includes('items(ids:')) data={items:(call.variables.ids||[]).map(id=>({id,name:`Demo Student ${id}`,board:{id:'1879266175'},column_values:[{id:'text_mksvtgc8',text:`student${id}@example.com`}] }))};
     else if(q.includes('users(ids:')) data={users:(call.variables.ids||[]).map(id=>{const t=TEACHERS.find(t=>t.id===Number(id));return t?{id,name:t.name}:null;}).filter(Boolean)};
     else if(q.includes('items_page(')) data={boards:[{items_page:{cursor:null,items:[{id:'14500123',name:'Demo Student'}]}}]};
     else if(q.includes('create_item(')){
