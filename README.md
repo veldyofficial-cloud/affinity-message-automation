@@ -46,3 +46,11 @@ Cloudflare Zero Trust Access 무료 플랜은 일반적으로 50명 이하 조�
 ## Infohub 기기 라벨 직접 선택 (2026-11-02)
 
 상단 `클래스 구분`에서 PC / IPAD / GALAXY를 직접 필수 선택합니다. 중복된 하단 선택창을 제거했으며 커리큘럼 변경으로 기기 선택을 덮어쓰지 않습니다. 서버는 상단 값을 Monday Infohub `기기` 상태 라벨에 그대로 기록하며 그 외 값은 DB 변경 전에 차단합니다. 정규·보강·보충·트라이얼 전체에 적용됩니다. 실제 운영 데이터 쓰기는 별도 테스트 보드에서 검증해야 합니다.
+
+## DST/말풍선 전용 계정 설정 (2026-11-02)
+
+- 해외 수강생 + 썸머타임 때 수강생 시간 변경 = 한국 시간 고정, Infohub DST `🇰🇷`; 해외 자동(표기 없음) = 기존 `🌐`; 국내 = `🇰🇷`.
+- 먼데이 상위 아이템명은 기존 영문 코드 유지. 안내메시지 말풍선의 [학습 과정]만 한국어 표기(예: 아트북 디자인 LV.4), URL은 그대로 유지. 브랜딩 개인 코스는 기존 요청대로 영문 유지.
+- 별도 말풍선 작성자: Cloudflare Worker Settings > Runtime variables and secrets > Production > Add variable에서 `MONDAY_UPDATE_API_TOKEN`을 반드시 **Secret**으로 추가. 값은 `affinityuniverse.flow@gmail.com` 먼데이 계정에서 직접 발급받은 개인 API 토큰. **기존 `MONDAY_API_TOKEN`은 그대로 둡니다.** 새로운 토큰은 안내 말풍선의 `create_update`에만 사용됩니다.
+- 이 새 Secret이 설정되지 않으면 기존 Monday API 계정으로 말풍선을 등록합니다. 설정됐다면 승인 전에 토큰의 `me.email`과 Infohub 보드 접근 여부를 확인하며 조건이 틀리면 새 아이템 생성 전에 차단합니다. 비밀값을 GitHub/채팅/브라우저에 붙여넣지 마세요.
+- 이번 변경은 이전에 게시된 말풍선의 작성자나 기존 항목의 DST를 소급 수정하지 않습니다. 실제 운영 쓰기 테스트는 별도 검증이 필요합니다.
