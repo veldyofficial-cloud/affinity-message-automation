@@ -40,7 +40,22 @@ export async function approve(request, env, email) {
     if (p.classType==='GROUP' && studentIds.length<2) throw new Error('그룹 클래스는 학생 두 명 이상이 필요합니다.');
     if (!validId(Number(p.teacherId)) || !isAllowedTeacher(p.teacherId)) throw new Error('승인된 강사 13명 중에서 담당 강사를 선택해 주세요.');
     const plan=derivePlan(p);
-    const records=await monday(`query ($ids:[ID!]) {items(ids:$ids) { id name board { id } }}`,
+    if(!['KR','ENG'].includes(p.language)) throw new Error('상위아이템 언어는 KR 또는 ENG를 선택해 주세요.');
+    if(typeof p.subMemo!=='string' || p.subMemo.length>1500) throw new Error('하위아이템 메모는 1500자 이내로 입력해 주세요.');
+    const detailMemos=Array.isArray(p.subMemos)?p.subMemos:[];
+    if(detailMemos.some(row=>!row || typeof row.date!=='string' || typeof row.memo!=='string' || row.memo.length>1500)) {
+      throw new Error('날짜별 메모 형식을 확인해 주세요.');
+    }
+    if(detailMemos.some(row=>!plan.schedule.some(item=>item.date===row.date)) ||
+       new Set(detailMemos.map(row=>row.date)).size!==detailMemos.length)
+      throw new Error('메모 날짜가 수업 일정과 일치하지 않거나 중복되었습니다.');
+    const memoByDate=new Map(detailMemos.map(row=>[row.date,row.memo.trim()]));
+    const kind=p.messageType==='MAKEUP_40'?'보강':p.messageType==='MAKEUP_30'?'보충':p.messageType==='TRIAL'?'TRIAL':'CLASS';
+    const expectedName=(kind==='CLASS'||kind==='TRIAL') ? '' :
+      ' | LESSON '+String(Number(p.makeupLessonNumber)).padStart(2,'0')+' '+kind;
+    if(kind==='TRIAL' && !/\bTRIAL\s*🚀\s*$/.test(p.itemName)) throw new Error('트라이얼 제목에는 TRIAL 🚀 표시가 필요합니다.');
+    if(expectedName && !p.itemName.endsWith(expectedName)) throw new Error('보강/보충 상위아이템 제목의 LESSON 회차를 확인해 주세요.');
+    const records=await monday(`query ($ids:[ID!]) {items(ids:$ids) { id name board { id } column_values(ids:["text_mksvtgc8"]) { id text } }}`,
       {ids:studentIds.map(String)},env);
     if ((records.items||[]).length!==studentIds.length || records.items.some(x=>String(x.board?.id)!==String(STUDENT_DB_ID)))
       throw new Error('STUDENT DB에 속하지 않는 학생이 포함되었습니다.');
@@ -49,6 +64,16 @@ export async function approve(request, env, email) {
     if ((users.users||[]).length!==1 || String(users.users[0].name||'').trim().toUpperCase()!==teacherById.get(Number(p.teacherId)).name)
       throw new Error('담당 강사 계정 정보가 목록과 일치하지 않습니다. 관리자에게 문의해 주세요.');
     const duration=p.classType==='GROUP'?'60m':'40m';
+    const studentEmails=studentIds.map(id=>{
+      const student=records.items.find(item=>Number(item.id)===id);
+      const email=String(student?.column_values?.find(col=>col.id===COL.studentEmail)?.text||'').trim();
+      if(p.templateType==='PC' && (!email || !/^[^\\s@;]+@[^\\s@;]+\\.[^\\s@;]+$/.test(email))) {
+        throw new Error(`PC 수강생 ${student?.name||id}의 STUDENT DB EMAIL을 확인해 주세요.`);
+      }
+      return email;
+    }).filter(Boolean);
+    const emailText=p.templateType==='PC'?[...new Set(studentEmails)].join(';'):'';
+    if(emailText.length>3000)throw new Error('연결된 이메일이 너무 깁니다.');
     const device = p.templateType === 'PC' ? 'PC' :
       p.templateType === 'DIGITAL_DRAWING' && p.deviceType === '아이패드' ? 'IPAD' :
       p.templateType === 'DIGITAL_DRAWING' && p.deviceType === '갤탭' ? 'GALAXY' : null;
@@ -57,7 +82,7 @@ export async function approve(request, env, email) {
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
       itemName:p.itemName.trim(),studentIds:studentIds.slice().sort((a,b)=>a-b),
-      teacherId:Number(p.teacherId),device,duration, time:p.kstTime24,
+      teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos, time:p.kstTime24,
       schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
@@ -68,6 +93,9 @@ export async function approve(request, env, email) {
 
     const parentColumns={
       [COL.type]:{label:p.classType==='GROUP'?'G':'1:1'},
+      [COL.language]:{label:p.language},
+      ...(kind==='CLASS'||kind==='TRIAL'?{}:{[COL.state]:{label:kind}}),
+      ...(emailText?{[COL.email]:emailText}:{}),
       [COL.time]:{hour:p.kstTime24.hh,minute:p.kstTime24.mm},
       [COL.duration]:{label:duration},
       [COL.device]:{label:device},
@@ -89,6 +117,7 @@ export async function approve(request, env, email) {
         [COL.subMinutes]:{label:row.kind==='CLOSED'?'휴강':duration},
         // Individual absence is attached to its LESSON, not an extra holiday.
         [COL.subAttendance]:String(row.kind==='CLOSED'?0:studentIds.length-(row.absentStudentIds||[]).length),
+        ...((memoByDate.get(row.date)||p.subMemo.trim())?{[COL.subMemo]:memoByDate.get(row.date)||p.subMemo.trim()}:{}),
         ...(row.kind==='LESSON' && row.absentStudentIds?.length
           ? {[COL.subAbsentees]:{item_ids:row.absentStudentIds}} : {}),
       };
