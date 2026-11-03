@@ -65,8 +65,19 @@ export function infohubDstLabel({studentLocation,dstMode}) {
   if(studentLocation==='DOMESTIC') return '🇰🇷';
   if(studentLocation!=='OVERSEAS') throw new Error('국내/해외 설정 오류입니다.');
   if(dstMode==='STUDENT_CHANGE') return '🇰🇷'; // KST fixed; student changes local time.
-  if(dstMode==='AUTO'||dstMode==='TEACHER_CHANGE'||dstMode==null||dstMode==='') return '🌐';
+  if(dstMode==='AUTO') return '🌐';
+  if(dstMode==null||dstMode==='') throw new Error('해외 수업의 썸머타임 고정 기준이 전달되지 않았습니다. 다시 선택해 주세요.');
+  if(dstMode==='TEACHER_CHANGE') throw new Error('해외 시간 고정은 먼데이 자동 등록을 지원하지 않습니다.');
   throw new Error('썸머타임 옵션이 올바르지 않습니다.');
+}
+// Canonical Korean-start-date label for every new Infohub parent item.
+export function infohubParentName(name,startDay){
+  const d=dateFromISO(startDay);
+  const content=String(name||'').replace(/^\(⌛️?\s*\d{1,2}\/\d{1,2}\)\s*/u,'').trim();
+  if(!content)throw new Error('상위아이템명을 입력해 주세요.');
+  const result='(⌛️'+(d.getUTCMonth()+1)+'/'+d.getUTCDate()+') '+content;
+  if(result.length>255)throw new Error('상위아이템명이 너무 깁니다.');
+  return result;
 }
 export async function allStudentItems(env, limitPages=6) {
   const first = await monday(`query ($boardId: [ID!]) {
