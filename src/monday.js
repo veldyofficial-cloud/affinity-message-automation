@@ -132,9 +132,12 @@ export function derivePlan(input) {
   if (![1,2,3].includes(weeklyFrequency)) throw new Error('주간 수업 횟수는 1회~3회만 가능합니다.');
   if (single && weeklyFrequency !== 1) throw new Error('보강/보충은 추가 정기 요일을 등록할 수 없습니다.');
   const targetDays = new Set([DAY[input.weekday]]);
+  const classTypeByDay={[DAY[input.weekday]]:input.classType};
   const extraSlots = [
-    { day:input.weekday2, time:input.kstTime24Second, label:'두 번째' },
-    { day:input.weekday3, time:input.kstTime24Third, label:'세 번째' }
+    { day:input.weekday2, time:input.kstTime24Second,
+      type:input.classType2,mode:input.dstMode2,label:'두 번째' },
+    { day:input.weekday3, time:input.kstTime24Third,
+      type:input.classType3,mode:input.dstMode3,label:'세 번째' }
   ];
   // Validate every activated slot and reject hidden/stale values before any Monday writes.
   for(let i=0; i<extraSlots.length; i++){
@@ -147,8 +150,13 @@ export function derivePlan(input) {
           || slot.time.hh < 0 || slot.time.hh > 23 || slot.time.mm < 0 || slot.time.mm > 59) {
         throw new Error(slot.label+' 정기 수업의 오전/오후와 한국시간을 확인해 주세요.');
       }
+      if(slot.type!=null && !['ONE_ON_ONE','GROUP'].includes(slot.type))
+        throw new Error(slot.label+' 수업 유형이 올바르지 않습니다.');
+      if(slot.mode!=null && !['AUTO','STUDENT_CHANGE','TEACHER_CHANGE'].includes(slot.mode))
+        throw new Error(slot.label+' 서머타임 옵션이 올바르지 않습니다.');
+      classTypeByDay[DAY[slot.day]]=slot.type||input.classType;
       targetDays.add(DAY[slot.day]);
-    }else if(slot.day || slot.time != null) {
+    }else if(slot.day || slot.time != null || slot.type != null || slot.mode != null) {
       throw new Error(slot.label+' 일정이 설정되었다면 주간 수업 횟수에 포함해야 합니다.');
     }
   }
@@ -168,7 +176,8 @@ export function derivePlan(input) {
   if (!['ONE_ON_ONE','GROUP'].includes(input.classType)) throw new Error('수업 유형이 올바르지 않습니다.');
   if (!['PC','IPAD','GALAXY'].includes(input.templateType)) throw new Error('상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요.');
   if (!['DOMESTIC','OVERSEAS'].includes(input.studentLocation)) throw new Error('국내/해외 설정 오류입니다.');
-  if (input.studentLocation==='OVERSEAS' && input.dstMode==='TEACHER_CHANGE') {
+  if (input.studentLocation==='OVERSEAS' &&
+      [input.dstMode,...extraSlots.slice(0,weeklyFrequency-1).map(x=>x.mode)].includes('TEACHER_CHANGE')) {
     throw new Error('강사 한국시간이 바뀌는 DST 모드는 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다.');
   }
   if(single){
@@ -197,13 +206,15 @@ export function derivePlan(input) {
   const selectedStudentIds = Array.from(new Set((input.studentIds||[]).map(Number))).sort((a,b)=>a-b);
   const absences = Array.isArray(input.absences) ? input.absences : [];
   if (input.absences != null && !Array.isArray(input.absences)) throw new Error('개별 결석 데이터 형식이 올바르지 않습니다.');
-  if (absences.length && input.classType !== 'GROUP') throw new Error('개별 결석은 그룹 클래스에만 등록할 수 있습니다.');
+  if (absences.length && !Object.values(classTypeByDay).includes('GROUP'))
+    throw new Error('개별 결석은 그룹 클래스에만 등록할 수 있습니다.');
   if (absences.length && selectedStudentIds.length < 2) throw new Error('그룹 인원을 먼저 연결해 주세요.');
   const absenceMap = new Map();
   for(const absence of absences){
     if (!absence || typeof absence !== 'object') throw new Error('개별 결석 형식이 올바르지 않습니다.');
     const d=dateFromISO(absence.date);
     if(d<start || d>end || !targetDays.has(d.getUTCDay())) throw new Error(`개별 결석 ${absence.date}이 수업 기간 또는 요일과 다릅니다.`);
+    if(classTypeByDay[d.getUTCDay()]!=='GROUP') throw new Error('개별 결석은 해당 요일이 그룹 수업인 경우에만 등록할 수 있습니다.');
     if(absenceMap.has(absence.date)) throw new Error(`개별 결석 ${absence.date} 날짜가 중복되었습니다.`);
     if(!Array.isArray(absence.studentIds)) throw new Error('결석 인원 목록을 확인해 주세요.');
     const ids=absence.studentIds.map(Number);
@@ -261,7 +272,7 @@ export function derivePlan(input) {
   const server = schedule.map(({date,kind,name,absentStudentIds})=>({date,kind,name,absentStudentIds:absentStudentIds||[]}));
   if(JSON.stringify(client)!==JSON.stringify(server)) throw new Error('승인 일정이 서버 검증 결과와 다릅니다. 문구를 다시 생성해 주세요.');
   return {groupId,schedule,lessonCount:lessonNo,holidayCount:schedule.length-lessonNo,
-    absenceLessons:schedule.filter(row=>row.absentStudentIds?.length).length};
+    classTypeByDay,absenceLessons:schedule.filter(row=>row.absentStudentIds?.length).length};
 }
 
 export function htmlEscape(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
