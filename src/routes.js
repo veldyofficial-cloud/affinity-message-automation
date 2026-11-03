@@ -58,6 +58,14 @@ export async function approve(request, env, email) {
        new Set(detailMemos.map(row=>row.date)).size!==detailMemos.length)
       throw new Error('메모 날짜가 수업 일정과 일치하지 않거나 중복되었습니다.');
     const memoByDate=new Map(detailMemos.map(row=>[row.date,row.memo.trim()]));
+    // Ensure time annotation does not overflow the Monday MEMO column after a
+    // parent has been created. Validate this before the first write.
+    if(Number(p.weeklyFrequency)===2){
+      const maxMemo=1470;
+      if(p.subMemo.length>maxMemo || detailMemos.some(row=>row.memo.length>maxMemo)){
+        throw new Error('주 2회 수업은 하위 메모를 1470자 이내로 입력해 주세요.');
+      }
+    }
     const kind=p.messageType==='MAKEUP_40'?'보강':p.messageType==='MAKEUP_30'?'보충':p.messageType==='TRIAL'?'TRIAL':'CLASS';
     const expectedName=(kind==='CLASS'||kind==='TRIAL') ? '' :
       ' | LESSON '+String(Number(p.makeupLessonNumber)).padStart(2,'0')+' '+kind;
@@ -103,7 +111,8 @@ export async function approve(request, env, email) {
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
       itemName:parentName,studentIds:studentIds.slice().sort((a,b)=>a-b),
-      teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos, time:p.kstTime24,
+      teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos,
+      time:p.kstTime24,secondTime:p.kstTime24Second||null,weekday2:p.weekday2||'',weeklyFrequency:Number(p.weeklyFrequency||1),
       schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
@@ -134,12 +143,23 @@ export async function approve(request, env, email) {
     if (!parentId) throw new Error('상위아이템 ID를 확인할 수 없습니다.');
 
     for (const row of plan.schedule) {
+      const isSecondDay=Number(p.weeklyFrequency)===2 && row.date &&
+        new Date(row.date+'T00:00:00Z').getUTCDay()===({일:0,월:1,화:2,수:3,목:4,금:5,토:6})[p.weekday2];
+      // Parent TIME is the first-day time; append each lesson's exact KST
+      // to the subitem memo so no second-day time is lost in Infohub.
+      const sessionTime=isSecondDay?p.kstTime24Second:p.kstTime24;
+      const kstNote=Number(p.weeklyFrequency)===2
+        ? '수업 시간: '+String(sessionTime.hh).padStart(2,'0')+':'+String(sessionTime.mm).padStart(2,'0')+' (한국시간)'
+        : '';
+      const writtenMemo=memoByDate.get(row.date)||p.subMemo.trim();
+      const mergedMemo=[writtenMemo,kstNote].filter(Boolean).join('\n');
+      if(mergedMemo.length>1500) throw new Error('수업 시간 포함 하위아이템 메모가 1500자를 초과합니다.');
       const columns={
         [COL.subDate]:{date:row.date},
         [COL.subMinutes]:{label:row.kind==='CLOSED'?'휴강':duration},
         // Individual absence is attached to its LESSON, not an extra holiday.
         [COL.subAttendance]:String(row.kind==='CLOSED'?0:studentIds.length-(row.absentStudentIds||[]).length),
-        ...((memoByDate.get(row.date)||p.subMemo.trim())?{[COL.subMemo]:memoByDate.get(row.date)||p.subMemo.trim()}:{}),
+        ...(mergedMemo?{[COL.subMemo]:mergedMemo}:{}),
         ...(row.kind==='LESSON' && row.absentStudentIds?.length
           ? {[COL.subAbsentees]:{item_ids:row.absentStudentIds}} : {}),
       };

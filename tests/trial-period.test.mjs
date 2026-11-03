@@ -15,7 +15,7 @@ const code=inline[1].replace(lastInit,
 function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
  const fields={
    messageType:type, templateType:'PC',studentName:'테스트 수강생',
-   classType:'GROUP',siblingType:'BROTHER',discord:'해당없음',
+   classType:'GROUP',siblingType:'BROTHER',discord:curriculum.startsWith('[DRAWING]')?'🐰DRAWING ZOEY 조이쌤':'해당없음',
    startDay:'2026-11-02',endDay,weekday:'월',lessonCount:'4',
    amPm:'오전',korTime:'9',curriculumSelect:curriculum,
    curriculumUrl:courseSlug,
@@ -128,6 +128,7 @@ test('Notice Korean names match the requested terminology, without changing Mond
   assert.equal(app.ko[code],label);
   app.get('curriculumSelect').value=code;
   app.get('curriculumUrl').value=app.english[code];
+  app.get('discord').value=code.startsWith('[DRAWING]')?'🐰DRAWING ZOEY 조이쌤':'해당없음';
   const notice=app.buildMessage();
   assert.equal(notice.ok,true,notice.error);
   assert.ok(notice.text.includes('[학습 과정]\n'+label+'\n'));

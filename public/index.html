@@ -229,6 +229,17 @@
     .absentee-option span { color: var(--blue-ink); font-weight: 500; }
     .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: var(--text); background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
     .registration-preview.warn { color: var(--warn); background: #fff7ed; border-color: #fdba74; }
+    .optional-slot { padding:14px; margin:3px 0 18px; border:1px solid #d9e0ec; border-radius:11px; background:#f4f5f7; }
+    .optional-slot .row3 { margin-bottom:4px; }
+    .optional-slot label { color:#666; }
+    .optional-slot select, .optional-slot input { background:#eceff3; color:#333; }
+    .optional-slot-title { display:flex; justify-content:space-between; gap:8px; color:#555; font-size:16px; font-weight:700; margin-bottom:12px; }
+    #weeklyScheduleState { color:#666; font-size:14px; font-weight:500; }
+    .optional-slot.active { background:var(--blue-soft); border-color:var(--blue); }
+    .optional-slot.active label, .optional-slot.active .optional-slot-title { color:var(--blue); }
+    .optional-slot.active select, .optional-slot.active input { background:#fff; }
+    .optional-slot.partial { border-color:#fdba74; background:#fff7ed; }
+    .optional-slot.partial #weeklyScheduleState { color:var(--warn); }
     #approvalKey { letter-spacing: .08em; }
     .note { margin-top: 9px; color: var(--muted); font-size: 14px; font-weight: 400; line-height: 1.7; }
     .small { font-size: 14px; }
@@ -398,24 +409,24 @@
       </div>
     </div>
 
-    <div class="row" id="weeklyScheduleBox">
-      <div>
-        <label for="weeklyFrequency">주간 수업 횟수</label>
-        <select id="weeklyFrequency">
-          <option value="1">주 1회</option>
-          <option value="2">주 2회</option>
-        </select>
-        <div class="note small">주 2회는 두 요일 모두 같은 한국시간으로 진행합니다.</div>
+    <div class="optional-slot" id="weeklyScheduleBox">
+      <div class="optional-slot-title">주 2회 추가 일정 <span id="weeklyScheduleState">미설정 · 주 1회</span></div>
+      <div class="row3">
+        <div><label for="weekday2">두 번째 정기 수업 요일</label>
+          <select id="weekday2">
+            <option value="">요일 선택</option>
+            <option value="월">월</option><option value="화">화</option><option value="수">수</option>
+            <option value="목">목</option><option value="금">금</option><option value="토">토</option>
+          </select>
+        </div>
+        <div><label for="amPm2">두 번째 오전 / 오후</label>
+          <select id="amPm2"><option value="">오전/오후 선택</option><option value="오전">오전</option><option value="오후">오후</option></select>
+        </div>
+        <div><label for="korTime2">두 번째 한국시간 (예: 7 / 7:30)</label>
+          <input id="korTime2" type="text" placeholder="예: 7 / 7:30" />
+        </div>
       </div>
-      <div id="weekday2Box" style="display:none">
-        <label for="weekday2">두 번째 정기 수업 요일</label>
-        <select id="weekday2">
-          <option value="">두 번째 요일 선택</option>
-          <option value="월">월</option><option value="화">화</option><option value="수">수</option>
-          <option value="목">목</option><option value="금">금</option><option value="토">토</option>
-        </select>
-        <div class="note small">먼데이 상위 아이템은 첫 번째 요일 그룹에, 하위 일정에는 두 요일을 모두 기록합니다.</div>
-      </div>
+      <div class="note small">세 항목을 모두 입력하면 주 2회로 자동 적용됩니다. 모두 비우면 주 1회입니다.</div>
     </div>
 
     <div class="row">
@@ -1195,6 +1206,17 @@
     return `${sY}. ${sM}. ${sD} - ${eM}. ${eD}`;
   }
 
+  function formatPeriodRangeUsingSlots(startISO,endISO,timeZone,primaryTime,secondTime){
+    const first=timeForScheduledDate(startISO,primaryTime,secondTime);
+    const last=timeForScheduledDate(endISO,primaryTime,secondTime);
+    const startLocal=getLocalISODate(makeKoreaZonedDate(startISO,first.hh,first.mm),timeZone);
+    const endLocal=getLocalISODate(makeKoreaZonedDate(endISO,last.hh,last.mm),timeZone);
+    const lastDate=toDateUTC(endLocal);
+    return startLocal.replace(/-/g,". ")+" - "
+      +String(lastDate.getUTCMonth()+1).padStart(2,"0")+". "
+      +String(lastDate.getUTCDate()).padStart(2,"0");
+  }
+
   function formatHolidayDateLine(dateISO, holidayName, studentLocation, timeZone, classTime24){
     // 휴강일은 한국 기준 수업일에 해당하는 실제 수업 시각을 기준으로 현지 날짜/요일을 계산합니다.
     // 예: 한국 금요일 오전 수업이 미국에서는 목요일 저녁이라면 휴강 일정도 미국 목요일로 표시됩니다.
@@ -1365,11 +1387,27 @@
     return normalizeClosedList([...closedList, ...getCheckedFetchedHolidays()]);
   }
 
+  function additionalScheduleState(){
+    const day=$("weekday2").value;
+    const amPm=$("amPm2").value;
+    const time=$("korTime2").value.trim();
+    const any=Boolean(day || amPm || time);
+    if(!any) return {frequency:1,ready:true,second:null};
+    if(!day || !amPm || !time) return {frequency:2,ready:false,error:"두 번째 요일·오전/오후·한국시간을 모두 입력해 주세요."};
+    if(day===$("weekday").value || WEEKDAY_TO_NUM[day]===undefined || day==="일")
+      return {frequency:2,ready:false,error:"주 2회는 서로 다른 두 요일(월~토)을 선택해 주세요."};
+    const second=parseKorTimeTo24h(amPm,time);
+    if(!second) return {frequency:2,ready:false,error:"두 번째 수업 시간을 확인해 주세요. (예: 7 또는 7:30)"};
+    return {frequency:2,ready:true,second};
+  }
+
   function configuredWeekdays(){
-    const first = $("weekday").value;
-    if($("weeklyFrequency").value !== "2") return [first];
-    const second = $("weekday2").value;
-    return second && first !== second && WEEKDAY_TO_NUM[second] !== undefined ? [first,second] : [];
+    const state=additionalScheduleState();
+    return state.ready ? (state.frequency===2?[$("weekday").value,$("weekday2").value]:[$("weekday").value]) : [];
+  }
+
+  function timeForScheduledDate(date, primaryTime, secondTime){
+    return secondTime && getWeekdayKoFromISO(date)===$("weekday2").value ? secondTime : primaryTime;
   }
 
   function calculateExpectedEndDate(startISO, weekdayKo, lessonCount, closedItems){
@@ -1440,6 +1478,15 @@
     preview.value = expected
       ? `${expected} (${getWeekdayKoFromISO(expected)})`
       : "계산할 수 없음";
+  }
+
+  function buildClosedScheduleBlockWithTimes(items, studentLocation, timeZone, primaryTime, secondTime){
+    const normalized=normalizeClosedList(items);
+    if(!normalized.length) return "";
+    return "• 휴강 일정 :\n"+normalized.map(item=>{
+      return "- "+formatHolidayDateLine(item.date,item.name,studentLocation,timeZone,
+        timeForScheduledDate(item.date,primaryTime,secondTime));
+    }).join("\n")+"\n";
   }
 
   function buildClosedScheduleBlock(items, studentLocation, timeZone, classTime24){
@@ -1624,13 +1671,36 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     $("mondayDevicePreview").textContent = "Infohub 기기: " + selectedMondayDeviceLabel();
   }
 
-  // Only verified exact-name teacher/channel pairs can be linked automatically.
-  // Do not infer that OLIVIA, AYEONG or other Monday names equal a Discord alias.
+  // Instructor-to-channel mapping confirmed by the program administrator.
+  // Two distinct Discord channels (콩써니, 채리) belong to SEONYE.
   const VERIFIED_DRAWING_DISCORD_BY_TEACHER = Object.freeze({
     "62107542":"🐰DRAWING ZOEY 조이쌤",
+    "62032527":"💙DRAWING ELLIE 아룡쌤",
+    "62107579":"😎DRAWING SELLY 새우쌤",
+    "62107617":"🥕DRAWING SHEAN 션쌤",
     "62270353":"🎨DRAWING SEONYE 콩써니쌤",
-    "66891148":"💖DRAWING JIMIN 지민쌤"
+    "66891148":"💖DRAWING JIMIN 지민쌤",
+    "79016580":"🐶DRAWING LARA 라라쌤"
   });
+  const VERIFIED_DRAWING_TEACHER_BY_DISCORD = Object.freeze({
+    "🐰DRAWING ZOEY 조이쌤":"62107542",
+    "💙DRAWING ELLIE 아룡쌤":"62032527",
+    "😎DRAWING SELLY 새우쌤":"62107579",
+    "🥕DRAWING SHEAN 션쌤":"62107617",
+    "🎨DRAWING SEONYE 콩써니쌤":"62270353",
+    "🍒DRAWING CHAERI 채리쌤":"62270353",
+    "💖DRAWING JIMIN 지민쌤":"66891148",
+    "🐶DRAWING LARA 라라쌤":"79016580"
+  });
+  function syncTeacherFromDiscord(){
+    const teacherId=VERIFIED_DRAWING_TEACHER_BY_DISCORD[$("discord").value];
+    if(!teacherId) return;
+    const teacherSelect=$("mondayTeacher");
+    if(Array.from(teacherSelect.options).some(option=>option.value===teacherId)){
+      teacherSelect.value=teacherId;
+      refreshRegistrationPreview();
+    }
+  }
   let lastAutoDiscordChannel = "";
   function syncDrawingTeacherChannel(){
     if(!DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value)) return;
@@ -1658,7 +1728,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
       ? "디지털 드로잉은 강사별 디스코드 채널을 선택해 주세요."
       : isMakeupPc ? "디지털 드로잉 외 PC 보강/보충은 디스코드 안내가 제외됩니다." : "";
     $("discordGuideHint").textContent = isDrawing
-      ? "디지털 드로잉: 확인된 강사(ZOEY·SEONYE·JIMIN)는 채널이 자동 연결됩니다. 다른 강사는 해당 채널을 직접 선택하고 담당 강사와 일치하는지 확인해 주세요."
+      ? "디스코드 채널을 선택하면 담당 강사도 자동 선택됩니다. 콩써니쌤·채리쌤 모두 SEONYE로 등록됩니다."
       : "강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.";
   }
 
@@ -1759,7 +1829,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
     return formatFullDateLine("🇰🇷", startDay, weekday, amPm, korTimeDisplay);
   }
 
-  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl }){
+  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl, secondWeekday, secondAmPm, secondTime, secondParsed, endDay }){
     const scheduleLines = buildSingleScheduleLines({ startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag });
 
     if(messageType === "MAKEUP_40" || messageType === "MAKEUP_30"){
@@ -1781,6 +1851,16 @@ Affinity Universe
 `;
     }
 
+    let secondTrialLine="";
+    if(secondWeekday && secondParsed){
+      const secondISO=findFirstClassDateKST(startDay,endDay,secondWeekday);
+      if(secondISO){
+        const secondKst=formatShortLine("🇰🇷",WEEKDAY_LONG[secondWeekday],secondAmPm,formatTimeDisplayInput(secondTime));
+        const local=studentLocation==="OVERSEAS"
+          ? formatInTimeZone(makeKoreaZonedDate(secondISO,secondParsed.hh,secondParsed.mm),tz):null;
+        secondTrialLine="\n"+(local?formatShortLine(flag,local.weekday,local.amPm,local.time)+"\n":"")+secondKst;
+      }
+    }
     const learningLinkText = (curriculumName === CUSTOM_COURSE_LABEL || curriculumName === BRANDING_COURSE_LABEL)
       ? ""
       : `https://affinityuniverse.com/${curriculumUrl}`;
@@ -1792,7 +1872,7 @@ Affinity Universe
     return `Affinity Universe: Trial  Class 일정 안내
 
 [트라이얼] (${classType === "GROUP" ? "1h" : "40m"})
-${scheduleLines}
+${scheduleLines}${secondTrialLine}
 
 [학습 과정]
 ${learningProcessText}
@@ -1877,8 +1957,18 @@ Step 4. 사진 구성
     try{
       const kstInstant = makeKoreaZonedDate(firstClassISO, parsed.hh, parsed.mm);
       const local = formatInTimeZone(kstInstant, tz);
-      $("localPreviewPill").textContent =
-        `현지시간 미리보기: ${formatShortLine("🌐", local.weekday, local.amPm, local.time).replace("🌐 ","")}`;
+      const firstText=formatShortLine("🌐",local.weekday,local.amPm,local.time).replace("🌐 ","");
+      const additional=additionalScheduleState();
+      let secondText="";
+      if(additional.ready && additional.frequency===2){
+        const secondDate=findFirstClassDateKST(startDay,endDay,$("weekday2").value);
+        if(secondDate){
+          const secondInstant=makeKoreaZonedDate(secondDate,additional.second.hh,additional.second.mm);
+          const secondLocal=formatInTimeZone(secondInstant,tz);
+          secondText=" / "+formatShortLine("🌐",secondLocal.weekday,secondLocal.amPm,secondLocal.time).replace("🌐 ","");
+        }
+      }
+      $("localPreviewPill").textContent="현지시간 미리보기: "+firstText+secondText;
     }catch(e){
       $("localPreviewPill").textContent = "현지시간 미리보기: 계산 실패(시간대 확인)";
     }
@@ -1913,8 +2003,9 @@ Step 4. 사진 구성
     let endDay = (messageType === "CLASS" || messageType === "TRIAL")
       ? $("endDay").value : startDay;
     const weekday = $("weekday").value;
-    const weekdays = configuredWeekdays();
-    if(!weekdays.length) return {ok:false,error:"주 2회는 서로 다른 두 요일을 선택해 주세요."};
+    const additional=additionalScheduleState();
+    if(!additional.ready) return {ok:false,error:additional.error};
+    const weekdays=configuredWeekdays();
     const amPm = $("amPm").value;
     const korTimeStr = $("korTime").value.trim();
 
@@ -1947,6 +2038,7 @@ Step 4. 사진 구성
 
     const parsed = parseKorTimeTo24h(amPm, korTimeStr);
     if(!parsed) return { ok:false, error:"한국시간 형식이 올바르지 않습니다. (예: 7 또는 7:30)" };
+    const secondParsed=additional.second;
 
     let displayStartISO = startDay;
     let displayEndISO = endDay;
@@ -1980,7 +2072,12 @@ Step 4. 사진 구성
         siblingType,
         classType,
         curriculumName,
-        curriculumUrl
+        curriculumUrl,
+        secondWeekday:weekdays.length===2?weekdays[1]:"",
+        secondAmPm:$("amPm2").value,
+        secondTime:$("korTime2").value.trim(),
+        secondParsed,
+        endDay
       });
       return { ok:true, text: singleText.replace(/\n{3,}/g, "\n\n").trim() + "\n" };
     }
@@ -1993,7 +2090,9 @@ Step 4. 사진 구성
     if(studentLocation === "DOMESTIC"){
       const kstLong = WEEKDAY_LONG[weekday];
       timeLine =
-`${timeHeader}${weekdays.map(day => formatShortLine("🇰🇷", WEEKDAY_LONG[day], amPm, korTimeDisplay)).join("\n")}
+`${timeHeader}${weekdays.map(day => formatShortLine("🇰🇷",WEEKDAY_LONG[day],
+    day===weekdays[1]?$("amPm2").value:amPm,
+    day===weekdays[1]?formatTimeDisplayInput($("korTime2").value.trim()):korTimeDisplay)).join("\n")}
 `;
     }else{
       const firstClassISO = findFirstClassDateKST(startDay, endDay, weekday);
@@ -2094,17 +2193,21 @@ ${noteLine ? noteLine + "\n" : ""}`;
     if(weekdays.length === 2 && studentLocation === "OVERSEAS"){
       const secondISO = findFirstClassDateKST(startDay,endDay,weekdays[1]);
       if(!secondISO) return {ok:false,error:"두 번째 정기 요일의 수업일이 기간에 없습니다."};
-      const secondInstant=makeKoreaZonedDate(secondISO,parsed.hh,parsed.mm);
+      const secondInstant=makeKoreaZonedDate(secondISO,secondParsed.hh,secondParsed.mm);
       const secondLocal=formatInTimeZone(secondInstant,tz);
       timeLine += `${formatShortLine(flag,secondLocal.weekday,secondLocal.amPm,secondLocal.time)}
-${formatShortLine("🇰🇷",WEEKDAY_LONG[weekdays[1]],amPm,korTimeDisplay)}
-※ 주 2회: 두 요일 모두 한국시간 기준 같은 시각에 진행
+${formatShortLine("🇰🇷",WEEKDAY_LONG[weekdays[1]],$("amPm2").value,formatTimeDisplayInput($("korTime2").value.trim()))}
+※ 주 2회: 각 요일에 입력된 한국시간 기준으로 진행
 `;
     }
 
-    const closedBlock = buildClosedScheduleBlock(effectiveClosedList, studentLocation, tz, parsed);
+    const closedBlock = weekdays.length===2
+      ? buildClosedScheduleBlockWithTimes(effectiveClosedList,studentLocation,tz,parsed,secondParsed)
+      : buildClosedScheduleBlock(effectiveClosedList,studentLocation,tz,parsed);
 
-    const periodRangeText = formatPeriodRange(displayStartISO, displayEndISO, tz, parsed);
+    const periodRangeText = weekdays.length===2 && studentLocation==="OVERSEAS"
+      ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,secondParsed)
+      : formatPeriodRange(displayStartISO, displayEndISO, tz, parsed);
     // 예상 종강일은 수업 기간 계산에만 사용하고, 최종 안내 문구에는 표시하지 않습니다.
     const expectedEndLine = "";
     const scheduleTitle =
@@ -2209,7 +2312,7 @@ Affinity Universe
 
   function registrationFingerprint(){
     const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
-      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "weeklyFrequency", "amPm", "korTime", "studentLocation",
+      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
     return JSON.stringify({fields:ids.map(id => [id, $(id).value]), closed:getEffectiveClosedList(),
@@ -2236,8 +2339,9 @@ Affinity Universe
     const messageType=$("messageType").value;
     const single=messageType==="MAKEUP_40"||messageType==="MAKEUP_30";
     const weekday = $("weekday").value;
-    const weekdays = configuredWeekdays();
-    if(!weekdays.length) return {ok:false,error:"주 2회는 서로 다른 두 요일을 선택해 주세요."};
+    const extra=additionalScheduleState();
+    if(!extra.ready) return {ok:false,error:extra.error};
+    const weekdays=configuredWeekdays();
     if($("studentLocation").value === "OVERSEAS" && $("dstMode").value === "TEACHER_CHANGE")
       return {ok:false,error:"강사 한국시간이 바뀌는 DST 옵션은 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다."};
     if(!WEEKDAY_GROUP_KO[weekday]) return {ok:false, error:"Infohub에는 일요일(SUN) 그룹이 없습니다. 해당 클래스의 그룹을 먼저 지정해야 합니다."};
@@ -2304,14 +2408,17 @@ Affinity Universe
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
     if(!kst) return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
-    return {ok:true, startDay, endDay, weekday, kst, items, lessonCount:lessonNo, holidayCount:items.length-lessonNo};
+    return {ok:true, startDay, endDay, weekday, kst, kstSecond:extra.second, weeklyFrequency:extra.frequency, items, lessonCount:lessonNo, holidayCount:items.length-lessonNo};
   }
 
   function refreshRegistrationPreview(){
     const r = buildRegistrationPlan();
     if(!r.ok){ $("registrationPreview").textContent = r.error; $("registrationPreview").classList.add("warn"); return; }
     $("registrationPreview").classList.remove("warn");
-    const entries = r.items.map(i => `${i.date} · ${i.name}${i.absentStudentIds?.length
+    const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
+      const slot=timeForScheduledDate(i.date,r.kst,r.kstSecond);
+      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST";
+    })()}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
     $("registrationPreview").textContent = `${WEEKDAY_GROUP_KO[r.weekday]} 그룹 · Infohub 기기 ${selectedMondayDeviceLabel()} · ${r.lessonCount}강 / 전체 휴강 ${r.holidayCount}건 / 개별 결석 ${absenceCount}회차\n${entries.join("\n")}`;
@@ -2385,6 +2492,7 @@ Affinity Universe
       if(activeIds.has(teacher.id)) select.append(new Option(teacher.name,String(teacher.id)));
     }
     if(Array.from(select.options).some(o=>o.value===existing)) select.value = existing;
+    syncTeacherFromDiscord();
   }
 
   function bind(){
@@ -2401,7 +2509,7 @@ Affinity Universe
         refreshRegistrationPreview();
       })
     );
-    ["startDay","endDay","weekday","weekday2","weeklyFrequency","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
+    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
       $(id).addEventListener("input", ()=>{
         rePreview();
         updateExpectedEndPreview();
@@ -2428,9 +2536,14 @@ Affinity Universe
       const v = $("messageType").value;
       const isSingle = v==="MAKEUP_40"||v==="MAKEUP_30";
       $("makeupLessonBox").style.display=isSingle?"block":"none";
-      if(isSingle) $("weeklyFrequency").value="1";
-      $("weeklyFrequency").disabled=isSingle;
-      $("weeklyFrequency").closest("div").style.opacity=isSingle?".5":"1";
+      if(isSingle){
+        $("weekday2").value="";
+        $("amPm2").value="";
+        $("korTime2").value="";
+      }
+      $("weekday2").disabled=isSingle;
+      $("amPm2").disabled=isSingle;
+      $("korTime2").disabled=isSingle;
       syncWeeklyFrequency();
       if(v==="TRIAL")$("lessonCount").value="4";
        $("endDay").disabled = isSingle;
@@ -2449,14 +2562,19 @@ Affinity Universe
     }
 
     function syncWeeklyFrequency(){
-      const twice=$("weeklyFrequency").value==="2" && !$("weeklyFrequency").disabled;
-      $("weekday2Box").style.display=twice?"block":"none";
-      $("weekday2").disabled=!twice;
-      if(!twice) $("weekday2").value="";
+      const state=additionalScheduleState();
+      const box=$("weeklyScheduleBox");
+      box.classList.toggle("active",state.frequency===2 && state.ready);
+      box.classList.toggle("partial",!state.ready);
+      $("weeklyScheduleState").textContent=state.frequency===1
+        ? "미설정 · 주 1회" : state.ready ? "적용 · 주 2회" : "입력 중 · 세 항목을 완성해 주세요";
       updateExpectedEndPreview();
       refreshRegistrationPreview();
     }
-    $("weeklyFrequency").addEventListener("change",syncWeeklyFrequency);
+    ["weekday2","amPm2","korTime2","weekday"].forEach(id=>{
+      $(id).addEventListener("input",syncWeeklyFrequency);
+      $(id).addEventListener("change",syncWeeklyFrequency);
+    });
     $("messageType").addEventListener("change", syncMessageTypeUI);
     $("templateType").addEventListener("change", ()=>{
       updateMondayDevicePreview();
@@ -2709,7 +2827,7 @@ Affinity Universe
       if(lastGeneratedFingerprint !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
       $("approveFeedback").replaceChildren();
       refreshRegistrationPreview();
-      showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "warn");
+      showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
     });
 
     $("mondayTeacher").addEventListener("change",()=>{
@@ -2718,6 +2836,7 @@ Affinity Universe
     });
     $("discord").addEventListener("change",()=>{
       lastAutoDiscordChannel="";
+      syncTeacherFromDiscord();
     });
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
     $("makeupLessonNumber").addEventListener("change",()=>{mondayNameWasEdited=false;updateMondayItemName();});
@@ -2785,8 +2904,9 @@ Affinity Universe
           studentLocation:$("studentLocation").value,
           dstMode:$("dstMode").value,
           weekday:plan.weekday,
-          weekday2:$("weeklyFrequency").value==="2"?$("weekday2").value:"",
-          weeklyFrequency:Number($("weeklyFrequency").value),
+          weekday2:plan.weeklyFrequency===2?$("weekday2").value:"",
+          weeklyFrequency:plan.weeklyFrequency,
+          kstTime24Second:plan.kstSecond,
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
@@ -2835,7 +2955,8 @@ Affinity Universe
       $("expectedEndPreview").value = "";
       $("weekday").value = "월";
       $("weekday2").value = "";
-      $("weeklyFrequency").value = "1";
+      $("amPm2").value = "";
+      $("korTime2").value = "";
       $("amPm").value = "오전";
       $("korTime").value = "";
 

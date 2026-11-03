@@ -17,7 +17,7 @@ const registry={
   async finish(key,state,data){saved.set(key,{state,...data});},
   async release(key){saved.delete(key);},
 };
-const env={MONDAY_API_TOKEN:'MOCK_TOKEN',TEAM_DOMAIN,POLICY_AUD:AUD,ACCESS_ALLOWED_EMAILS:'veldy.official@gmail.com',
+const env={MONDAY_API_TOKEN:'MOCK_TOKEN',DEVICE_CLEAR_GRACE_MS:0,TEAM_DOMAIN,POLICY_AUD:AUD,ACCESS_ALLOWED_EMAILS:'veldy.official@gmail.com',
  REGISTRY:{idFromName:()=> 'stable',get:()=>registry},
  ASSETS:{fetch:async()=>new Response('<!doctype html><html>TEST</html>',{headers:{'Content-Type':'text/html'}})}};
 
@@ -44,6 +44,14 @@ async function mockServices() {
     if(q.includes('me {id name email}')){
       const flow=options.headers.Authorization==='MOCK_FLOW_TOKEN';
       data={me:{id:flow?'777':'62032468',name:flow?'AFFINITY FLOW':'OLIVIA',email:flow?'affinityuniverse.flow@gmail.com':'veldy.official@gmail.com'},boards:[{id:String(BOARD_ID)}]};
+    }
+    else if(q.includes('change_multiple_column_values(')) {
+      data={change_multiple_column_values:{id:call.variables.itemId}};
+    }
+    else if(q.includes('column_values(ids:["color_mm2zrwb9"]')) {
+      data={items:[{id:'999900000',column_values:[{id:COL.device,text:'PC'}]}]};
+      const lastDevice=[...currentRequests].reverse().find(x=>x.query.includes('change_multiple_column_values('));
+      if(lastDevice) data.items[0].column_values[0].text=JSON.parse(lastDevice.variables.values)[COL.device].label;
     }
     else if(q.includes('items(ids:')) data={items:(call.variables.ids||[]).map(id=>({id,name:`Demo Student ${id}`,board:{id:'1879266175'},column_values:[{id:'text_mksvtgc8',text:`student${id}@example.com`}] }))};
     else if(q.includes('users(ids:')) data={users:(call.variables.ids||[]).map(id=>{const t=TEACHERS.find(t=>t.id===Number(id));return t?{id,name:t.name}:null;}).filter(Boolean)};
