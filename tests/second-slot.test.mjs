@@ -16,8 +16,8 @@ function harness(overrides={}){
     classType:'ONE_ON_ONE',siblingType:'BROTHER',discord:'해당없음',
     startDay:'2026-11-02',endDay:'2026-11-12',lessonCount:'4',
     weekday:'월',amPm:'오후',korTime:'7',
-    weekday2:'목',amPm2:'오전',korTime2:'10:30',
-    weekday3:'',amPm3:'',korTime3:'',
+    weekday2:'목',amPm2:'오전',korTime2:'10:30',classType2:'',dstMode2:'',
+    weekday3:'',amPm3:'',korTime3:'',classType3:'',dstMode3:'',
     curriculumSelect:'[ART BOOK DESIGN] LV.4',
     curriculumUrl:'Upper-intermediate',studentLocation:'DOMESTIC',
     dstMode:'AUTO',tzSelect:'Asia/Seoul',countryInput:'한국',
@@ -56,7 +56,7 @@ test('Second recurring time can differ from the first and appears in notice',()=
   assert.equal(notice.ok,true,notice.error);
   assert.match(notice.text,/주 2회/);
   assert.match(notice.text,/🇰🇷 \(월\) 7 PM/);
-  assert.match(notice.text,/🇰🇷 \(목\) 10:30 AM/);
+  assert.match(notice.text,/\/ \(목\) 10:30 AM/);
   const plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
   assert.equal(plan.kst.hh,19);
@@ -115,8 +115,8 @@ test('Three weekly slots show three independent hours and three chronological le
   assert.equal(message.ok,true,message.error);
   assert.match(message.text,/주 3회/);
   assert.match(message.text,/🇰🇷 \(월\) 7 PM/);
-  assert.match(message.text,/🇰🇷 \(화\) 2:45 PM/);
-  assert.match(message.text,/🇰🇷 \(목\) 10:30 AM/);
+  assert.match(message.text,/\/ \(화\) 2:45 PM/);
+  assert.match(message.text,/\/ \(목\) 10:30 AM/);
   const plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
   assert.equal(plan.weeklyFrequency,3);
