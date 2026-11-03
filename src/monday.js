@@ -129,22 +129,28 @@ export function derivePlan(input) {
   const groupId = GROUP_IDS[input.weekday];
   if (!groupId) throw new Error('선택한 요일에 해당하는 Infohub 그룹이 없습니다.');
   const weeklyFrequency = input.weeklyFrequency == null ? 1 : Number(input.weeklyFrequency);
-  if (![1,2].includes(weeklyFrequency)) throw new Error('주간 수업 횟수는 1회 또는 2회만 가능합니다.');
-  if (single && weeklyFrequency !== 1) throw new Error('보강/보충은 주 1회 선택만 가능합니다.');
-  if (weeklyFrequency === 2 && (!GROUP_IDS[input.weekday2] || input.weekday2 === input.weekday)) {
-    throw new Error('주 2회는 서로 다른 두 정규 요일(월~토)을 선택해 주세요.');
-  }
-  const targetDays = new Set([DAY[input.weekday], ...(weeklyFrequency===2?[DAY[input.weekday2]]:[])]);
-  // The first slot uses the existing Infohub TIME field. The optional second
-  // slot must be independently validated before any Monday API writes.
-  if (weeklyFrequency === 2) {
-    const second = input.kstTime24Second;
-    if (!second || !Number.isInteger(second.hh) || !Number.isInteger(second.mm)
-        || second.hh < 0 || second.hh > 23 || second.mm < 0 || second.mm > 59) {
-      throw new Error('두 번째 정기 수업의 오전/오후와 한국시간을 확인해 주세요.');
+  if (![1,2,3].includes(weeklyFrequency)) throw new Error('주간 수업 횟수는 1회~3회만 가능합니다.');
+  if (single && weeklyFrequency !== 1) throw new Error('보강/보충은 추가 정기 요일을 등록할 수 없습니다.');
+  const targetDays = new Set([DAY[input.weekday]]);
+  const extraSlots = [
+    { day:input.weekday2, time:input.kstTime24Second, label:'두 번째' },
+    { day:input.weekday3, time:input.kstTime24Third, label:'세 번째' }
+  ];
+  // Validate every activated slot and reject hidden/stale values before any Monday writes.
+  for(let i=0; i<extraSlots.length; i++){
+    const slot=extraSlots[i];
+    if(i < weeklyFrequency-1){
+      if(!GROUP_IDS[slot.day] || targetDays.has(DAY[slot.day])) {
+        throw new Error('추가 정기 수업 요일은 월~토 중 서로 달라야 합니다.');
+      }
+      if(!slot.time || !Number.isInteger(slot.time.hh) || !Number.isInteger(slot.time.mm)
+          || slot.time.hh < 0 || slot.time.hh > 23 || slot.time.mm < 0 || slot.time.mm > 59) {
+        throw new Error(slot.label+' 정기 수업의 오전/오후와 한국시간을 확인해 주세요.');
+      }
+      targetDays.add(DAY[slot.day]);
+    }else if(slot.day || slot.time != null) {
+      throw new Error(slot.label+' 일정이 설정되었다면 주간 수업 횟수에 포함해야 합니다.');
     }
-  } else if (input.weekday2 || input.kstTime24Second != null) {
-    throw new Error('두 번째 일정이 설정되었다면 주 2회로 등록해야 합니다.');
   }
   const start = dateFromISO(input.startDay);
   // Makeup/supplement are one lesson and have no end date; trial is four lessons.
@@ -236,8 +242,8 @@ export function derivePlan(input) {
       schedule.push({date,kind:'LESSON',name:`LESSON ${String(lessonNo).padStart(2,'0')}`,
         absentStudentIds:absenceMap.get(date)||[]});
     }
-    cursor=addDays(cursor,weeklyFrequency===2?1:7);
-    if(weeklyFrequency===2) while(!targetDays.has(cursor.getUTCDay())) cursor=addDays(cursor,1);
+    cursor=addDays(cursor,weeklyFrequency>1?1:7);
+    if(weeklyFrequency>1) while(!targetDays.has(cursor.getUTCDay())) cursor=addDays(cursor,1);
   }
   if (!schedule.length) throw new Error('수업 기간에 해당 요일이 없습니다.');
   if(input.messageType==='TRIAL' && lessonNo!==4) throw new Error('트라이얼은 휴강을 제외한 정확히 4회차로 등록해야 합니다. 종강일을 확인해 주세요.');
