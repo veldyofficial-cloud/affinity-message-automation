@@ -16,7 +16,7 @@ function plan({startDay='2026-11-02',endDay='2026-11-12',count=4,frequency=2,wee
     else {no++;schedule.push({date,kind:'LESSON',name:'LESSON '+String(no).padStart(2,'0'),absentStudentIds:[]});}
   }
   return {messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'IPAD',studentLocation:'DOMESTIC',dstMode:'AUTO',
-    startDay,endDay,weekday:'월',weeklyFrequency:frequency,weekday2,kstTime24:{hh:19,mm:0},
+    startDay,endDay,weekday:'월',weeklyFrequency:frequency,weekday2,kstTime24:{hh:19,mm:0},kstTime24Second:frequency===2?{hh:10,mm:30}:null,
     lessonCount:count,explicitLessonCount:count,closures,studentIds:[123456],schedule,...override};
 }
 
@@ -47,9 +47,11 @@ test('Single weekly schedule remains compatible when new field is absent',()=>{
 });
 test('Two-day course time and reminder UI is included',()=>{
   assert.match(html,/<option value="20">20강<\/option>/);
-  assert.match(html,/<select id="weeklyFrequency">/);
+  assert.doesNotMatch(html,/<select id="weeklyFrequency">/);
+  assert.match(html,/id="amPm2"/);
+  assert.match(html,/id="korTime2"/);
   assert.match(html,/<select id="weekday2">/);
-  assert.match(html,/weeklyFrequency:Number\(\$\("weeklyFrequency"\)\.value\)/);
+  assert.match(html,/weeklyFrequency:plan.weeklyFrequency/);
   assert.match(html,/주 \$\{weekdays.length\}회/);
   assert.match(html,/디지털 드로잉은 디스코드로 진행/);
   assert.match(html,/담당 강사의 디스코드 채널을 선택해 주세요/);
