@@ -2412,8 +2412,9 @@ Affinity Universe
     const extra=additionalScheduleState();
     if(!extra.ready) return {ok:false,error:extra.error};
     const weekdays=configuredWeekdays();
-    if($("studentLocation").value === "OVERSEAS" && $("dstMode").value === "TEACHER_CHANGE")
-      return {ok:false,error:"강사 한국시간이 바뀌는 DST 옵션은 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다."};
+    if($("studentLocation").value==="OVERSEAS" &&
+      ([$("dstMode").value,...extra.slots.map(slot=>slot.dstMode)].includes("TEACHER_CHANGE")))
+      return {ok:false,error:"강사 한국시간이 바뀌는 서머타임 방식은 Infohub TIME 한 칸으로 정확히 등록할 수 없습니다. 안내문만 생성하고 먼데이 등록은 별도로 확인해 주세요."};
     if(!WEEKDAY_GROUP_KO[weekday]) return {ok:false, error:"Infohub에는 일요일(SUN) 그룹이 없습니다. 해당 클래스의 그룹을 먼저 지정해야 합니다."};
     const startDay = $("startDay").value;
     let endDay = single?$("startDay").value:$("endDay").value;
@@ -2478,8 +2479,13 @@ Affinity Universe
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
     if(!kst) return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
+    const typeByDay={[weekday]:$("classType").value};
+    for(const slot of extra.slots)typeByDay[slot.weekday]=slot.classType;
+    if(individualAbsences.some(a=>typeByDay[getWeekdayKoFromISO(a.date)]!=="GROUP"))
+      return {ok:false,error:"개별 결석은 해당 수업 요일이 그룹 수업인 경우에만 등록할 수 있습니다."};
     return {ok:true,startDay,endDay,weekday,kst,kstSecond:extra.second,kstThird:extra.third,
-      extraSlots:extra.slots,weeklyFrequency:extra.frequency,items,lessonCount:lessonNo,holidayCount:items.length-lessonNo};
+      extraSlots:extra.slots,weeklyFrequency:extra.frequency,items,typeByDay,
+      lessonCount:lessonNo,holidayCount:items.length-lessonNo};
   }
 
   function refreshRegistrationPreview(){
@@ -2488,7 +2494,8 @@ Affinity Universe
     $("registrationPreview").classList.remove("warn");
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
       const slot=timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
-      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST";
+      const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
+      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"?"그룹 1h":"1:1 40m");
     })()}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
@@ -3011,6 +3018,10 @@ Affinity Universe
           weeklyFrequency:plan.weeklyFrequency,
           kstTime24Second:plan.kstSecond,
           kstTime24Third:plan.kstThird,
+          classType2:plan.extraSlots[0]?.classType||null,
+          classType3:plan.extraSlots[1]?.classType||null,
+          dstMode2:plan.extraSlots[0]?.dstMode||null,
+          dstMode3:plan.extraSlots[1]?.dstMode||null,
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
