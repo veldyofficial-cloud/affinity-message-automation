@@ -1671,13 +1671,36 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     $("mondayDevicePreview").textContent = "Infohub 기기: " + selectedMondayDeviceLabel();
   }
 
-  // Only verified exact-name teacher/channel pairs can be linked automatically.
-  // Do not infer that OLIVIA, AYEONG or other Monday names equal a Discord alias.
+  // Instructor-to-channel mapping confirmed by the program administrator.
+  // Two distinct Discord channels (콩써니, 채리) belong to SEONYE.
   const VERIFIED_DRAWING_DISCORD_BY_TEACHER = Object.freeze({
     "62107542":"🐰DRAWING ZOEY 조이쌤",
+    "62032527":"💙DRAWING ELLIE 아룡쌤",
+    "62107579":"😎DRAWING SELLY 새우쌤",
+    "62107617":"🥕DRAWING SHEAN 션쌤",
     "62270353":"🎨DRAWING SEONYE 콩써니쌤",
-    "66891148":"💖DRAWING JIMIN 지민쌤"
+    "66891148":"💖DRAWING JIMIN 지민쌤",
+    "79016580":"🐶DRAWING LARA 라라쌤"
   });
+  const VERIFIED_DRAWING_TEACHER_BY_DISCORD = Object.freeze({
+    "🐰DRAWING ZOEY 조이쌤":"62107542",
+    "💙DRAWING ELLIE 아룡쌤":"62032527",
+    "😎DRAWING SELLY 새우쌤":"62107579",
+    "🥕DRAWING SHEAN 션쌤":"62107617",
+    "🎨DRAWING SEONYE 콩써니쌤":"62270353",
+    "🍒DRAWING CHAERI 채리쌤":"62270353",
+    "💖DRAWING JIMIN 지민쌤":"66891148",
+    "🐶DRAWING LARA 라라쌤":"79016580"
+  });
+  function syncTeacherFromDiscord(){
+    const teacherId=VERIFIED_DRAWING_TEACHER_BY_DISCORD[$("discord").value];
+    if(!teacherId) return;
+    const teacherSelect=$("mondayTeacher");
+    if(Array.from(teacherSelect.options).some(option=>option.value===teacherId)){
+      teacherSelect.value=teacherId;
+      refreshRegistrationPreview();
+    }
+  }
   let lastAutoDiscordChannel = "";
   function syncDrawingTeacherChannel(){
     if(!DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value)) return;
@@ -1705,7 +1728,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
       ? "디지털 드로잉은 강사별 디스코드 채널을 선택해 주세요."
       : isMakeupPc ? "디지털 드로잉 외 PC 보강/보충은 디스코드 안내가 제외됩니다." : "";
     $("discordGuideHint").textContent = isDrawing
-      ? "디지털 드로잉: 확인된 강사(ZOEY·SEONYE·JIMIN)는 채널이 자동 연결됩니다. 다른 강사는 해당 채널을 직접 선택하고 담당 강사와 일치하는지 확인해 주세요."
+      ? "디스코드 채널을 선택하면 담당 강사도 자동 선택됩니다. 콩써니쌤·채리쌤 모두 SEONYE로 등록됩니다."
       : "강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.";
   }
 
@@ -2444,6 +2467,7 @@ Affinity Universe
       if(activeIds.has(teacher.id)) select.append(new Option(teacher.name,String(teacher.id)));
     }
     if(Array.from(select.options).some(o=>o.value===existing)) select.value = existing;
+    syncTeacherFromDiscord();
   }
 
   function bind(){
@@ -2787,6 +2811,7 @@ Affinity Universe
     });
     $("discord").addEventListener("change",()=>{
       lastAutoDiscordChannel="";
+      syncTeacherFromDiscord();
     });
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
     $("makeupLessonNumber").addEventListener("change",()=>{mondayNameWasEdited=false;updateMondayItemName();});
