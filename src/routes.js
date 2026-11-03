@@ -60,10 +60,10 @@ export async function approve(request, env, email) {
     const memoByDate=new Map(detailMemos.map(row=>[row.date,row.memo.trim()]));
     // Ensure time annotation does not overflow the Monday MEMO column after a
     // parent has been created. Validate this before the first write.
-    if(Number(p.weeklyFrequency)===2){
+    if(Number(p.weeklyFrequency)>1){
       const maxMemo=1470;
       if(p.subMemo.length>maxMemo || detailMemos.some(row=>row.memo.length>maxMemo)){
-        throw new Error('주 2회 수업은 하위 메모를 1470자 이내로 입력해 주세요.');
+        throw new Error('주 2~3회 수업은 하위 메모를 1470자 이내로 입력해 주세요.');
       }
     }
     const kind=p.messageType==='MAKEUP_40'?'보강':p.messageType==='MAKEUP_30'?'보충':p.messageType==='TRIAL'?'TRIAL':'CLASS';
@@ -112,7 +112,8 @@ export async function approve(request, env, email) {
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
       itemName:parentName,studentIds:studentIds.slice().sort((a,b)=>a-b),
       teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos,
-      time:p.kstTime24,secondTime:p.kstTime24Second||null,weekday2:p.weekday2||'',weeklyFrequency:Number(p.weeklyFrequency||1),
+      time:p.kstTime24,secondTime:p.kstTime24Second||null,thirdTime:p.kstTime24Third||null,
+      weekday2:p.weekday2||'',weekday3:p.weekday3||'',weeklyFrequency:Number(p.weeklyFrequency||1),
       schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
@@ -143,12 +144,14 @@ export async function approve(request, env, email) {
     if (!parentId) throw new Error('상위아이템 ID를 확인할 수 없습니다.');
 
     for (const row of plan.schedule) {
-      const isSecondDay=Number(p.weeklyFrequency)===2 && row.date &&
-        new Date(row.date+'T00:00:00Z').getUTCDay()===({일:0,월:1,화:2,수:3,목:4,금:5,토:6})[p.weekday2];
+      const targetDay=row.date && new Date(row.date+'T00:00:00Z').getUTCDay();
+      const weekDayNumbers={일:0,월:1,화:2,수:3,목:4,금:5,토:6};
+      const isSecondDay=Number(p.weeklyFrequency)>=2 && targetDay===weekDayNumbers[p.weekday2];
+      const isThirdDay=Number(p.weeklyFrequency)===3 && targetDay===weekDayNumbers[p.weekday3];
       // Parent TIME is the first-day time; append each lesson's exact KST
       // to the subitem memo so no second-day time is lost in Infohub.
-      const sessionTime=isSecondDay?p.kstTime24Second:p.kstTime24;
-      const kstNote=Number(p.weeklyFrequency)===2
+      const sessionTime=isThirdDay?p.kstTime24Third:isSecondDay?p.kstTime24Second:p.kstTime24;
+      const kstNote=Number(p.weeklyFrequency)>1
         ? '수업 시간: '+String(sessionTime.hh).padStart(2,'0')+':'+String(sessionTime.mm).padStart(2,'0')+' (한국시간)'
         : '';
       const writtenMemo=memoByDate.get(row.date)||p.subMemo.trim();
