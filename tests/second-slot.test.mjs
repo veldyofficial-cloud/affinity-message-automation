@@ -17,6 +17,7 @@ function harness(overrides={}){
     startDay:'2026-11-02',endDay:'2026-11-12',lessonCount:'4',
     weekday:'월',amPm:'오후',korTime:'7',
     weekday2:'목',amPm2:'오전',korTime2:'10:30',
+    weekday3:'',amPm3:'',korTime3:'',
     curriculumSelect:'[ART BOOK DESIGN] LV.4',
     curriculumUrl:'Upper-intermediate',studentLocation:'DOMESTIC',
     dstMode:'AUTO',tzSelect:'Asia/Seoul',countryInput:'한국',
@@ -104,6 +105,31 @@ test('Discord channel auto-selects the correct Monday instructor for all provide
   }
 });
 
+test('Three weekly slots show three independent hours and three chronological lesson dates',()=>{
+  const h=harness({weekday3:'화',amPm3:'오후',korTime3:'2:45',
+    endDay:'2026-11-09'});
+  const state=h.additionalScheduleState();
+  assert.equal(state.frequency,3);
+  assert.equal(state.third.hh,14);
+  const message=h.buildMessage();
+  assert.equal(message.ok,true,message.error);
+  assert.match(message.text,/주 3회/);
+  assert.match(message.text,/🇰🇷 \(월\) 7 PM/);
+  assert.match(message.text,/🇰🇷 \(화\) 2:45 PM/);
+  assert.match(message.text,/🇰🇷 \(목\) 10:30 AM/);
+  const plan=h.buildRegistrationPlan();
+  assert.equal(plan.ok,true,plan.error);
+  assert.equal(plan.weeklyFrequency,3);
+  assert.deepEqual([...plan.items.map(x=>x.date)],['2026-11-02','2026-11-03','2026-11-05','2026-11-09']);
+  const server=derivePlan({
+    messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'PC',
+    studentLocation:'DOMESTIC',startDay:plan.startDay,endDay:plan.endDay,
+    weekday:'월',weekday2:'목',weekday3:'화',weeklyFrequency:3,
+    kstTime24:plan.kst,kstTime24Second:plan.kstSecond,kstTime24Third:plan.kstThird,
+    lessonCount:4,explicitLessonCount:4,closures:[],studentIds:[1001],schedule:plan.items
+  });
+  assert.equal(server.lessonCount,4);
+});
 test('Success notice uses normal status, not orange warning',()=>{
   assert.match(html,/showAlert\("문구가 생성되었습니다\. 승인 전에 먼데이 등록 정보를 확인해 주세요\.", "ok"\)/);
   assert.doesNotMatch(html,/id="weeklyFrequency"/);
