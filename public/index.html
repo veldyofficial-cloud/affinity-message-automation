@@ -2597,49 +2597,76 @@ Affinity Universe
       updateLocalPreview();
     });
 
-    function syncMessageTypeUI(){
-      const v = $("messageType").value;
-      const isSingle = v==="MAKEUP_40"||v==="MAKEUP_30";
-      $("makeupLessonBox").style.display=isSingle?"block":"none";
-      if(isSingle){
-        $("weekday2").value="";
-        $("amPm2").value="";
-        $("korTime2").value="";
-      }
-      $("weekday2").disabled=isSingle;
-      $("amPm2").disabled=isSingle;
-      $("korTime2").disabled=isSingle;
-      syncWeeklyFrequency();
-      if(v==="TRIAL")$("lessonCount").value="4";
-       $("endDay").disabled = isSingle;
-       updateEndDateVisualState();
-      $("endDay").closest("div").style.opacity = isSingle ? "0.45" : "1";
-      $("lessonCount").disabled = isSingle || v==="TRIAL";
-      $("lessonCount").closest("div").style.opacity = (isSingle||v==="TRIAL") ? "0.45" : "1";
-      document.querySelector('label[for="startDay"]').textContent = isSingle ? "일정일(필수)" : "클래스 시작일(필수)";
-      document.querySelector('label[for="endDay"]').textContent = isSingle ? "종료일 사용 안 함" : v==="TRIAL"?"트라이얼 종료일(4회)":"클래스 종료일(선택)";
-      mondayNameWasEdited=false; updateMondayItemName();
-      showAlert(v==="CLASS"?"클래스 일정 양식입니다.":v==="TRIAL"?"트라이얼 4회 일정입니다.":"보강/보충 1회 일정입니다.","ok");
-      updateLocalPreview();
-      updateExpectedEndPreview();
-      updateMondayDevicePreview();
-      updateDiscordAvailability();
+    function clearWeeklyRow(n){
+      $("weekday"+n).value="";
+      $("amPm"+n).value="";
+      $("korTime"+n).value="";
     }
-
     function syncWeeklyFrequency(){
+      const single=["MAKEUP_40","MAKEUP_30"].includes($("messageType").value);
+      for(let n=2;n<=3;n++){
+        const visible=!single && activeWeeklyExtras>=n-1;
+        $("weeklySlot"+n).hidden=!visible;
+        for(const id of ["weekday"+n,"amPm"+n,"korTime"+n]) $(id).disabled=!visible;
+        const incomplete=visible && (!$("weekday"+n).value || !$("amPm"+n).value || !$("korTime"+n).value.trim());
+        $("weeklySlot"+n).classList.toggle("partial",incomplete);
+        $("weeklySlot"+n).classList.toggle("active",visible&&!incomplete);
+      }
+      $("addWeeklySlot").disabled=single||activeWeeklyExtras>=2;
+      $("addWeeklySlot").textContent=activeWeeklyExtras>=2?"주 3회까지 추가됨":"＋ 수업 일정 추가";
       const state=additionalScheduleState();
-      const box=$("weeklyScheduleBox");
-      box.classList.toggle("active",state.frequency===2 && state.ready);
-      box.classList.toggle("partial",!state.ready);
-      $("weeklyScheduleState").textContent=state.frequency===1
-        ? "미설정 · 주 1회" : state.ready ? "적용 · 주 2회" : "입력 중 · 세 항목을 완성해 주세요";
+      $("weeklyScheduleState").textContent=single?"보강/보충은 단일 일정":state.ready
+        ? "주 "+state.frequency+"회"+(activeWeeklyExtras?" · 추가 일정 "+activeWeeklyExtras+"개":" · 추가 일정 없음")
+        : "추가 일정 입력 중 · 요일/시간을 확인해 주세요";
       updateExpectedEndPreview();
+      updateLocalPreview();
       refreshRegistrationPreview();
     }
-    ["weekday2","amPm2","korTime2","weekday"].forEach(id=>{
+    function removeWeeklyRow(n){
+      if(n===2 && activeWeeklyExtras===2){
+        for(const field of ["weekday","amPm","korTime"]){
+          $(field+"2").value=$(field+"3").value;
+        }
+      }
+      clearWeeklyRow(activeWeeklyExtras+1);
+      activeWeeklyExtras=Math.max(0,activeWeeklyExtras-1);
+      syncWeeklyFrequency();
+    }
+    $("addWeeklySlot").addEventListener("click",()=>{
+      if(activeWeeklyExtras>=2 || ["MAKEUP_40","MAKEUP_30"].includes($("messageType").value))return;
+      activeWeeklyExtras++;
+      syncWeeklyFrequency();
+    });
+    $("removeWeeklySlot2").addEventListener("click",()=>removeWeeklyRow(2));
+    $("removeWeeklySlot3").addEventListener("click",()=>removeWeeklyRow(3));
+    ["weekday2","amPm2","korTime2","weekday3","amPm3","korTime3","weekday"].forEach(id=>{
       $(id).addEventListener("input",syncWeeklyFrequency);
       $(id).addEventListener("change",syncWeeklyFrequency);
     });
+    function syncMessageTypeUI(){
+      const v=$("messageType").value;
+      const isSingle=v==="MAKEUP_40"||v==="MAKEUP_30";
+      $("makeupLessonBox").style.display=isSingle?"block":"none";
+      if(isSingle){
+        activeWeeklyExtras=0;
+        clearWeeklyRow(2);
+        clearWeeklyRow(3);
+      }
+      if(v==="TRIAL")$("lessonCount").value="4";
+      $("endDay").disabled=isSingle;
+      updateEndDateVisualState();
+      $("endDay").closest("div").style.opacity=isSingle?"0.45":"1";
+      $("lessonCount").disabled=isSingle||v==="TRIAL";
+      $("lessonCount").closest("div").style.opacity=(isSingle||v==="TRIAL")?"0.45":"1";
+      document.querySelector('label[for="startDay"]').textContent=isSingle?"일정일(필수)":"클래스 시작일(필수)";
+      document.querySelector('label[for="endDay"]').textContent=isSingle?"종료일 사용 안 함":v==="TRIAL"?"트라이얼 종료일(4회)":"클래스 종료일(선택)";
+      mondayNameWasEdited=false;
+      updateMondayItemName();
+      showAlert(v==="CLASS"?"클래스 일정 양식입니다.":v==="TRIAL"?"트라이얼 4회 일정입니다.":"보강/보충 1회 일정입니다.","ok");
+      syncWeeklyFrequency();
+      updateMondayDevicePreview();
+      updateDiscordAvailability();
+    }
     $("messageType").addEventListener("change", syncMessageTypeUI);
     $("templateType").addEventListener("change", ()=>{
       updateMondayDevicePreview();
@@ -3021,9 +3048,9 @@ Affinity Universe
       $("lessonCount").value = "";
       $("expectedEndPreview").value = "";
       $("weekday").value = "월";
-      $("weekday2").value = "";
-      $("amPm2").value = "";
-      $("korTime2").value = "";
+      activeWeeklyExtras=0;
+      clearWeeklyRow(2);
+      clearWeeklyRow(3);
       $("amPm").value = "오전";
       $("korTime").value = "";
 
