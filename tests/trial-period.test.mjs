@@ -15,7 +15,7 @@ const code=inline[1].replace(lastInit,
 function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
  const fields={
    messageType:type, templateType:'PC',studentName:'테스트 수강생',
-   classType:'GROUP',siblingType:'BROTHER',discord:'해당없음',
+   classType:'GROUP',siblingType:'BROTHER',discord:curriculum.startsWith('[DRAWING]')?'🐰DRAWING ZOEY 조이쌤':'해당없음',
    startDay:'2026-11-02',endDay,weekday:'월',lessonCount:'4',
    amPm:'오전',korTime:'9',curriculumSelect:curriculum,
    curriculumUrl:courseSlug,
