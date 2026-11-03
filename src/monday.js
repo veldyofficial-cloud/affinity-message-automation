@@ -109,6 +109,17 @@ export function dateFromISO(s) {
 }
 export function addDays(d, count) {const x=new Date(d.getTime());x.setUTCDate(x.getUTCDate()+count);return x;}
 export function iso(d) {return d.toISOString().slice(0,10);}
+/** Keep one Korean-start-date prefix even if the title was edited manually. */
+export function infohubItemName(itemName,startDay){
+  const start=dateFromISO(startDay);
+  const source=String(itemName||'').trim()
+    .replace(/^\(⌛️\d{1,2}\/\d{1,2}\)\s*/u,'').trim();
+  if(!source) throw new Error('먼데이 코스명을 입력해 주세요.');
+  const prefix='(⌛️'+(start.getUTCMonth()+1)+'/'+start.getUTCDate()+') ';
+  if((prefix+source).length>255)throw new Error('시작일을 포함한 아이템명이 255자를 초과합니다.');
+  return prefix+source;
+}
+
 
 export function derivePlan(input) {
   if (!['CLASS','MAKEUP_40','MAKEUP_30','TRIAL'].includes(input.messageType)) {
