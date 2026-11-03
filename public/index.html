@@ -229,6 +229,17 @@
     .absentee-option span { color: var(--blue-ink); font-weight: 500; }
     .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: var(--text); background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
     .registration-preview.warn { color: var(--warn); background: #fff7ed; border-color: #fdba74; }
+    .optional-slot { padding:14px; margin:3px 0 18px; border:1px solid #d9e0ec; border-radius:11px; background:#f4f5f7; }
+    .optional-slot .row3 { margin-bottom:4px; }
+    .optional-slot label { color:#666; }
+    .optional-slot select, .optional-slot input { background:#eceff3; color:#333; }
+    .optional-slot-title { display:flex; justify-content:space-between; gap:8px; color:#555; font-size:16px; font-weight:700; margin-bottom:12px; }
+    #weeklyScheduleState { color:#666; font-size:14px; font-weight:500; }
+    .optional-slot.active { background:var(--blue-soft); border-color:var(--blue); }
+    .optional-slot.active label, .optional-slot.active .optional-slot-title { color:var(--blue); }
+    .optional-slot.active select, .optional-slot.active input { background:#fff; }
+    .optional-slot.partial { border-color:#fdba74; background:#fff7ed; }
+    .optional-slot.partial #weeklyScheduleState { color:var(--warn); }
     #approvalKey { letter-spacing: .08em; }
     .note { margin-top: 9px; color: var(--muted); font-size: 14px; font-weight: 400; line-height: 1.7; }
     .small { font-size: 14px; }
@@ -398,24 +409,24 @@
       </div>
     </div>
 
-    <div class="row" id="weeklyScheduleBox">
-      <div>
-        <label for="weeklyFrequency">주간 수업 횟수</label>
-        <select id="weeklyFrequency">
-          <option value="1">주 1회</option>
-          <option value="2">주 2회</option>
-        </select>
-        <div class="note small">주 2회는 두 요일 모두 같은 한국시간으로 진행합니다.</div>
+    <div class="optional-slot" id="weeklyScheduleBox">
+      <div class="optional-slot-title">주 2회 추가 일정 <span id="weeklyScheduleState">미설정 · 주 1회</span></div>
+      <div class="row3">
+        <div><label for="weekday2">두 번째 정기 수업 요일</label>
+          <select id="weekday2">
+            <option value="">요일 선택</option>
+            <option value="월">월</option><option value="화">화</option><option value="수">수</option>
+            <option value="목">목</option><option value="금">금</option><option value="토">토</option>
+          </select>
+        </div>
+        <div><label for="amPm2">두 번째 오전 / 오후</label>
+          <select id="amPm2"><option value="">오전/오후 선택</option><option value="오전">오전</option><option value="오후">오후</option></select>
+        </div>
+        <div><label for="korTime2">두 번째 한국시간 (예: 7 / 7:30)</label>
+          <input id="korTime2" type="text" placeholder="예: 7 / 7:30" />
+        </div>
       </div>
-      <div id="weekday2Box" style="display:none">
-        <label for="weekday2">두 번째 정기 수업 요일</label>
-        <select id="weekday2">
-          <option value="">두 번째 요일 선택</option>
-          <option value="월">월</option><option value="화">화</option><option value="수">수</option>
-          <option value="목">목</option><option value="금">금</option><option value="토">토</option>
-        </select>
-        <div class="note small">먼데이 상위 아이템은 첫 번째 요일 그룹에, 하위 일정에는 두 요일을 모두 기록합니다.</div>
-      </div>
+      <div class="note small">세 항목을 모두 입력하면 주 2회로 자동 적용됩니다. 모두 비우면 주 1회입니다.</div>
     </div>
 
     <div class="row">
@@ -1195,6 +1206,17 @@
     return `${sY}. ${sM}. ${sD} - ${eM}. ${eD}`;
   }
 
+  function formatPeriodRangeUsingSlots(startISO,endISO,timeZone,primaryTime,secondTime){
+    const first=timeForScheduledDate(startISO,primaryTime,secondTime);
+    const last=timeForScheduledDate(endISO,primaryTime,secondTime);
+    const startLocal=getLocalISODate(makeKoreaZonedDate(startISO,first.hh,first.mm),timeZone);
+    const endLocal=getLocalISODate(makeKoreaZonedDate(endISO,last.hh,last.mm),timeZone);
+    const lastDate=toDateUTC(endLocal);
+    return startLocal.replace(/-/g,". ")+" - "
+      +String(lastDate.getUTCMonth()+1).padStart(2,"0")+". "
+      +String(lastDate.getUTCDate()).padStart(2,"0");
+  }
+
   function formatHolidayDateLine(dateISO, holidayName, studentLocation, timeZone, classTime24){
     // 휴강일은 한국 기준 수업일에 해당하는 실제 수업 시각을 기준으로 현지 날짜/요일을 계산합니다.
     // 예: 한국 금요일 오전 수업이 미국에서는 목요일 저녁이라면 휴강 일정도 미국 목요일로 표시됩니다.
@@ -1365,11 +1387,27 @@
     return normalizeClosedList([...closedList, ...getCheckedFetchedHolidays()]);
   }
 
+  function additionalScheduleState(){
+    const day=$("weekday2").value;
+    const amPm=$("amPm2").value;
+    const time=$("korTime2").value.trim();
+    const any=Boolean(day || amPm || time);
+    if(!any) return {frequency:1,ready:true,second:null};
+    if(!day || !amPm || !time) return {frequency:2,ready:false,error:"두 번째 요일·오전/오후·한국시간을 모두 입력해 주세요."};
+    if(day===$("weekday").value || WEEKDAY_TO_NUM[day]===undefined || day==="일")
+      return {frequency:2,ready:false,error:"주 2회는 서로 다른 두 요일(월~토)을 선택해 주세요."};
+    const second=parseKorTimeTo24h(amPm,time);
+    if(!second) return {frequency:2,ready:false,error:"두 번째 수업 시간을 확인해 주세요. (예: 7 또는 7:30)"};
+    return {frequency:2,ready:true,second};
+  }
+
   function configuredWeekdays(){
-    const first = $("weekday").value;
-    if($("weeklyFrequency").value !== "2") return [first];
-    const second = $("weekday2").value;
-    return second && first !== second && WEEKDAY_TO_NUM[second] !== undefined ? [first,second] : [];
+    const state=additionalScheduleState();
+    return state.ready ? (state.frequency===2?[$("weekday").value,$("weekday2").value]:[$("weekday").value]) : [];
+  }
+
+  function timeForScheduledDate(date, primaryTime, secondTime){
+    return secondTime && getWeekdayKoFromISO(date)===$("weekday2").value ? secondTime : primaryTime;
   }
 
   function calculateExpectedEndDate(startISO, weekdayKo, lessonCount, closedItems){
@@ -1440,6 +1478,15 @@
     preview.value = expected
       ? `${expected} (${getWeekdayKoFromISO(expected)})`
       : "계산할 수 없음";
+  }
+
+  function buildClosedScheduleBlockWithTimes(items, studentLocation, timeZone, primaryTime, secondTime){
+    const normalized=normalizeClosedList(items);
+    if(!normalized.length) return "";
+    return "• 휴강 일정 :\n"+normalized.map(item=>{
+      return "- "+formatHolidayDateLine(item.date,item.name,studentLocation,timeZone,
+        timeForScheduledDate(item.date,primaryTime,secondTime));
+    }).join("\n")+"\n";
   }
 
   function buildClosedScheduleBlock(items, studentLocation, timeZone, classTime24){
