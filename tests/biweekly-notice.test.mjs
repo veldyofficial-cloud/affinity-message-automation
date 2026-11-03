@@ -36,9 +36,23 @@ test('Twenty lessons twice-weekly and one holiday have consistent counts',()=>{
   assert.equal(p.schedule.at(-1).date,'2027-01-11');
 });
 test('Invalid frequency, same day, or wrong client schedule must be rejected before Monday writes',()=>{
-  assert.throws(()=>derivePlan(plan({frequency:3})),/횟수/);
+  assert.throws(()=>derivePlan(plan({frequency:4})),/횟수/);
   assert.throws(()=>derivePlan(plan({weekday2:'월'})),/서로 다른/);
   assert.throws(()=>derivePlan(plan({override:{schedule:[]}})),/서버 검증/);
+});
+test('Three weekly days generate ordered subitems with independently validated third time',()=>{
+  const p=plan({startDay:'2026-11-02',endDay:'2026-11-09',count:4,frequency:3,
+    override:{weekday3:'화',kstTime24Third:{hh:14,mm:45},
+      schedule:[
+        {date:'2026-11-02',kind:'LESSON',name:'LESSON 01',absentStudentIds:[]},
+        {date:'2026-11-03',kind:'LESSON',name:'LESSON 02',absentStudentIds:[]},
+        {date:'2026-11-05',kind:'LESSON',name:'LESSON 03',absentStudentIds:[]},
+        {date:'2026-11-09',kind:'LESSON',name:'LESSON 04',absentStudentIds:[]}
+      ]}
+  });
+  assert.deepEqual(derivePlan(p).schedule.map(x=>x.date),['2026-11-02','2026-11-03','2026-11-05','2026-11-09']);
+  assert.throws(()=>derivePlan({...p,weekday3:'월'}),/서로 달라야/);
+  assert.throws(()=>derivePlan({...p,kstTime24Third:null}),/세 번째/);
 });
 test('Single weekly schedule remains compatible when new field is absent',()=>{
   const payload=plan({endDay:'2026-11-23',frequency:1,weekday2:'',count:4});
@@ -49,6 +63,11 @@ test('Two-day course time and reminder UI is included',()=>{
   assert.match(html,/<option value="20">20강<\/option>/);
   assert.doesNotMatch(html,/<select id="weeklyFrequency">/);
   assert.match(html,/id="amPm2"/);
+  assert.match(html,/id="amPm3"/);
+  assert.match(html,/id="korTime3"/);
+  assert.match(html,/id="addWeeklySlot"/);
+  assert.match(html,/id="removeWeeklySlot2"/);
+  assert.match(html,/id="removeWeeklySlot3"/);
   assert.match(html,/id="korTime2"/);
   assert.match(html,/<select id="weekday2">/);
   assert.match(html,/weeklyFrequency:plan.weeklyFrequency/);
