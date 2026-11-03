@@ -1624,6 +1624,29 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     $("mondayDevicePreview").textContent = "Infohub 기기: " + selectedMondayDeviceLabel();
   }
 
+  // Only verified exact-name teacher/channel pairs can be linked automatically.
+  // Do not infer that OLIVIA, AYEONG or other Monday names equal a Discord alias.
+  const VERIFIED_DRAWING_DISCORD_BY_TEACHER = Object.freeze({
+    "62107542":"🐰DRAWING ZOEY 조이쌤",
+    "62270353":"🎨DRAWING SEONYE 콩써니쌤",
+    "66891148":"💖DRAWING JIMIN 지민쌤"
+  });
+  let lastAutoDiscordChannel = "";
+  function syncDrawingTeacherChannel(){
+    if(!DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value)) return;
+    const teacherId=$("mondayTeacher").value;
+    const matched=VERIFIED_DRAWING_DISCORD_BY_TEACHER[teacherId];
+    const channel=$("discord");
+    if(matched && Array.from(channel.options).some(opt=>opt.value===matched)){
+      channel.value=matched;
+      lastAutoDiscordChannel=matched;
+    }else if(lastAutoDiscordChannel && channel.value===lastAutoDiscordChannel){
+      channel.value="해당없음";
+      lastAutoDiscordChannel="";
+    }
+    updateDiscordAvailability();
+  }
+
   function updateDiscordAvailability(){
     const discordSelect = $("discord");
     const isDrawing = DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value);
@@ -1635,7 +1658,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
       ? "디지털 드로잉은 강사별 디스코드 채널을 선택해 주세요."
       : isMakeupPc ? "디지털 드로잉 외 PC 보강/보충은 디스코드 안내가 제외됩니다." : "";
     $("discordGuideHint").textContent = isDrawing
-      ? "디지털 드로잉 수업: 담당 강사의 디스코드 채널을 반드시 확인해 주세요. 먼데이 강사와 디스코드 채널은 자동 매칭되지 않습니다."
+      ? "디지털 드로잉: 확인된 강사(ZOEY·SEONYE·JIMIN)는 채널이 자동 연결됩니다. 다른 강사는 해당 채널을 직접 선택하고 담당 강사와 일치하는지 확인해 주세요."
       : "강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.";
   }
 
@@ -2185,7 +2208,7 @@ Affinity Universe
   ];
 
   function registrationFingerprint(){
-    const ids = ["mondayLanguage","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
+    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
       "startDay", "endDay", "lessonCount", "weekday", "weekday2", "weeklyFrequency", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
@@ -2670,6 +2693,7 @@ Affinity Universe
       // Curriculum changes must never overwrite the user's explicit device selection.
       updateMondayItemName();
       updateMondayDevicePreview();
+      syncDrawingTeacherChannel();
       updateDiscordAvailability();
       refreshRegistrationPreview();
     });
@@ -2688,6 +2712,13 @@ Affinity Universe
       showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "warn");
     });
 
+    $("mondayTeacher").addEventListener("change",()=>{
+      syncDrawingTeacherChannel();
+      refreshRegistrationPreview();
+    });
+    $("discord").addEventListener("change",()=>{
+      lastAutoDiscordChannel="";
+    });
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
     $("makeupLessonNumber").addEventListener("change",()=>{mondayNameWasEdited=false;updateMondayItemName();});
     ["mondayLanguage","subMemo","subMemos"].forEach(id=>$(id).addEventListener("input",refreshRegistrationPreview));
