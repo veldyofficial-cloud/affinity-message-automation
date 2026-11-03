@@ -1893,7 +1893,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
     return formatFullDateLine("🇰🇷", startDay, weekday, amPm, korTimeDisplay);
   }
 
-  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl, secondWeekday, secondAmPm, secondTime, secondParsed, endDay }){
+  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl, extraSlots=[], endDay }){
     const scheduleLines = buildSingleScheduleLines({ startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag });
 
     if(messageType === "MAKEUP_40" || messageType === "MAKEUP_30"){
@@ -1916,14 +1916,13 @@ Affinity Universe
     }
 
     let secondTrialLine="";
-    if(secondWeekday && secondParsed){
-      const secondISO=findFirstClassDateKST(startDay,endDay,secondWeekday);
-      if(secondISO){
-        const secondKst=formatShortLine("🇰🇷",WEEKDAY_LONG[secondWeekday],secondAmPm,formatTimeDisplayInput(secondTime));
-        const local=studentLocation==="OVERSEAS"
-          ? formatInTimeZone(makeKoreaZonedDate(secondISO,secondParsed.hh,secondParsed.mm),tz):null;
-        secondTrialLine="\n"+(local?formatShortLine(flag,local.weekday,local.amPm,local.time)+"\n":"")+secondKst;
-      }
+    for(const slot of extraSlots){
+      const iso=findFirstClassDateKST(startDay,endDay,slot.weekday);
+      if(!iso) continue;
+      const kst=formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],slot.amPm,formatTimeDisplayInput(slot.timeText));
+      const local=studentLocation==="OVERSEAS"
+        ? formatInTimeZone(makeKoreaZonedDate(iso,slot.kst.hh,slot.kst.mm),tz):null;
+      secondTrialLine+="\n"+(local?formatShortLine(flag,local.weekday,local.amPm,local.time)+"\n":"")+kst;
     }
     const learningLinkText = (curriculumName === CUSTOM_COURSE_LABEL || curriculumName === BRANDING_COURSE_LABEL)
       ? ""
@@ -2103,6 +2102,7 @@ Step 4. 사진 구성
     const parsed = parseKorTimeTo24h(amPm, korTimeStr);
     if(!parsed) return { ok:false, error:"한국시간 형식이 올바르지 않습니다. (예: 7 또는 7:30)" };
     const secondParsed=additional.second;
+    const extraTimes=additional.slots.map(slot=>slot.kst);
 
     let displayStartISO = startDay;
     let displayEndISO = endDay;
@@ -2137,10 +2137,7 @@ Step 4. 사진 구성
         classType,
         curriculumName,
         curriculumUrl,
-        secondWeekday:weekdays.length===2?weekdays[1]:"",
-        secondAmPm:$("amPm2").value,
-        secondTime:$("korTime2").value.trim(),
-        secondParsed,
+        extraSlots:additional.slots,
         endDay
       });
       return { ok:true, text: singleText.replace(/\n{3,}/g, "\n\n").trim() + "\n" };
@@ -2148,15 +2145,15 @@ Step 4. 사진 구성
 
     const timeHeader = `• 수업 시간 : 주 ${weekdays.length}회 (${classType === "ONE_ON_ONE" ? "40m" : "1h"})\n`;
     const korTimeDisplay = formatTimeDisplayInput(korTimeStr);
+    const noticeSlots=[{weekday,amPm,timeText:korTimeStr,kst:parsed},...additional.slots];
 
     let timeLine = "";
 
     if(studentLocation === "DOMESTIC"){
       const kstLong = WEEKDAY_LONG[weekday];
       timeLine =
-`${timeHeader}${weekdays.map(day => formatShortLine("🇰🇷",WEEKDAY_LONG[day],
-    day===weekdays[1]?$("amPm2").value:amPm,
-    day===weekdays[1]?formatTimeDisplayInput($("korTime2").value.trim()):korTimeDisplay)).join("\n")}
+`${timeHeader}${noticeSlots.map(slot=>formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],
+    slot.amPm,formatTimeDisplayInput(slot.timeText))).join("\n")}
 `;
     }else{
       const firstClassISO = findFirstClassDateKST(startDay, endDay, weekday);
@@ -2254,23 +2251,25 @@ ${noteLine ? noteLine + "\n" : ""}`;
       }
     }
 
-    if(weekdays.length === 2 && studentLocation === "OVERSEAS"){
-      const secondISO = findFirstClassDateKST(startDay,endDay,weekdays[1]);
-      if(!secondISO) return {ok:false,error:"두 번째 정기 요일의 수업일이 기간에 없습니다."};
-      const secondInstant=makeKoreaZonedDate(secondISO,secondParsed.hh,secondParsed.mm);
-      const secondLocal=formatInTimeZone(secondInstant,tz);
-      timeLine += `${formatShortLine(flag,secondLocal.weekday,secondLocal.amPm,secondLocal.time)}
-${formatShortLine("🇰🇷",WEEKDAY_LONG[weekdays[1]],$("amPm2").value,formatTimeDisplayInput($("korTime2").value.trim()))}
-※ 주 2회: 각 요일에 입력된 한국시간 기준으로 진행
+    if(weekdays.length>1 && studentLocation==="OVERSEAS"){
+      for(const slot of additional.slots){
+        const firstISO=findFirstClassDateKST(startDay,endDay,slot.weekday);
+        if(!firstISO) return {ok:false,error:slot.index+"번째 정기 요일의 수업일이 기간에 없습니다."};
+        const instant=makeKoreaZonedDate(firstISO,slot.kst.hh,slot.kst.mm);
+        const local=formatInTimeZone(instant,tz);
+        timeLine += `${formatShortLine(flag,local.weekday,local.amPm,local.time)}
+${formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],slot.amPm,formatTimeDisplayInput(slot.timeText))}
 `;
+      }
+      timeLine += "※ 주 "+weekdays.length+"회: 각 요일에 입력된 한국시간 기준으로 진행\n";
     }
 
-    const closedBlock = weekdays.length===2
-      ? buildClosedScheduleBlockWithTimes(effectiveClosedList,studentLocation,tz,parsed,secondParsed)
+    const closedBlock = weekdays.length>1
+      ? buildClosedScheduleBlockWithTimes(effectiveClosedList,studentLocation,tz,parsed,extraTimes)
       : buildClosedScheduleBlock(effectiveClosedList,studentLocation,tz,parsed);
 
-    const periodRangeText = weekdays.length===2 && studentLocation==="OVERSEAS"
-      ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,secondParsed)
+    const periodRangeText = weekdays.length>1 && studentLocation==="OVERSEAS"
+      ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,extraTimes)
       : formatPeriodRange(displayStartISO, displayEndISO, tz, parsed);
     // 예상 종강일은 수업 기간 계산에만 사용하고, 최종 안내 문구에는 표시하지 않습니다.
     const expectedEndLine = "";
