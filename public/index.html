@@ -422,7 +422,7 @@
           <label for="countryInput">국가(한국어) 검색</label>
           <input id="countryInput" list="countryList" placeholder="예: 미국, 캐나다, 호주..." />
           <datalist id="countryList"></datalist>
-          <div class="note small">국가 내부 시차가 있으면 시간대를 꼭 정확히 골라주세요.</div>
+          <div class="note small">전 세계 국가 및 지역을 검색할 수 있습니다. 자동 시간대가 없는 국가는 아래에서 시간대를 직접 선택해 주세요.</div>
         </div>
         <div>
           <label for="customFlag">국기(선택)</label>
@@ -675,7 +675,7 @@
     "[ART BOOK DESIGN] LV.5": "아트북 디자인 LV.5",
     "[PICTURE BOOK] FOUNDATION": "픽처북 파운데이션",
     "[PICTURE BOOK] DIPLOMA": "픽처북 디플로마",
-    "[PICTURE BOOK] EDITOR": "픽처북 에디터",
+    "[PICTURE BOOK] EDITOR": "에디터",
     "[DRAWING] BASIC": "디지털 드로잉 베이직",
     "[DRAWING] PRO": "디지털 드로잉 프로",
     "[DRAWING] BOOK": "디지털 드로잉 북",
@@ -744,6 +744,8 @@
     { ko:"호주", flag:"🇦🇺", tz:["Australia/Sydney","Australia/Melbourne","Australia/Brisbane","Australia/Adelaide","Australia/Perth","Australia/Hobart","Australia/Darwin"] },
     { ko:"중국", flag:"🇨🇳", tz:["Asia/Shanghai"] },
     { ko:"아일랜드", flag:"🇮🇪", tz:["Europe/Dublin"] },
+    { ko:"말레이시아", flag:"🇲🇾", tz:["Asia/Kuala_Lumpur"] },
+    { ko:"아메리칸사모아", flag:"🇦🇸", tz:["Pacific/Pago_Pago"] },
     { ko:"인도네시아", flag:"🇮🇩", tz:["Asia/Jakarta","Asia/Makassar","Asia/Jayapura"] },
     { ko:"러시아", flag:"🇷🇺", tz:["Europe/Moscow","Asia/Yekaterinburg","Asia/Novosibirsk","Asia/Vladivostok","Asia/Kamchatka"] },
     { ko:"뉴질랜드", flag:"🇳🇿", tz:["Pacific/Auckland"] },
@@ -762,6 +764,26 @@
     { ko:"아랍에미리트", flag:"🇦🇪", tz:["Asia/Dubai"] },
     { ko:"오스트리아", flag:"🇦🇹", tz:["Europe/Vienna"] },
   ];
+
+  // Complete ISO 3166-1 country/territory suggestions. Known countries retain curated time zones.
+  const ISO_COUNTRY_CODES = "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ");
+  const COUNTRY_OPTIONS = (() => {
+    const byName = new Map(COUNTRY_DB.map(country => [country.ko, country]));
+    const regionNames = typeof Intl.DisplayNames === "function"
+      ? new Intl.DisplayNames(["ko"], {type:"region"})
+      : null;
+    if (regionNames) {
+      ISO_COUNTRY_CODES.forEach(code => {
+        // Prefer the Korean labels used by existing students for these two territories.
+        if (code === "MY" || code === "AS") return;
+        const ko = regionNames.of(code);
+        if (!ko || ko === code || byName.has(ko)) return;
+        const flag = String.fromCodePoint(...[...code].map(letter => letter.charCodeAt(0) + 127397));
+        byName.set(ko, {ko, flag, tz:[]});
+      });
+    }
+    return [...byName.values()].sort((a,b) => a.ko.localeCompare(b.ko, "ko"));
+  })();
 
   const US_STATES = [
     { name:"Alabama", ko:"알라바마", tzOptions:["America/Chicago"] },
@@ -940,7 +962,7 @@
   }
 
   function flagFromCountryKo(koName){
-    return COUNTRY_DB.find(c => c.ko === (koName || "").trim())?.flag || "";
+    return COUNTRY_OPTIONS.find(c => c.ko === (koName || "").trim())?.flag || "";
   }
 
   function syncClosedNamePresetByLocation(){
@@ -1483,7 +1505,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   function initCountryDatalist(){
     const dl = $("countryList");
     dl.innerHTML = "";
-    COUNTRY_DB.forEach(c=>{
+    COUNTRY_OPTIONS.forEach(c=>{
       const opt = document.createElement("option");
       opt.value = c.ko;
       dl.appendChild(opt);
@@ -1523,9 +1545,12 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function applyCountryToTzOptions(countryKo){
-    const found = COUNTRY_DB.find(c => c.ko === (countryKo||"").trim());
-    if(!found){
-      setSelectOptions($("tzSelect"), [], "시간대 직접 검색/입력으로 설정하세요");
+    const found = COUNTRY_OPTIONS.find(c => c.ko === (countryKo||"").trim());
+    if(!found || !found.tz.length){
+      // Do not block selection of countries not yet in the curated time-zone list.
+      const tzOptions = ALL_TZ.length ? ALL_TZ : [...new Set(COUNTRY_DB.flatMap(c => c.tz))];
+      setSelectOptions($("tzSelect"), tzOptions, "시간대를 직접 선택하거나 오른쪽에서 검색하세요");
+      $("tzSelect").value = ""; // Never silently assume the wrong time zone.
       return;
     }
     setSelectOptions($("tzSelect"), found.tz, "시간대 선택");
@@ -1593,7 +1618,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
 
     return requiresAppDownload
       ? `앱 다운로드 및 ${deviceAndPen}`
-      : deviceAndPen;
+      : "사전 펜슬/패드 충전 필수";
   }
 
   function buildParticipationGuide(curriculumName, discord, deviceType){
