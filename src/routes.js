@@ -58,6 +58,14 @@ export async function approve(request, env, email) {
        new Set(detailMemos.map(row=>row.date)).size!==detailMemos.length)
       throw new Error('메모 날짜가 수업 일정과 일치하지 않거나 중복되었습니다.');
     const memoByDate=new Map(detailMemos.map(row=>[row.date,row.memo.trim()]));
+    // Ensure time annotation does not overflow the Monday MEMO column after a
+    // parent has been created. Validate this before the first write.
+    if(Number(p.weeklyFrequency)===2){
+      const maxMemo=1470;
+      if(p.subMemo.length>maxMemo || detailMemos.some(row=>row.memo.length>maxMemo)){
+        throw new Error('주 2회 수업은 하위 메모를 1470자 이내로 입력해 주세요.');
+      }
+    }
     const kind=p.messageType==='MAKEUP_40'?'보강':p.messageType==='MAKEUP_30'?'보충':p.messageType==='TRIAL'?'TRIAL':'CLASS';
     const expectedName=(kind==='CLASS'||kind==='TRIAL') ? '' :
       ' | LESSON '+String(Number(p.makeupLessonNumber)).padStart(2,'0')+' '+kind;
