@@ -2133,7 +2133,7 @@ Step 4. 사진 구성
       }
       return {...slot,kstLine:kst,foreignLine:foreignDisplay,note,
         kstShort:kst.replace(/^🇰🇷 /u,""),
-        foreignShort:foreign.replace(new RegExp("^"+flag+" "),"")};
+        foreignShort:foreign.startsWith(flag+" ") ? foreign.slice(flag.length+1) : foreign};
     });
     const header="• 수업 시간 : 주 "+records.length+"회"+
       (mixed?"":" ("+duration(records[0].classType)+")");
