@@ -1,4 +1,4 @@
-import { allowedOrigin, allStudentItems, BOARD_ID, STUDENT_DB_ID, COL, derivePlan, infohubDstLabel, htmlEscape, json, monday } from './monday.js';
+import { allowedOrigin, allStudentItems, BOARD_ID, STUDENT_DB_ID, COL, derivePlan, infohubDstLabel, infohubItemName, htmlEscape, json, monday } from './monday.js';
 import {TEACHERS, isAllowedTeacher, teacherById} from './teachers.js';
 const validId = value => Number.isSafeInteger(value) && value > 0;
 
@@ -41,6 +41,11 @@ export async function approve(request, env, email) {
     if (p.classType==='GROUP' && studentIds.length<2) throw new Error('그룹 클래스는 학생 두 명 이상이 필요합니다.');
     if (!validId(Number(p.teacherId)) || !isAllowedTeacher(p.teacherId)) throw new Error('승인된 강사 13명 중에서 담당 강사를 선택해 주세요.');
     const plan=derivePlan(p);
+    // Use the Korean (KST) start date regardless of the student's timezone.
+    // Canonicalize before reserve/create so the same course cannot be saved
+    // twice under differently-prefixed names.
+    const parentName=infohubItemName(p.itemName,plan.startDay);
+    const dstLabel=infohubDstLabel(p);
     p.language=p.language||'KR';
     if(!['KR','ENG'].includes(p.language)) throw new Error('상위아이템 언어는 KR 또는 ENG를 선택해 주세요.');
     p.subMemo=p.subMemo||'';
@@ -97,7 +102,7 @@ export async function approve(request, env, email) {
     }
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
     registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
-      itemName:p.itemName.trim(),studentIds:studentIds.slice().sort((a,b)=>a-b),
+      itemName:parentName,studentIds:studentIds.slice().sort((a,b)=>a-b),
       teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos, time:p.kstTime24,
       schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
@@ -115,14 +120,14 @@ export async function approve(request, env, email) {
       [COL.time]:{hour:p.kstTime24.hh,minute:p.kstTime24.mm},
       [COL.duration]:{label:duration},
       [COL.device]:{label:device},
-      [COL.domesticOrOverseas]:{label:infohubDstLabel(p)},
+      [COL.domesticOrOverseas]:{label:dstLabel},
       [COL.teacher]:{personsAndTeams:[{id:Number(p.teacherId),kind:'person'}]},
       [COL.studentRelation]:{item_ids:studentIds},
     };
     attemptedWrite=true;
     const created=await monday(`mutation ($boardId:ID!, $groupId:String!, $name:String!, $values:JSON!) {
       create_item(board_id:$boardId,group_id:$groupId,item_name:$name,column_values:$values) {id url}
-    }`,{boardId:String(BOARD_ID),groupId:plan.groupId,name:p.itemName.trim(),values:JSON.stringify(parentColumns)},env);
+    }`,{boardId:String(BOARD_ID),groupId:plan.groupId,name:parentName,values:JSON.stringify(parentColumns)},env);
     parentId=created.create_item?.id||'';
     parentCreatedAt=Date.now();
     itemUrl=created.create_item?.url||`https://veldyofficials-team.monday.com/boards/${BOARD_ID}/pulses/${parentId}`;
@@ -188,7 +193,7 @@ export async function approve(request, env, email) {
     }
 
     await storage.finish(registryKey,'complete',{itemUrl,parentId,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device,by:email});
-    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device,dstLabel:infohubDstLabel(p),updateAuthor});
+    return json({ok:true,parentId,itemUrl,lessons:plan.lessonCount,holidays:plan.holidayCount,absenceLessons:plan.absenceLessons,device,dstLabel,updateAuthor,parentName});
   }catch(err) {
     // Do not retry automatically when a network error occurred after a write was attempted.
     if (reserved && registryKey) {
