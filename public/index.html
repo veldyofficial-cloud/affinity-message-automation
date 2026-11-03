@@ -1829,7 +1829,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
     return formatFullDateLine("🇰🇷", startDay, weekday, amPm, korTimeDisplay);
   }
 
-  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl }){
+  function buildMakeupOrTrialMessage({ messageType, templateType, discord, studentName, siblingType, classType, startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag, curriculumName, curriculumUrl, secondWeekday, secondAmPm, secondTime, secondParsed, endDay }){
     const scheduleLines = buildSingleScheduleLines({ startDay, weekday, amPm, korTimeStr, parsed, studentLocation, tz, flag });
 
     if(messageType === "MAKEUP_40" || messageType === "MAKEUP_30"){
@@ -1851,6 +1851,16 @@ Affinity Universe
 `;
     }
 
+    let secondTrialLine="";
+    if(secondWeekday && secondParsed){
+      const secondISO=findFirstClassDateKST(startDay,endDay,secondWeekday);
+      if(secondISO){
+        const secondKst=formatShortLine("🇰🇷",WEEKDAY_LONG[secondWeekday],secondAmPm,formatTimeDisplayInput(secondTime));
+        const local=studentLocation==="OVERSEAS"
+          ? formatInTimeZone(makeKoreaZonedDate(secondISO,secondParsed.hh,secondParsed.mm),tz):null;
+        secondTrialLine="\n"+(local?formatShortLine(flag,local.weekday,local.amPm,local.time)+"\n":"")+secondKst;
+      }
+    }
     const learningLinkText = (curriculumName === CUSTOM_COURSE_LABEL || curriculumName === BRANDING_COURSE_LABEL)
       ? ""
       : `https://affinityuniverse.com/${curriculumUrl}`;
@@ -1862,7 +1872,7 @@ Affinity Universe
     return `Affinity Universe: Trial  Class 일정 안내
 
 [트라이얼] (${classType === "GROUP" ? "1h" : "40m"})
-${scheduleLines}
+${scheduleLines}${secondTrialLine}
 
 [학습 과정]
 ${learningProcessText}
@@ -2052,7 +2062,12 @@ Step 4. 사진 구성
         siblingType,
         classType,
         curriculumName,
-        curriculumUrl
+        curriculumUrl,
+        secondWeekday:weekdays.length===2?weekdays[1]:"",
+        secondAmPm:$("amPm2").value,
+        secondTime:$("korTime2").value.trim(),
+        secondParsed,
+        endDay
       });
       return { ok:true, text: singleText.replace(/\n{3,}/g, "\n\n").trim() + "\n" };
     }
