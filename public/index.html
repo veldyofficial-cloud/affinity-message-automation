@@ -440,6 +440,23 @@
             <input id="korTime2" type="text" placeholder="예: 7 / 7:30" />
           </div>
         </div>
+        <div class="row">
+          <div><label for="classType2">수업 유형 (선택)</label>
+            <select id="classType2">
+              <option value="">첫 번째 수업과 동일</option>
+              <option value="ONE_ON_ONE">1:1 (40m)</option>
+              <option value="GROUP">그룹 (1h)</option>
+            </select>
+          </div>
+          <div><label for="dstMode2">서머타임 적용 방식 (선택)</label>
+            <select id="dstMode2">
+              <option value="">기본 서머타임 설정과 동일</option>
+              <option value="AUTO">자동 (표기 없음)</option>
+              <option value="STUDENT_CHANGE">한국 시간 고정 · 현지 시간 변경</option>
+              <option value="TEACHER_CHANGE">현지 시간 고정 · 한국 시간 변경</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div class="optional-slot" id="weeklySlot3" hidden>
         <div class="optional-slot-title">세 번째 정기 수업 일정
@@ -458,6 +475,23 @@
           </div>
           <div><label for="korTime3">한국시간 (예: 7 / 7:30)</label>
             <input id="korTime3" type="text" placeholder="예: 7 / 7:30" />
+          </div>
+        </div>
+        <div class="row">
+          <div><label for="classType3">수업 유형 (선택)</label>
+            <select id="classType3">
+              <option value="">첫 번째 수업과 동일</option>
+              <option value="ONE_ON_ONE">1:1 (40m)</option>
+              <option value="GROUP">그룹 (1h)</option>
+            </select>
+          </div>
+          <div><label for="dstMode3">서머타임 적용 방식 (선택)</label>
+            <select id="dstMode3">
+              <option value="">기본 서머타임 설정과 동일</option>
+              <option value="AUTO">자동 (표기 없음)</option>
+              <option value="STUDENT_CHANGE">한국 시간 고정 · 현지 시간 변경</option>
+              <option value="TEACHER_CHANGE">현지 시간 고정 · 한국 시간 변경</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1455,7 +1489,9 @@
       const kst=parseKorTimeTo24h(amPm,timeText);
       if(!kst) return {frequency:rows.length+1,ready:false,error:n+"번째 수업 시간을 확인해 주세요. (예: 7 또는 7:30)"};
       seen.add(day);
-      slots.push({index:n,weekday:day,amPm,timeText,kst});
+      slots.push({index:n,weekday:day,amPm,timeText,kst,
+        classType:$("classType"+n).value||$("classType").value,
+        dstMode:$("dstMode"+n).value||$("dstMode").value});
     }
     return {frequency:slots.length+1,ready:true,second:slots[0]?.kst||null,third:slots[1]?.kst||null,slots};
   }
@@ -2377,7 +2413,8 @@ Affinity Universe
 
   function registrationFingerprint(){
     const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
-      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "weekday3", "amPm3", "korTime3", "amPm", "korTime", "studentLocation",
+      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "classType2", "dstMode2",
+      "weekday3", "amPm3", "korTime3", "classType3", "dstMode3", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
     return JSON.stringify({fields:ids.map(id => [id, $(id).value]), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
@@ -2575,7 +2612,8 @@ Affinity Universe
         refreshRegistrationPreview();
       })
     );
-    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","weekday3","amPm3","korTime3","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
+    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","classType2","dstMode2",
+      "weekday3","amPm3","korTime3","classType3","dstMode3","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
       $(id).addEventListener("input", ()=>{
         rePreview();
         updateExpectedEndPreview();
@@ -2602,13 +2640,15 @@ Affinity Universe
       $("weekday"+n).value="";
       $("amPm"+n).value="";
       $("korTime"+n).value="";
+      $("classType"+n).value="";
+      $("dstMode"+n).value="";
     }
     function syncWeeklyFrequency(){
       const single=["MAKEUP_40","MAKEUP_30"].includes($("messageType").value);
       for(let n=2;n<=3;n++){
         const visible=!single && activeWeeklyExtras>=n-1;
         $("weeklySlot"+n).hidden=!visible;
-        for(const id of ["weekday"+n,"amPm"+n,"korTime"+n]) $(id).disabled=!visible;
+        for(const id of ["weekday"+n,"amPm"+n,"korTime"+n,"classType"+n,"dstMode"+n]) $(id).disabled=!visible;
         const incomplete=visible && (!$("weekday"+n).value || !$("amPm"+n).value || !$("korTime"+n).value.trim());
         $("weeklySlot"+n).classList.toggle("partial",incomplete);
         $("weeklySlot"+n).classList.toggle("active",visible&&!incomplete);
@@ -2625,7 +2665,7 @@ Affinity Universe
     }
     function removeWeeklyRow(n){
       if(n===2 && activeWeeklyExtras===2){
-        for(const field of ["weekday","amPm","korTime"]){
+        for(const field of ["weekday","amPm","korTime","classType","dstMode"]){
           $(field+"2").value=$(field+"3").value;
         }
       }
@@ -2640,7 +2680,8 @@ Affinity Universe
     });
     $("removeWeeklySlot2").addEventListener("click",()=>removeWeeklyRow(2));
     $("removeWeeklySlot3").addEventListener("click",()=>removeWeeklyRow(3));
-    ["weekday2","amPm2","korTime2","weekday3","amPm3","korTime3","weekday"].forEach(id=>{
+    ["weekday2","amPm2","korTime2","classType2","dstMode2",
+      "weekday3","amPm3","korTime3","classType3","dstMode3","weekday"].forEach(id=>{
       $(id).addEventListener("input",syncWeeklyFrequency);
       $(id).addEventListener("change",syncWeeklyFrequency);
     });
