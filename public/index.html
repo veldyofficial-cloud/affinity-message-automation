@@ -2078,6 +2078,82 @@ Step 4. 사진 구성
   /*********************
    * 메시지 생성
    *********************/
+  // Shared formatter for one, two or three weekly dates. A uniform class
+  // groups country lines; mixed duration or DST behavior is shown per slot.
+  function formatWeeklyScheduleTimeBlock({startDay,endDay,slots,studentLocation,tz,flag}){
+    const overseas=studentLocation==="OVERSEAS";
+    const mixed=slots.some(slot=>slot.classType!==slots[0].classType);
+    const durationLabel=kind=>kind==="GROUP"?"그룹 1h":"1:1 40m";
+    const duration=kind=>kind==="GROUP"?"1h":"40m";
+    const transitions=overseas?findDstTransitionsBetween(startDay,endDay,tz):[];
+    const records=slots.map(slot=>{
+      const firstISO=findFirstClassDateKST(startDay,endDay,slot.weekday);
+      if(!firstISO)throw new Error(slot.weekday+"요일의 수업일이 해당 기간에 없습니다.");
+      const instant=makeKoreaZonedDate(firstISO,slot.kst.hh,slot.kst.mm);
+      const kst=formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],slot.amPm,formatTimeDisplayInput(slot.timeText));
+      const local=overseas?formatInTimeZone(instant,tz):null;
+      const foreign=local?formatShortLine(flag,local.weekday,local.amPm,local.time):"";
+      const transition=transitions.find(t=>
+        Boolean(findNextClassAfterTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:t.instantUtc
+        })))||null;
+      let note="",foreignDisplay=foreign;
+      if(overseas && transition && slot.dstMode==="STUDENT_CHANGE"){
+        const before=findPrevClassOnOrBeforeTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:transition.instantUtc
+        });
+        const after=findNextClassAfterTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:transition.instantUtc
+        });
+        if(before && after){
+          const earlier=formatInTimeZone(before.classInstantKST,tz);
+          const later=formatInTimeZone(after.classInstantKST,tz);
+          const date=getLocalISODate(after.classInstantKST,tz);
+          const month=String(Number(date.slice(5,7))).padStart(2,"0");
+          const day=String(Number(date.slice(8,10))).padStart(2,"0");
+          foreignDisplay=formatShortLine(flag,earlier.weekday,earlier.amPm,earlier.time)
+            +" ➜ "+stripSi(later.time)+" "+koAmPmToEN(later.amPm)
+            +" *"+month+". "+day+"부터 적용";
+          note="※ 서머타임 전환 시, 한국 시간 고정";
+        }
+      }else if(overseas && transition && slot.dstMode==="TEACHER_CHANGE"){
+        const after=findNextClassAfterTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:transition.instantUtc
+        });
+        if(after){
+          const shifted=new Date(after.classInstantKST.getTime()-transition.diffMinutes*60000);
+          const adjusted=formatInTimeZone(shifted,"Asia/Seoul");
+          note="※ 서머타임 전환 시, 한국 시간 "+stripSi(adjusted.time)+" "
+            +koAmPmToEN(adjusted.amPm)+"으로 변경";
+        }
+      }
+      return {...slot,kstLine:kst,foreignLine:foreignDisplay,note,
+        kstShort:kst.replace(/^🇰🇷 /u,""),
+        foreignShort:foreign.replace(new RegExp("^"+flag+" "),"")};
+    });
+    const header="• 수업 시간 : 주 "+records.length+"회"+
+      (mixed?"":" ("+duration(records[0].classType)+")");
+    const hasSeparateNotes=records.some(record=>record.note);
+    if(!mixed&&!hasSeparateNotes){
+      const kr="🇰🇷 "+records.map(record=>record.kstShort).join(" / ");
+      if(!overseas)return header+"\n"+kr+"\n";
+      const foreign=flag+" "+records.map(record=>record.foreignShort).join(" / ");
+      return header+"\n"+foreign+"\n"+kr+"\n";
+    }
+    const blocks=records.map(record=>{
+      const suffix=mixed?" ("+durationLabel(record.classType)+")":"";
+      const line=overseas
+        ? record.foreignLine+" / "+record.kstLine+suffix
+        : record.kstLine+suffix;
+      return line+(record.note?"\n"+record.note:"");
+    });
+    return header+"\n"+blocks.join("\n\n")+"\n";
+  }
+
   function buildMessage(){
     const messageType = $("messageType").value;
     const templateType = $("templateType").value;
@@ -2181,125 +2257,17 @@ Step 4. 사진 구성
       return { ok:true, text: singleText.replace(/\n{3,}/g, "\n\n").trim() + "\n" };
     }
 
-    const timeHeader = `• 수업 시간 : 주 ${weekdays.length}회 (${classType === "ONE_ON_ONE" ? "40m" : "1h"})\n`;
-    const korTimeDisplay = formatTimeDisplayInput(korTimeStr);
-    const noticeSlots=[{weekday,amPm,timeText:korTimeStr,kst:parsed},...additional.slots];
-
-    let timeLine = "";
-
-    if(studentLocation === "DOMESTIC"){
-      const kstLong = WEEKDAY_LONG[weekday];
-      timeLine =
-`${timeHeader}${noticeSlots.map(slot=>formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],
-    slot.amPm,formatTimeDisplayInput(slot.timeText))).join("\n")}
-`;
-    }else{
-      const firstClassISO = findFirstClassDateKST(startDay, endDay, weekday);
-      if(!firstClassISO){
-        return { ok:false, error:"시작~종료 기간 안에 선택한 요일의 수업일을 찾지 못했습니다." };
-      }
-
-      const firstInstantKST = makeKoreaZonedDate(firstClassISO, parsed.hh, parsed.mm);
-      const localFirst = formatInTimeZone(firstInstantKST, tz);
-      const kstFromInstant = formatInTimeZone(firstInstantKST, "Asia/Seoul");
-      const kstBaseLine = formatShortLine("🇰🇷", kstFromInstant.weekday, kstFromInstant.amPm, kstFromInstant.time);
-      const transitions = findDstTransitionsBetween(startDay, endDay, tz);
-
-      if(dstMode === "AUTO"){
-        timeLine =
-`${timeHeader}${formatShortLine(flag, localFirst.weekday, localFirst.amPm, localFirst.time)}
-${kstBaseLine}
-`;
-      }
-
-      if(dstMode === "STUDENT_CHANGE"){
-        if(transitions.length){
-          const firstShift = transitions[0];
-
-          const nextClass = findNextClassAfterTransition({
-            startISO: startDay,
-            endISO: endDay,
-            weekdayKo: weekday,
-            kstTime24: parsed,
-            transitionInstantUtc: firstShift.instantUtc
-          });
-
-          const prevClass = findPrevClassOnOrBeforeTransition({
-            startISO: startDay,
-            endISO: endDay,
-            weekdayKo: weekday,
-            kstTime24: parsed,
-            transitionInstantUtc: firstShift.instantUtc
-          });
-
-          const beforeInst = prevClass ? prevClass.classInstantKST : firstInstantKST;
-          const afterInst = nextClass ? nextClass.classInstantKST : firstInstantKST;
-
-          const localBefore = formatInTimeZone(beforeInst, tz);
-          const localAfter = formatInTimeZone(afterInst, tz);
-
-          const appliedISO = nextClass ? getLocalISODate(nextClass.classInstantKST, tz) : firstShift.localISO;
-          const appliedDate = appliedISO ? (() => {
-            const d = toDateUTC(appliedISO);
-            return `${String(d.getUTCMonth()+1).padStart(2,"0")}. ${String(d.getUTCDate()).padStart(2,"0")}`;
-          })() : "";
-
-          const wShort = weekdayLongToShortParen(localBefore.weekday);
-          const beforeT = `${stripSi(localBefore.time)} ${koAmPmToEN(localBefore.amPm)}`.trim();
-          const afterT = `${stripSi(localAfter.time)} ${koAmPmToEN(localAfter.amPm)}`.trim();
-
-          timeLine =
-`${timeHeader}${flag} ${wShort} ${beforeT} ➜ ${afterT} *${appliedDate}부터 적용
-${kstBaseLine}
-※ 서머타임 전환 시, 한국 시간 고정
-`;
-        }else{
-          timeLine =
-`${timeHeader}${formatShortLine(flag, localFirst.weekday, localFirst.amPm, localFirst.time)}
-${kstBaseLine}
-`;
-        }
-      }
-
-      if(dstMode === "TEACHER_CHANGE"){
-        let noteLine = "";
-        if(transitions.length){
-          const firstShift = transitions[0];
-          const nextClassForNote = findNextClassAfterTransition({
-            startISO: startDay,
-            endISO: endDay,
-            weekdayKo: weekday,
-            kstTime24: parsed,
-            transitionInstantUtc: firstShift.instantUtc
-          });
-
-          if(nextClassForNote){
-            const adjustedInstant = new Date(
-              nextClassForNote.classInstantKST.getTime() - firstShift.diffMinutes * 60000
-            );
-            const kstAdjusted = formatInTimeZone(adjustedInstant, "Asia/Seoul");
-            noteLine = `※ 서머타임 전환 시, 한국 시간 ${stripSi(kstAdjusted.time)} ${koAmPmToEN(kstAdjusted.amPm)}으로 변경`;
-          }
-        }
-
-        timeLine =
-`${timeHeader}${formatShortLine(flag, localFirst.weekday, localFirst.amPm, localFirst.time)}
-${kstBaseLine}
-${noteLine ? noteLine + "\n" : ""}`;
-      }
-    }
-
-    if(weekdays.length>1 && studentLocation==="OVERSEAS"){
-      for(const slot of additional.slots){
-        const firstISO=findFirstClassDateKST(startDay,endDay,slot.weekday);
-        if(!firstISO) return {ok:false,error:slot.index+"번째 정기 요일의 수업일이 기간에 없습니다."};
-        const instant=makeKoreaZonedDate(firstISO,slot.kst.hh,slot.kst.mm);
-        const local=formatInTimeZone(instant,tz);
-        timeLine += `${formatShortLine(flag,local.weekday,local.amPm,local.time)}
-${formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],slot.amPm,formatTimeDisplayInput(slot.timeText))}
-`;
-      }
-      timeLine += "※ 주 "+weekdays.length+"회: 각 요일에 입력된 한국시간 기준으로 진행\n";
+    const noticeSlots=[
+      {weekday,amPm,timeText:korTimeStr,kst:parsed,classType,dstMode},
+      ...additional.slots
+    ];
+    let timeLine="";
+    try{
+      timeLine=formatWeeklyScheduleTimeBlock({
+        startDay,endDay,slots:noticeSlots,studentLocation,tz,flag
+      });
+    }catch(e){
+      return {ok:false,error:e.message||"수업 시간 안내문을 계산하지 못했습니다."};
     }
 
     const closedBlock = weekdays.length>1
