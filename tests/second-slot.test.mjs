@@ -73,7 +73,7 @@ test('Second recurring time can differ from the first and appears in notice',()=
 });
 
 test('An empty optional slot means once weekly, and partially entered slot fails',()=>{
-  const empty=harness({weekday2:'',amPm2:'',korTime2:''});
+  const empty=harness({weekday2:'',amPm2:'',korTime2:'',endDay:'2026-11-23'});
   assert.equal(empty.additionalScheduleState().frequency,1);
   assert.equal(empty.buildRegistrationPlan().ok,true);
   const partial=harness({weekday2:'목',amPm2:'',korTime2:''});
