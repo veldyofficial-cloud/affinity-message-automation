@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/worker-core.js';
-import {derivePlan, infohubDstLabel, BOARD_ID, COL} from '../src/monday.js';
+import {derivePlan, infohubDstLabel, infohubItemName, BOARD_ID, COL} from '../src/monday.js';
 import {TEACHERS,isAllowedTeacher} from '../src/teachers.js';
 
 const origin='https://affinity-infohub-approval.account.workers.dev';
@@ -267,5 +267,45 @@ test('Flow token only posts the update and wrong account blocks before DB writes
  {...env,MONDAY_UPDATE_API_TOKEN:'MOCK_TOKEN'},{});
  assert.equal(bad.status,400);
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
+ globalThis.fetch=realFetch;
+});
+
+
+test('Canonical KST start-date prefix on every Infohub title without duplication',async()=>{
+ assert.equal(infohubItemName('[PICTURE BOOK] EDITOR','2026-11-23'),
+  '(⌛️11/23) [PICTURE BOOK] EDITOR');
+ assert.equal(infohubItemName('(⌛️11/16) [PICTURE BOOK] EDITOR','2026-11-23'),
+  '(⌛️11/23) [PICTURE BOOK] EDITOR');
+ assert.equal(infohubItemName('[ART BOOK DESIGN] TRIAL 🚀','2026-11-02'),
+  '(⌛️11/2) [ART BOOK DESIGN] TRIAL 🚀');
+ assert.equal(infohubItemName('[PICTURE BOOK] DIPLOMA | LESSON 07 보강','2026-11-23'),
+  '(⌛️11/23) [PICTURE BOOK] DIPLOMA | LESSON 07 보강');
+ assert.throws(()=>infohubItemName('[VIDEO] BASIC','2026-11-31'));
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const p={...input(),itemName:'[PICTURE BOOK] EDITOR',dstMode:'STUDENT_CHANGE',
+   studentLocation:'OVERSEAS'};
+ const resp=await worker.fetch(request('/api/approve',token,p),env,{});
+ assert.equal(resp.status,200,await resp.clone().text());
+ const stored=currentRequests.filter(x=>x.query.includes('create_item(')).at(-1);
+ assert.equal(stored.variables.name,'(⌛️11/2) [PICTURE BOOK] EDITOR');
+ assert.deepEqual(JSON.parse(stored.variables.values)[COL.domesticOrOverseas],{label:'🇰🇷'});
+ const payload=await resp.json();
+ assert.equal(payload.parentName,stored.variables.name);
+ assert.equal(payload.dstLabel,'🇰🇷');
+ globalThis.fetch=realFetch;
+});
+
+test('Overseas DST selection must reach server; missing value fails before any board write',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const inputMissing={...input(),studentLocation:'OVERSEAS'};
+ delete inputMissing.dstMode;
+ const r=await worker.fetch(request('/api/approve',token,inputMissing),env,{});
+ assert.equal(r.status,400,await r.clone().text());
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
+ assert.match((await r.json()).error,/썸머타임/);
  globalThis.fetch=realFetch;
 });
