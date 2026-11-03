@@ -1957,8 +1957,18 @@ Step 4. 사진 구성
     try{
       const kstInstant = makeKoreaZonedDate(firstClassISO, parsed.hh, parsed.mm);
       const local = formatInTimeZone(kstInstant, tz);
-      $("localPreviewPill").textContent =
-        `현지시간 미리보기: ${formatShortLine("🌐", local.weekday, local.amPm, local.time).replace("🌐 ","")}`;
+      const firstText=formatShortLine("🌐",local.weekday,local.amPm,local.time).replace("🌐 ","");
+      const additional=additionalScheduleState();
+      let secondText="";
+      if(additional.ready && additional.frequency===2){
+        const secondDate=findFirstClassDateKST(startDay,endDay,$("weekday2").value);
+        if(secondDate){
+          const secondInstant=makeKoreaZonedDate(secondDate,additional.second.hh,additional.second.mm);
+          const secondLocal=formatInTimeZone(secondInstant,tz);
+          secondText=" / "+formatShortLine("🌐",secondLocal.weekday,secondLocal.amPm,secondLocal.time).replace("🌐 ","");
+        }
+      }
+      $("localPreviewPill").textContent="현지시간 미리보기: "+firstText+secondText;
     }catch(e){
       $("localPreviewPill").textContent = "현지시간 미리보기: 계산 실패(시간대 확인)";
     }
