@@ -71,7 +71,7 @@ test('Two-day course time and reminder UI is included',()=>{
   assert.match(html,/id="korTime2"/);
   assert.match(html,/<select id="weekday2">/);
   assert.match(html,/weeklyFrequency:plan.weeklyFrequency/);
-  assert.match(html,/주 \$\{weekdays.length\}회/);
+  assert.match(html,/const header="• 수업 시간 : 주 "/);
   assert.match(html,/디지털 드로잉은 디스코드로 진행/);
   assert.match(html,/담당 강사의 디스코드 채널을 선택해 주세요/);
   assert.match(html,/#alert\.warn \{ background: #fff7ed/);
