@@ -2108,15 +2108,29 @@ Affinity Universe
   let partialRegistrationLocked = false;
   let mondayNameWasEdited = false;
 
+  function withKoreanStartDate(name){
+    const unprefixed=String(name||"").trim().replace(/^\(⌛️\d{1,2}\/\d{1,2}\)\s*/u,"");
+    const date=$("startDay").value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return unprefixed;
+    const [year,month,day]=date.split("-").map(Number);
+    return "(⌛️"+month+"/"+day+") "+unprefixed;
+  }
+
   function updateMondayItemName(){
     const el = $("mondayItemName");
-    if(!el || mondayNameWasEdited) return;
+    if(!el) return;
+    if(mondayNameWasEdited){
+      // Respect the user's custom course name but keep the date prefix current.
+      el.value=withKoreanStartDate(el.value);
+      return;
+    }
     const v = $("curriculumSelect").value;
     const base=v===BRANDING_COURSE_LABEL?"[BRANDING] PERSONAL COURSE":v===CUSTOM_COURSE_LABEL?"":v;
     const type=$("messageType").value;
     const lesson="LESSON "+String(Number($("makeupLessonNumber").value)||1).padStart(2,"0");
-    el.value=type==="TRIAL" ? base.replace(/\]\s*.*$/,"] TRIAL 🚀") :
+    const name=type==="TRIAL" ? base.replace(/\]\s*.*$/,"] TRIAL 🚀") :
       (type==="MAKEUP_40"||type==="MAKEUP_30") ? base+" | "+lesson+" "+(type==="MAKEUP_40"?"보강":"보충") : base;
+    el.value=withKoreanStartDate(name);
   }
 
   // Monday personnel IDs verified read-only against the account's active teacher roster.
@@ -2313,6 +2327,13 @@ Affinity Universe
      $("endDay").addEventListener("change", updateEndDateVisualState);
      updateEndDateVisualState();
 
+    // The Monday title always follows the date selected in Korean time.
+    ["input","change"].forEach(eventName=>
+      $("startDay").addEventListener(eventName,()=>{
+        updateMondayItemName();
+        refreshRegistrationPreview();
+      })
+    );
     ["startDay","endDay","weekday","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
       $(id).addEventListener("input", ()=>{
         rePreview();
@@ -2670,6 +2691,7 @@ Affinity Universe
           classType:$("classType").value,
           templateType:$("templateType").value,
           studentLocation:$("studentLocation").value,
+          dstMode:$("dstMode").value,
           weekday:plan.weekday,
           startDay:plan.startDay,
           endDay:plan.endDay,
