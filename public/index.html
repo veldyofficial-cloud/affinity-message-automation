@@ -342,6 +342,7 @@
           <option value="💖DRAWING JIMIN 지민쌤">💖DRAWING JIMIN 지민쌤</option>
           <option value="🐶DRAWING LARA 라라쌤">🐶DRAWING LARA 라라쌤</option>
         </select>
+        <div id="discordGuideHint" class="note small">강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.</div>
       </div>
     </div>
 
@@ -1364,16 +1365,23 @@
     return normalizeClosedList([...closedList, ...getCheckedFetchedHolidays()]);
   }
 
+  function configuredWeekdays(){
+    const first = $("weekday").value;
+    if($("weeklyFrequency").value !== "2") return [first];
+    const second = $("weekday2").value;
+    return second && first !== second && WEEKDAY_TO_NUM[second] !== undefined ? [first,second] : [];
+  }
+
   function calculateExpectedEndDate(startISO, weekdayKo, lessonCount, closedItems){
     const count = Number(lessonCount);
-    if(!startISO || ![4,8,10,12].includes(count)) return null;
+    if(!startISO || ![4,8,10,12,20].includes(count)) return null;
 
     const start = toDateUTC(startISO);
-    const targetDay = WEEKDAY_TO_NUM[weekdayKo];
-    if(isNaN(start) || targetDay === undefined) return null;
+    const targetDays = configuredWeekdays().map(x=>WEEKDAY_TO_NUM[x]);
+    if(isNaN(start) || !targetDays.length) return null;
 
     let cur = new Date(start.getTime());
-    while(cur.getUTCDay() !== targetDay) cur = addDaysUTC(cur, 1);
+    while(!targetDays.includes(cur.getUTCDay())) cur = addDaysUTC(cur, 1);
 
     const closedDates = new Set(normalizeClosedList(closedItems).map(x => x.date));
     let completed = 0;
@@ -1383,7 +1391,8 @@
       const iso = dateToISO_UTC(cur);
       if(!closedDates.has(iso)) completed++;
       if(completed === count) return iso;
-      cur = addDaysUTC(cur, 7);
+      cur = addDaysUTC(cur, targetDays.length===2?1:7);
+      while(!targetDays.includes(cur.getUTCDay())) cur=addDaysUTC(cur,1);
       guard++;
     }
 
@@ -1392,7 +1401,7 @@
 
   function getHolidayFetchEndDate(startISO, weekdayKo, lessonCount){
     const count = Number(lessonCount);
-    if(!startISO || ![4,8,10,12].includes(count)) return "";
+    if(!startISO || ![4,8,10,12,20].includes(count)) return "";
 
     const provisionalEnd = calculateExpectedEndDate(startISO, weekdayKo, count, closedList);
     if(!provisionalEnd) return "";
@@ -1416,7 +1425,7 @@
     }
 
     const lessonCount = $("messageType").value==="TRIAL"?4:Number($("lessonCount").value);
-    if(![4,8,10,12].includes(lessonCount)){
+    if(![4,8,10,12,20].includes(lessonCount)){
       preview.value = "";
       return;
     }
@@ -1616,17 +1625,18 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function updateDiscordAvailability(){
-    const isMakeupPc = ["MAKEUP_40","MAKEUP_30"].includes($("messageType").value) && $("templateType").value === "PC";
     const discordSelect = $("discord");
-
-    if(isMakeupPc){
-      discordSelect.value = "해당없음";
-      discordSelect.disabled = true;
-      discordSelect.title = "PC 보강 수업은 디스코드 안내가 제외됩니다.";
-    }else{
-      discordSelect.disabled = false;
-      discordSelect.title = "";
-    }
+    const isDrawing = DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value);
+    const isMakeupPc = ["MAKEUP_40","MAKEUP_30"].includes($("messageType").value)
+      && $("templateType").value === "PC" && !isDrawing;
+    discordSelect.disabled = isMakeupPc;
+    if(isMakeupPc) discordSelect.value = "해당없음";
+    discordSelect.title = isDrawing
+      ? "디지털 드로잉은 강사별 디스코드 채널을 선택해 주세요."
+      : isMakeupPc ? "디지털 드로잉 외 PC 보강/보충은 디스코드 안내가 제외됩니다." : "";
+    $("discordGuideHint").textContent = isDrawing
+      ? "디지털 드로잉 수업: 담당 강사의 디스코드 채널을 반드시 확인해 주세요. 먼데이 강사와 디스코드 채널은 자동 매칭되지 않습니다."
+      : "강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.";
   }
 
   /*********************
@@ -1634,7 +1644,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
    *********************/
   function buildDrawingDeviceLine(curriculumName, deviceType){
     const requiresAppDownload = curriculumName === "[DRAWING] BASIC";
-    if (deviceType === "PC") return "PC 및 수업에 필요한 프로그램 준비";
+    if (deviceType === "PC") return "디지털 드로잉은 디스코드로 진행";
     const deviceAndPen = deviceType === "GALAXY"
       ? "갤럭시 탭과 S펜 충전 필수"
       : "아이패드와 애플 펜슬 충전 필수";
@@ -1682,57 +1692,22 @@ ${firstLine}
   }
 
   function buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType){
+    if(DRAWING_DEVICE_COURSES.includes(curriculumName)) return buildParticipationGuide(curriculumName, discord, deviceType);
     const hasDiscord = discord && discord !== "해당없음";
-
     if(templateType === "IPAD" || templateType === "GALAXY"){
-      const firstLine = hasDiscord
-        ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장`
-        : `• 수업 시작 5분 전 접속 권장`;
-
-      const deviceLine = buildDrawingDeviceLine(curriculumName, deviceType);
-
+      const firstLine = hasDiscord ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장` : "• 수업 시작 5분 전 접속 권장";
       return `[수업 참여 안내]
 ${firstLine}
-• ${deviceLine}
+• ${buildDrawingDeviceLine(curriculumName, deviceType)}
 • 수업 전 카카오톡 알림 발송`;
     }
-
-    if(hasDiscord){
-      return `[수업 참여 안내]
-• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장
-• 수업 전 카카오톡 알림 발송`;
-    }
-
     return `[수업 참여 안내]
-• 수업 시작 5분 전 접속 권장
+• ${hasDiscord ? `수업 시작 5분 전, 디스코드 ${discord} 채널 입장` : "수업 시작 5분 전 접속 권장"}
 • 수업 전 카카오톡 알림 발송`;
   }
 
   function buildTrialParticipationGuide(templateType, curriculumName, discord, deviceType){
-    const hasDiscord = discord && discord !== "해당없음";
-
-    if(templateType === "IPAD" || templateType === "GALAXY"){
-      const firstLine = hasDiscord
-        ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장`
-        : `• 수업 시작 5분 전 접속 권장`;
-
-      const deviceLine = buildDrawingDeviceLine(curriculumName, deviceType);
-
-      return `[수업 참여 안내] *디지털 드로잉 클래스의 경우
-${firstLine}
-• ${deviceLine}
-• 수업 전 카카오톡 알림 발송`;
-    }
-
-    if(hasDiscord){
-      return `[수업 참여 안내]
-• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장
-• 수업 전 카카오톡 알림 발송`;
-    }
-
-    return `[수업 참여 안내]
-• 수업 시작 5분 전 접속 권장
-• 수업 전 카카오톡 알림 발송`;
+    return buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType);
   }
 
   function formatFullDateLine(flag, isoDate, weekdayKo, amPmKo, timeText){
@@ -1900,9 +1875,13 @@ Step 4. 사진 구성
     const siblingType = $("siblingType").value;
     let discord = $("discord").value.trim();
 
-    // 메시지 종류가 보강이고 PC 수업이면 디스코드 안내를 강제로 제외합니다.
-    if((messageType === "MAKEUP_40" || messageType === "MAKEUP_30") && templateType === "PC"){
+    // Non-drawing PC makeup classes retain the no-Discord convention.
+    if((messageType === "MAKEUP_40" || messageType === "MAKEUP_30") && templateType === "PC"
+      && !DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value)){
       discord = "해당없음";
+    }
+    if(DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value) && discord === "해당없음"){
+      return {ok:false,error:"디지털 드로잉은 담당 강사의 디스코드 채널을 선택해 주세요."};
     }
 
     const startDay = $("startDay").value;
@@ -1911,6 +1890,8 @@ Step 4. 사진 구성
     let endDay = (messageType === "CLASS" || messageType === "TRIAL")
       ? $("endDay").value : startDay;
     const weekday = $("weekday").value;
+    const weekdays = configuredWeekdays();
+    if(!weekdays.length) return {ok:false,error:"주 2회는 서로 다른 두 요일을 선택해 주세요."};
     const amPm = $("amPm").value;
     const korTimeStr = $("korTime").value.trim();
 
@@ -1928,8 +1909,8 @@ Step 4. 사진 구성
     let isExpectedEnd = false;
 
     if((messageType === "CLASS" || messageType==="TRIAL") && !endDay){
-      if(messageType!=="TRIAL" && ![4,8,10,12].includes(lessonCount)){
-        return { ok:false, error:"종강일을 비운 경우 수업 회차(4강/8강/10강/12강)를 선택해 주세요." };
+      if(messageType!=="TRIAL" && ![4,8,10,12,20].includes(lessonCount)){
+        return { ok:false, error:"종강일을 비운 경우 수업 회차(4강/8강/10강/12강/20강)를 선택해 주세요." };
       }
 
       endDay = calculateExpectedEndDate(startDay, weekday, messageType==="TRIAL"?4:lessonCount, effectiveClosedList);
@@ -1981,7 +1962,7 @@ Step 4. 사진 구성
       return { ok:true, text: singleText.replace(/\n{3,}/g, "\n\n").trim() + "\n" };
     }
 
-    const timeHeader = `• 수업 시간 : 주 1회 (${classType === "ONE_ON_ONE" ? "40m" : "1h"})\n`;
+    const timeHeader = `• 수업 시간 : 주 ${weekdays.length}회 (${classType === "ONE_ON_ONE" ? "40m" : "1h"})\n`;
     const korTimeDisplay = formatTimeDisplayInput(korTimeStr);
 
     let timeLine = "";
@@ -1989,7 +1970,7 @@ Step 4. 사진 구성
     if(studentLocation === "DOMESTIC"){
       const kstLong = WEEKDAY_LONG[weekday];
       timeLine =
-`${timeHeader}${formatShortLine("🇰🇷", kstLong, amPm, korTimeDisplay)}
+`${timeHeader}${weekdays.map(day => formatShortLine("🇰🇷", WEEKDAY_LONG[day], amPm, korTimeDisplay)).join("\n")}
 `;
     }else{
       const firstClassISO = findFirstClassDateKST(startDay, endDay, weekday);
@@ -2085,6 +2066,17 @@ ${kstBaseLine}
 ${kstBaseLine}
 ${noteLine ? noteLine + "\n" : ""}`;
       }
+    }
+
+    if(weekdays.length === 2 && studentLocation === "OVERSEAS"){
+      const secondISO = findFirstClassDateKST(startDay,endDay,weekdays[1]);
+      if(!secondISO) return {ok:false,error:"두 번째 정기 요일의 수업일이 기간에 없습니다."};
+      const secondInstant=makeKoreaZonedDate(secondISO,parsed.hh,parsed.mm);
+      const secondLocal=formatInTimeZone(secondInstant,tz);
+      timeLine += `${formatShortLine(flag,secondLocal.weekday,secondLocal.amPm,secondLocal.time)}
+${formatShortLine("🇰🇷",WEEKDAY_LONG[weekdays[1]],amPm,korTimeDisplay)}
+※ 주 2회: 두 요일 모두 한국시간 기준 같은 시각에 진행
+`;
     }
 
     const closedBlock = buildClosedScheduleBlock(effectiveClosedList, studentLocation, tz, parsed);
@@ -2194,7 +2186,7 @@ Affinity Universe
 
   function registrationFingerprint(){
     const ids = ["mondayLanguage","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
-      "startDay", "endDay", "lessonCount", "weekday", "amPm", "korTime", "studentLocation",
+      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "weeklyFrequency", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
     return JSON.stringify({fields:ids.map(id => [id, $(id).value]), closed:getEffectiveClosedList(),
@@ -2221,6 +2213,8 @@ Affinity Universe
     const messageType=$("messageType").value;
     const single=messageType==="MAKEUP_40"||messageType==="MAKEUP_30";
     const weekday = $("weekday").value;
+    const weekdays = configuredWeekdays();
+    if(!weekdays.length) return {ok:false,error:"주 2회는 서로 다른 두 요일을 선택해 주세요."};
     if($("studentLocation").value === "OVERSEAS" && $("dstMode").value === "TEACHER_CHANGE")
       return {ok:false,error:"강사 한국시간이 바뀌는 DST 옵션은 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다."};
     if(!WEEKDAY_GROUP_KO[weekday]) return {ok:false, error:"Infohub에는 일요일(SUN) 그룹이 없습니다. 해당 클래스의 그룹을 먼저 지정해야 합니다."};
@@ -2230,7 +2224,7 @@ Affinity Universe
     if(!startDay) return {ok:false,error:"클래스 시작일을 입력해 주세요."};
     const closures = getEffectiveClosedList();
     if(!endDay){
-      if(![4,8,10,12].includes(count)) return {ok:false,error:"종료일이 없으면 회차를 선택해야 합니다."};
+      if(![4,8,10,12,20].includes(count)) return {ok:false,error:"종료일이 없으면 회차를 선택해야 합니다."};
       endDay = calculateExpectedEndDate(startDay, weekday, count, closures);
     }
     if(!endDay || endDay < startDay) return {ok:false,error:"시작일과 종료일을 확인해 주세요."};
@@ -2250,7 +2244,7 @@ Affinity Universe
     for(const absence of normalizeIndividualAbsences(individualAbsences)){
       if($("classType").value !== "GROUP") return {ok:false,error:"개별 결석은 그룹 클래스에서만 가능합니다."};
       if(selectedIds.size < 2) return {ok:false,error:"그룹 전체 학생을 STUDENT DB에서 먼저 연결해 주세요."};
-      if(absence.date < startDay || absence.date > endDay || getWeekdayKoFromISO(absence.date) !== weekday)
+      if(absence.date < startDay || absence.date > endDay || !weekdays.includes(getWeekdayKoFromISO(absence.date)))
         return {ok:false,error:`개별 결석 ${absence.date}이 클래스 요일 또는 기간과 일치하지 않습니다.`};
       if(closedDates.has(absence.date)) return {ok:false,error:`${absence.date}에 그룹 전체 휴강과 개별 결석이 동시에 설정되었습니다.`};
       if(!absence.studentIds.length || absence.studentIds.length >= selectedIds.size || absence.studentIds.some(id=>!selectedIds.has(id)))
@@ -2258,13 +2252,13 @@ Affinity Universe
       absentMap.set(absence.date, absence.studentIds);
     }
     for(const item of closures){
-      if(item.date < startDay || item.date > endDay || getWeekdayKoFromISO(item.date) !== weekday){
+      if(item.date < startDay || item.date > endDay || !weekdays.includes(getWeekdayKoFromISO(item.date))){
         return {ok:false,error:`휴강일 ${item.date}은 선택한 클래스 요일/기간에 속하지 않습니다. 승인 전 수정해 주세요.`};
       }
     }
     let cursor = toDateUTC(startDay);
-    const target = WEEKDAY_TO_NUM[weekday];
-    while(cursor.getUTCDay() !== target) cursor = addDaysUTC(cursor,1);
+    const targets = weekdays.map(day=>WEEKDAY_TO_NUM[day]);
+    while(!targets.includes(cursor.getUTCDay())) cursor = addDaysUTC(cursor,1);
     const items = [];
     let lessonNo = 0;
     for(let guard=0; guard<520 && dateToISO_UTC(cursor) <= endDay; guard++){
@@ -2277,11 +2271,12 @@ Affinity Universe
         items.push({date, kind:"LESSON", name:`LESSON ${String(lessonNo).padStart(2,"0")}`,
           absentStudentIds:absentMap.get(date)||[]});
       }
-      cursor = addDaysUTC(cursor,7);
+      cursor = addDaysUTC(cursor,weekdays.length===2?1:7);
+      while(!targets.includes(cursor.getUTCDay())) cursor=addDaysUTC(cursor,1);
     }
     if(!items.length) return {ok:false,error:"기간 안에 수업 요일이 없습니다."};
     if(messageType==="TRIAL"&&lessonNo!==4)return {ok:false,error:"트라이얼 수업은 정확히 4회차여야 합니다."};
-    if($("endDay").value && [4,8,10,12].includes(count) && count !== lessonNo){
+    if($("endDay").value && [4,8,10,12,20].includes(count) && count !== lessonNo){
       return {ok:false,error:`수업 회차 ${count}강과 실제 일정 ${lessonNo}강이 다릅니다. 종료일이나 회차를 수정해 주세요.`};
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
@@ -2291,7 +2286,8 @@ Affinity Universe
 
   function refreshRegistrationPreview(){
     const r = buildRegistrationPlan();
-    if(!r.ok){ $("registrationPreview").textContent = r.error; return; }
+    if(!r.ok){ $("registrationPreview").textContent = r.error; $("registrationPreview").classList.add("warn"); return; }
+    $("registrationPreview").classList.remove("warn");
     const entries = r.items.map(i => `${i.date} · ${i.name}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
@@ -2382,7 +2378,7 @@ Affinity Universe
         refreshRegistrationPreview();
       })
     );
-    ["startDay","endDay","weekday","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
+    ["startDay","endDay","weekday","weekday2","weeklyFrequency","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
       $(id).addEventListener("input", ()=>{
         rePreview();
         updateExpectedEndPreview();
@@ -2407,6 +2403,10 @@ Affinity Universe
       const v = $("messageType").value;
       const isSingle = v==="MAKEUP_40"||v==="MAKEUP_30";
       $("makeupLessonBox").style.display=isSingle?"block":"none";
+      if(isSingle) $("weeklyFrequency").value="1";
+      $("weeklyFrequency").disabled=isSingle;
+      $("weeklyFrequency").closest("div").style.opacity=isSingle?".5":"1";
+      syncWeeklyFrequency();
       if(v==="TRIAL")$("lessonCount").value="4";
        $("endDay").disabled = isSingle;
        updateEndDateVisualState();
@@ -2423,6 +2423,15 @@ Affinity Universe
       updateDiscordAvailability();
     }
 
+    function syncWeeklyFrequency(){
+      const twice=$("weeklyFrequency").value==="2" && !$("weeklyFrequency").disabled;
+      $("weekday2Box").style.display=twice?"block":"none";
+      $("weekday2").disabled=!twice;
+      if(!twice) $("weekday2").value="";
+      updateExpectedEndPreview();
+      refreshRegistrationPreview();
+    }
+    $("weeklyFrequency").addEventListener("change",syncWeeklyFrequency);
     $("messageType").addEventListener("change", syncMessageTypeUI);
     $("templateType").addEventListener("change", ()=>{
       updateMondayDevicePreview();
@@ -2579,7 +2588,7 @@ Affinity Universe
 
       if(!end){
         const lessonCount = Number($("lessonCount").value);
-        if(![4,8,10,12].includes(lessonCount)){
+        if(![4,8,10,12,20].includes(lessonCount)){
           showAlert("종강일을 비운 경우 먼저 수업 회차를 선택해 주세요.", "warn");
           return;
         }
@@ -2659,6 +2668,7 @@ Affinity Universe
       // Curriculum changes must never overwrite the user's explicit device selection.
       updateMondayItemName();
       updateMondayDevicePreview();
+      updateDiscordAvailability();
       refreshRegistrationPreview();
     });
 
@@ -2673,7 +2683,7 @@ Affinity Universe
       if(lastGeneratedFingerprint !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
       $("approveFeedback").replaceChildren();
       refreshRegistrationPreview();
-      showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
+      showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "warn");
     });
 
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
@@ -2699,6 +2709,7 @@ Affinity Universe
     $("output").addEventListener("input",()=>{ $("approveFeedback").replaceChildren(); });
     $("approve").addEventListener("click",async()=>{
       const feedback = $("approveFeedback");
+      feedback.classList.remove("ok");
       feedback.replaceChildren();
       if(partialRegistrationLocked){feedback.textContent="이전 등록이 일부 진행되었습니다. 중복 등록을 막기 위해 관리자 확인이 필요합니다.";return;}
       let subMemos;
@@ -2741,6 +2752,8 @@ Affinity Universe
           studentLocation:$("studentLocation").value,
           dstMode:$("dstMode").value,
           weekday:plan.weekday,
+          weekday2:$("weeklyFrequency").value==="2"?$("weekday2").value:"",
+          weeklyFrequency:Number($("weeklyFrequency").value),
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
@@ -2756,6 +2769,7 @@ Affinity Universe
           message:$("output").value,
         });
         approvedFingerprint = approvalFingerprint;
+        feedback.classList.add("ok");
         feedback.textContent = `승인 완료: 상위아이템 1개, 수업 ${data.lessons}강 · 전체 휴강 ${data.holidays}건 · 개별 결석 ${data.absenceLessons||0}회차 등록됨. `;
         if(data.itemUrl){
           const a=document.createElement("a");a.href=data.itemUrl;a.textContent="먼데이 등록 결과 열기";a.target="_blank";a.rel="noopener noreferrer";feedback.append(a);
@@ -2787,6 +2801,8 @@ Affinity Universe
       $("lessonCount").value = "";
       $("expectedEndPreview").value = "";
       $("weekday").value = "월";
+      $("weekday2").value = "";
+      $("weeklyFrequency").value = "1";
       $("amPm").value = "오전";
       $("korTime").value = "";
 
@@ -2809,6 +2825,7 @@ Affinity Universe
       setSelectOptions($("tzSelect"), [], "시간대 선택");
       $("output").value = "";
       $("approveFeedback").replaceChildren();
+      $("approveFeedback").classList.remove("ok");
       $("studentSearchQuery").value = "";
       $("studentResults").replaceChildren();
       fillTeacherOptions();
@@ -2835,6 +2852,8 @@ Affinity Universe
       $("curriculumSelect").dispatchEvent(new Event("change"));
 
       syncClosedNamePresetByLocation();
+      syncWeeklyFrequency();
+      updateDiscordAvailability();
       updateLocalPreview();
       updateExpectedEndPreview();
       showAlert("초기화되었습니다.", "ok");
