@@ -16,7 +16,7 @@ function plan({startDay='2026-11-02',endDay='2026-11-12',count=4,frequency=2,wee
     else {no++;schedule.push({date,kind:'LESSON',name:'LESSON '+String(no).padStart(2,'0'),absentStudentIds:[]});}
   }
   return {messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'IPAD',studentLocation:'DOMESTIC',dstMode:'AUTO',
-    startDay,endDay,weekday:'월',weeklyFrequency:frequency,weekday2,kstTime24:{hh:19,mm:0},kstTime24Second:frequency===2?{hh:10,mm:30}:null,
+    startDay,endDay,weekday:'월',weeklyFrequency:frequency,weekday2,kstTime24:{hh:19,mm:0},kstTime24Second:frequency>=2?{hh:10,mm:30}:null,
     lessonCount:count,explicitLessonCount:count,closures,studentIds:[123456],schedule,...override};
 }
 
@@ -37,7 +37,7 @@ test('Twenty lessons twice-weekly and one holiday have consistent counts',()=>{
 });
 test('Invalid frequency, same day, or wrong client schedule must be rejected before Monday writes',()=>{
   assert.throws(()=>derivePlan(plan({frequency:4})),/횟수/);
-  assert.throws(()=>derivePlan(plan({weekday2:'월'})),/서로 다른/);
+  assert.throws(()=>derivePlan(plan({weekday2:'월'})),/서로 달라야/);
   assert.throws(()=>derivePlan(plan({override:{schedule:[]}})),/서버 검증/);
 });
 test('Three weekly days generate ordered subitems with independently validated third time',()=>{
