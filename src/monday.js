@@ -135,6 +135,17 @@ export function derivePlan(input) {
     throw new Error('주 2회는 서로 다른 두 정규 요일(월~토)을 선택해 주세요.');
   }
   const targetDays = new Set([DAY[input.weekday], ...(weeklyFrequency===2?[DAY[input.weekday2]]:[])]);
+  // The first slot uses the existing Infohub TIME field. The optional second
+  // slot must be independently validated before any Monday API writes.
+  if (weeklyFrequency === 2) {
+    const second = input.kstTime24Second;
+    if (!second || !Number.isInteger(second.hh) || !Number.isInteger(second.mm)
+        || second.hh < 0 || second.hh > 23 || second.mm < 0 || second.mm > 59) {
+      throw new Error('두 번째 정기 수업의 오전/오후와 한국시간을 확인해 주세요.');
+    }
+  } else if (input.weekday2 || input.kstTime24Second != null) {
+    throw new Error('두 번째 일정이 설정되었다면 주 2회로 등록해야 합니다.');
+  }
   const start = dateFromISO(input.startDay);
   // Makeup/supplement are one lesson and have no end date; trial is four lessons.
   const end = single ? start : dateFromISO(input.endDay);
