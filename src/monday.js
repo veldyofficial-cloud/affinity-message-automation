@@ -128,6 +128,13 @@ export function derivePlan(input) {
   const single = input.messageType==='MAKEUP_40' || input.messageType==='MAKEUP_30';
   const groupId = GROUP_IDS[input.weekday];
   if (!groupId) throw new Error('선택한 요일에 해당하는 Infohub 그룹이 없습니다.');
+  const weeklyFrequency = input.weeklyFrequency == null ? 1 : Number(input.weeklyFrequency);
+  if (![1,2].includes(weeklyFrequency)) throw new Error('주간 수업 횟수는 1회 또는 2회만 가능합니다.');
+  if (single && weeklyFrequency !== 1) throw new Error('보강/보충은 주 1회 선택만 가능합니다.');
+  if (weeklyFrequency === 2 && (!GROUP_IDS[input.weekday2] || input.weekday2 === input.weekday)) {
+    throw new Error('주 2회는 서로 다른 두 정규 요일(월~토)을 선택해 주세요.');
+  }
+  const targetDays = new Set([DAY[input.weekday], ...(weeklyFrequency===2?[DAY[input.weekday2]]:[])]);
   const start = dateFromISO(input.startDay);
   // Makeup/supplement are one lesson and have no end date; trial is four lessons.
   const end = single ? start : dateFromISO(input.endDay);
@@ -179,7 +186,7 @@ export function derivePlan(input) {
   for(const absence of absences){
     if (!absence || typeof absence !== 'object') throw new Error('개별 결석 형식이 올바르지 않습니다.');
     const d=dateFromISO(absence.date);
-    if(d<start || d>end || d.getUTCDay()!==DAY[input.weekday]) throw new Error(`개별 결석 ${absence.date}이 수업 기간 또는 요일과 다릅니다.`);
+    if(d<start || d>end || !targetDays.has(d.getUTCDay())) throw new Error(`개별 결석 ${absence.date}이 수업 기간 또는 요일과 다릅니다.`);
     if(absenceMap.has(absence.date)) throw new Error(`개별 결석 ${absence.date} 날짜가 중복되었습니다.`);
     if(!Array.isArray(absence.studentIds)) throw new Error('결석 인원 목록을 확인해 주세요.');
     const ids=absence.studentIds.map(Number);
@@ -192,7 +199,7 @@ export function derivePlan(input) {
   const closures = new Map();
   for (const x of input.closures || []) {
     const d = dateFromISO(x.date);
-    if (d<start || d>end || d.getUTCDay()!==DAY[input.weekday]) {
+    if (d<start || d>end || !targetDays.has(d.getUTCDay())) {
       throw new Error(`휴강일 ${x.date}이 클래스 일정 밖에 있습니다.`);
     }
     if (closures.has(x.date)) throw new Error(`중복 휴강일: ${x.date}`);
@@ -203,7 +210,7 @@ export function derivePlan(input) {
     throw new Error(`${date} 그룹 전체 휴강과 개별 결석은 동시에 등록할 수 없습니다.`);
   }
   let cursor = new Date(start.getTime());
-  while(cursor.getUTCDay()!==DAY[input.weekday]) cursor = addDays(cursor,1);
+  while(!targetDays.has(cursor.getUTCDay())) cursor = addDays(cursor,1);
   const schedule = [];
   let lessonNo=0;
   while(cursor <= end){
@@ -218,7 +225,8 @@ export function derivePlan(input) {
       schedule.push({date,kind:'LESSON',name:`LESSON ${String(lessonNo).padStart(2,'0')}`,
         absentStudentIds:absenceMap.get(date)||[]});
     }
-    cursor=addDays(cursor,7);
+    cursor=addDays(cursor,weeklyFrequency===2?1:7);
+    if(weeklyFrequency===2) while(!targetDays.has(cursor.getUTCDay())) cursor=addDays(cursor,1);
   }
   if (!schedule.length) throw new Error('수업 기간에 해당 요일이 없습니다.');
   if(input.messageType==='TRIAL' && lessonNo!==4) throw new Error('트라이얼은 휴강을 제외한 정확히 4회차로 등록해야 합니다. 종강일을 확인해 주세요.');
