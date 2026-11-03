@@ -16,8 +16,8 @@ function harness(overrides={}){
     classType:'ONE_ON_ONE',siblingType:'BROTHER',discord:'해당없음',
     startDay:'2026-11-02',endDay:'2026-11-12',lessonCount:'4',
     weekday:'월',amPm:'오후',korTime:'7',
-    weekday2:'목',amPm2:'오전',korTime2:'10:30',
-    weekday3:'',amPm3:'',korTime3:'',
+    weekday2:'목',amPm2:'오전',korTime2:'10:30',classType2:'',dstMode2:'',
+    weekday3:'',amPm3:'',korTime3:'',classType3:'',dstMode3:'',
     curriculumSelect:'[ART BOOK DESIGN] LV.4',
     curriculumUrl:'Upper-intermediate',studentLocation:'DOMESTIC',
     dstMode:'AUTO',tzSelect:'Asia/Seoul',countryInput:'한국',
@@ -56,7 +56,7 @@ test('Second recurring time can differ from the first and appears in notice',()=
   assert.equal(notice.ok,true,notice.error);
   assert.match(notice.text,/주 2회/);
   assert.match(notice.text,/🇰🇷 \(월\) 7 PM/);
-  assert.match(notice.text,/🇰🇷 \(목\) 10:30 AM/);
+  assert.match(notice.text,/\/ \(목\) 10:30 AM/);
   const plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
   assert.equal(plan.kst.hh,19);
@@ -115,8 +115,8 @@ test('Three weekly slots show three independent hours and three chronological le
   assert.equal(message.ok,true,message.error);
   assert.match(message.text,/주 3회/);
   assert.match(message.text,/🇰🇷 \(월\) 7 PM/);
-  assert.match(message.text,/🇰🇷 \(화\) 2:45 PM/);
-  assert.match(message.text,/🇰🇷 \(목\) 10:30 AM/);
+  assert.match(message.text,/\/ \(화\) 2:45 PM/);
+  assert.match(message.text,/\/ \(목\) 10:30 AM/);
   const plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
   assert.equal(plan.weeklyFrequency,3);
@@ -133,4 +133,75 @@ test('Three weekly slots show three independent hours and three chronological le
 test('Success notice uses normal status, not orange warning',()=>{
   assert.match(html,/showAlert\("문구가 생성되었습니다\. 승인 전에 먼데이 등록 정보를 확인해 주세요\.", "ok"\)/);
   assert.doesNotMatch(html,/id="weeklyFrequency"/);
+});
+
+test('Same-type USA class shows grouped US/KR times without repeating flags',()=>{
+  const h=harness({
+    studentLocation:'OVERSEAS',countryInput:'미국',customFlag:'🇺🇸',
+    tzSelect:'America/Los_Angeles',startDay:'2026-10-05',endDay:'2026-10-17',
+    weekday:'목',amPm:'오전',korTime:'10:30',
+    weekday2:'토',amPm2:'오전',korTime2:'9'
+  });
+  const notice=h.buildMessage();
+  assert.equal(notice.ok,true,notice.error);
+  assert.match(notice.text,/• 수업 시간 : 주 2회 \(40m\)/);
+  assert.match(notice.text,/🇺🇸 \(수\) 6:30 PM \/ \(금\) 5 PM/);
+  assert.match(notice.text,/🇰🇷 \(목\) 10:30 AM \/ \(토\) 9 AM/);
+  assert.doesNotMatch(notice.text,/※ 주 2회: 각 요일/);
+});
+test('Mixed 1:1 and group classes show separate rows and per-day server types',()=>{
+  const h=harness({
+    studentLocation:'OVERSEAS',countryInput:'미국',customFlag:'🇺🇸',
+    tzSelect:'America/Los_Angeles',startDay:'2026-10-05',endDay:'2026-10-17',
+    weekday:'화',amPm:'오후',korTime:'1',
+    weekday2:'토',amPm2:'오후',korTime2:'1',classType2:'GROUP'
+  });
+  const notice=h.buildMessage();
+  assert.equal(notice.ok,true,notice.error);
+  assert.match(notice.text,/• 수업 시간 : 주 2회\n/);
+  assert.match(notice.text,/🇺🇸 \(월\) 9 PM \/ 🇰🇷 \(화\) 1 PM \(1:1 40m\)/);
+  assert.match(notice.text,/🇺🇸 \(금\) 9 PM \/ 🇰🇷 \(토\) 1 PM \(그룹 1h\)/);
+  const plan=h.buildRegistrationPlan();
+  assert.equal(plan.ok,true,plan.error);
+  const validated=derivePlan({
+    messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'PC',
+    studentLocation:'OVERSEAS',dstMode:'AUTO',
+    startDay:plan.startDay,endDay:plan.endDay,
+    weekday:'화',weekday2:'토',weeklyFrequency:2,
+    kstTime24:plan.kst,kstTime24Second:plan.kstSecond,
+    classType2:'GROUP',dstMode2:'AUTO',
+    lessonCount:4,explicitLessonCount:4,closures:[],studentIds:[1001,1002],
+    schedule:plan.items
+  });
+  assert.equal(validated.classTypeByDay[6],'GROUP');
+  assert.equal(validated.classTypeByDay[2],'ONE_ON_ONE');
+});
+test('Korean twice-weekly identical times collapse to one country row',()=>{
+  const h=harness({
+    startDay:'2026-10-05',endDay:'2026-10-17',
+    weekday:'화',amPm:'오후',korTime:'7',
+    weekday2:'토',amPm2:'오후',korTime2:'7'
+  });
+  const notice=h.buildMessage();
+  assert.equal(notice.ok,true,notice.error);
+  assert.match(notice.text,/🇰🇷 \(화\) 7 PM \/ \(토\) 7 PM/);
+});
+test('Mixed DST modes show slot-specific arrows, effective date, and time-change note',()=>{
+  const h=harness({
+    studentLocation:'OVERSEAS',countryInput:'미국',customFlag:'🇺🇸',
+    tzSelect:'America/Los_Angeles',startDay:'2026-10-20',endDay:'2026-11-14',
+    weekday:'화',amPm:'오후',korTime:'1',dstMode:'TEACHER_CHANGE',
+    weekday2:'토',amPm2:'오후',korTime2:'1',classType2:'GROUP',dstMode2:'STUDENT_CHANGE',
+    lessonCount:'8'
+  });
+  const notice=h.buildMessage();
+  assert.equal(notice.ok,true,notice.error);
+  assert.match(notice.text,/• 수업 시간 : 주 2회\n/);
+  assert.match(notice.text,/🇺🇸 \(월\) 9 PM \/ 🇰🇷 \(화\) 1 PM \(1:1 40m\)/);
+  assert.match(notice.text,/※ 서머타임 전환 시, 한국 시간 2 PM으로 변경/);
+  assert.match(notice.text,/🇺🇸 \(금\) 9 PM ➜ 8 PM \*11\. 06부터 적용 \/ 🇰🇷 \(토\) 1 PM \(그룹 1h\)/);
+  assert.match(notice.text,/※ 서머타임 전환 시, 한국 시간 고정/);
+  const plan=h.buildRegistrationPlan();
+  assert.equal(plan.ok,false);
+  assert.match(plan.error,/Infohub TIME/);
 });

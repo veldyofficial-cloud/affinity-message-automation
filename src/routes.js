@@ -114,6 +114,8 @@ export async function approve(request, env, email) {
       teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos,
       time:p.kstTime24,secondTime:p.kstTime24Second||null,thirdTime:p.kstTime24Third||null,
       weekday2:p.weekday2||'',weekday3:p.weekday3||'',weeklyFrequency:Number(p.weeklyFrequency||1),
+      classType2:p.classType2||null,classType3:p.classType3||null,
+      dstMode2:p.dstMode2||null,dstMode3:p.dstMode3||null,
       schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
@@ -151,15 +153,20 @@ export async function approve(request, env, email) {
       // Parent TIME is the first-day time; append each lesson's exact KST
       // to the subitem memo so no second-day time is lost in Infohub.
       const sessionTime=isThirdDay?p.kstTime24Third:isSecondDay?p.kstTime24Second:p.kstTime24;
+      const sessionType=plan.classTypeByDay?.[targetDay]||p.classType;
+      const sessionDuration=sessionType==='GROUP'?'60m':'40m';
+      const hasMixedTypes=Object.values(plan.classTypeByDay||{}).some(type=>type!==p.classType);
+      const sessionTypeNote=hasMixedTypes
+        ? '수업 구분: '+(sessionType==='GROUP'?'그룹 (1h)':'1:1 (40m)') : '';
       const kstNote=Number(p.weeklyFrequency)>1
         ? '수업 시간: '+String(sessionTime.hh).padStart(2,'0')+':'+String(sessionTime.mm).padStart(2,'0')+' (한국시간)'
         : '';
       const writtenMemo=memoByDate.get(row.date)||p.subMemo.trim();
-      const mergedMemo=[writtenMemo,kstNote].filter(Boolean).join('\n');
+      const mergedMemo=[writtenMemo,kstNote,sessionTypeNote].filter(Boolean).join('\n');
       if(mergedMemo.length>1500) throw new Error('수업 시간 포함 하위아이템 메모가 1500자를 초과합니다.');
       const columns={
         [COL.subDate]:{date:row.date},
-        [COL.subMinutes]:{label:row.kind==='CLOSED'?'휴강':duration},
+        [COL.subMinutes]:{label:row.kind==='CLOSED'?'휴강':sessionDuration},
         // Individual absence is attached to its LESSON, not an extra holiday.
         [COL.subAttendance]:String(row.kind==='CLOSED'?0:studentIds.length-(row.absentStudentIds||[]).length),
         ...(mergedMemo?{[COL.subMemo]:mergedMemo}:{}),

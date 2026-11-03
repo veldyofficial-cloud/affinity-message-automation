@@ -440,6 +440,23 @@
             <input id="korTime2" type="text" placeholder="예: 7 / 7:30" />
           </div>
         </div>
+        <div class="row">
+          <div><label for="classType2">수업 유형 (선택)</label>
+            <select id="classType2">
+              <option value="">첫 번째 수업과 동일</option>
+              <option value="ONE_ON_ONE">1:1 (40m)</option>
+              <option value="GROUP">그룹 (1h)</option>
+            </select>
+          </div>
+          <div><label for="dstMode2">서머타임 적용 방식 (선택)</label>
+            <select id="dstMode2">
+              <option value="">기본 서머타임 설정과 동일</option>
+              <option value="AUTO">자동 (표기 없음)</option>
+              <option value="STUDENT_CHANGE">한국 시간 고정 · 현지 시간 변경</option>
+              <option value="TEACHER_CHANGE">현지 시간 고정 · 한국 시간 변경</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div class="optional-slot" id="weeklySlot3" hidden>
         <div class="optional-slot-title">세 번째 정기 수업 일정
@@ -458,6 +475,23 @@
           </div>
           <div><label for="korTime3">한국시간 (예: 7 / 7:30)</label>
             <input id="korTime3" type="text" placeholder="예: 7 / 7:30" />
+          </div>
+        </div>
+        <div class="row">
+          <div><label for="classType3">수업 유형 (선택)</label>
+            <select id="classType3">
+              <option value="">첫 번째 수업과 동일</option>
+              <option value="ONE_ON_ONE">1:1 (40m)</option>
+              <option value="GROUP">그룹 (1h)</option>
+            </select>
+          </div>
+          <div><label for="dstMode3">서머타임 적용 방식 (선택)</label>
+            <select id="dstMode3">
+              <option value="">기본 서머타임 설정과 동일</option>
+              <option value="AUTO">자동 (표기 없음)</option>
+              <option value="STUDENT_CHANGE">한국 시간 고정 · 현지 시간 변경</option>
+              <option value="TEACHER_CHANGE">현지 시간 고정 · 한국 시간 변경</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1455,7 +1489,9 @@
       const kst=parseKorTimeTo24h(amPm,timeText);
       if(!kst) return {frequency:rows.length+1,ready:false,error:n+"번째 수업 시간을 확인해 주세요. (예: 7 또는 7:30)"};
       seen.add(day);
-      slots.push({index:n,weekday:day,amPm,timeText,kst});
+      slots.push({index:n,weekday:day,amPm,timeText,kst,
+        classType:$("classType"+n).value||$("classType").value,
+        dstMode:$("dstMode"+n).value||$("dstMode").value});
     }
     return {frequency:slots.length+1,ready:true,second:slots[0]?.kst||null,third:slots[1]?.kst||null,slots};
   }
@@ -2042,6 +2078,82 @@ Step 4. 사진 구성
   /*********************
    * 메시지 생성
    *********************/
+  // Shared formatter for one, two or three weekly dates. A uniform class
+  // groups country lines; mixed duration or DST behavior is shown per slot.
+  function formatWeeklyScheduleTimeBlock({startDay,endDay,slots,studentLocation,tz,flag}){
+    const overseas=studentLocation==="OVERSEAS";
+    const mixed=slots.some(slot=>slot.classType!==slots[0].classType);
+    const durationLabel=kind=>kind==="GROUP"?"그룹 1h":"1:1 40m";
+    const duration=kind=>kind==="GROUP"?"1h":"40m";
+    const transitions=overseas?findDstTransitionsBetween(startDay,endDay,tz):[];
+    const records=slots.map(slot=>{
+      const firstISO=findFirstClassDateKST(startDay,endDay,slot.weekday);
+      if(!firstISO)throw new Error(slot.weekday+"요일의 수업일이 해당 기간에 없습니다.");
+      const instant=makeKoreaZonedDate(firstISO,slot.kst.hh,slot.kst.mm);
+      const kst=formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],slot.amPm,formatTimeDisplayInput(slot.timeText));
+      const local=overseas?formatInTimeZone(instant,tz):null;
+      const foreign=local?formatShortLine(flag,local.weekday,local.amPm,local.time):"";
+      const transition=transitions.find(t=>
+        Boolean(findNextClassAfterTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:t.instantUtc
+        })))||null;
+      let note="",foreignDisplay=foreign;
+      if(overseas && transition && slot.dstMode==="STUDENT_CHANGE"){
+        const before=findPrevClassOnOrBeforeTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:transition.instantUtc
+        });
+        const after=findNextClassAfterTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:transition.instantUtc
+        });
+        if(before && after){
+          const earlier=formatInTimeZone(before.classInstantKST,tz);
+          const later=formatInTimeZone(after.classInstantKST,tz);
+          const date=getLocalISODate(after.classInstantKST,tz);
+          const month=String(Number(date.slice(5,7))).padStart(2,"0");
+          const day=String(Number(date.slice(8,10))).padStart(2,"0");
+          foreignDisplay=formatShortLine(flag,earlier.weekday,earlier.amPm,earlier.time)
+            +" ➜ "+stripSi(later.time)+" "+koAmPmToEN(later.amPm)
+            +" *"+month+". "+day+"부터 적용";
+          note="※ 서머타임 전환 시, 한국 시간 고정";
+        }
+      }else if(overseas && transition && slot.dstMode==="TEACHER_CHANGE"){
+        const after=findNextClassAfterTransition({
+          startISO:startDay,endISO:endDay,weekdayKo:slot.weekday,
+          kstTime24:slot.kst,transitionInstantUtc:transition.instantUtc
+        });
+        if(after){
+          const shifted=new Date(after.classInstantKST.getTime()-transition.diffMinutes*60000);
+          const adjusted=formatInTimeZone(shifted,"Asia/Seoul");
+          note="※ 서머타임 전환 시, 한국 시간 "+stripSi(adjusted.time)+" "
+            +koAmPmToEN(adjusted.amPm)+"으로 변경";
+        }
+      }
+      return {...slot,kstLine:kst,foreignLine:foreignDisplay,note,
+        kstShort:kst.replace(/^🇰🇷 /u,""),
+        foreignShort:foreign.startsWith(flag+" ") ? foreign.slice(flag.length+1) : foreign};
+    });
+    const header="• 수업 시간 : 주 "+records.length+"회"+
+      (mixed?"":" ("+duration(records[0].classType)+")");
+    const hasSeparateNotes=records.some(record=>record.note);
+    if(!mixed&&!hasSeparateNotes){
+      const kr="🇰🇷 "+records.map(record=>record.kstShort).join(" / ");
+      if(!overseas)return header+"\n"+kr+"\n";
+      const foreign=flag+" "+records.map(record=>record.foreignShort).join(" / ");
+      return header+"\n"+foreign+"\n"+kr+"\n";
+    }
+    const blocks=records.map(record=>{
+      const suffix=mixed?" ("+durationLabel(record.classType)+")":"";
+      const line=overseas
+        ? record.foreignLine+" / "+record.kstLine+suffix
+        : record.kstLine+suffix;
+      return line+(record.note?"\n"+record.note:"");
+    });
+    return header+"\n"+blocks.join("\n\n")+"\n";
+  }
+
   function buildMessage(){
     const messageType = $("messageType").value;
     const templateType = $("templateType").value;
@@ -2145,125 +2257,17 @@ Step 4. 사진 구성
       return { ok:true, text: singleText.replace(/\n{3,}/g, "\n\n").trim() + "\n" };
     }
 
-    const timeHeader = `• 수업 시간 : 주 ${weekdays.length}회 (${classType === "ONE_ON_ONE" ? "40m" : "1h"})\n`;
-    const korTimeDisplay = formatTimeDisplayInput(korTimeStr);
-    const noticeSlots=[{weekday,amPm,timeText:korTimeStr,kst:parsed},...additional.slots];
-
-    let timeLine = "";
-
-    if(studentLocation === "DOMESTIC"){
-      const kstLong = WEEKDAY_LONG[weekday];
-      timeLine =
-`${timeHeader}${noticeSlots.map(slot=>formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],
-    slot.amPm,formatTimeDisplayInput(slot.timeText))).join("\n")}
-`;
-    }else{
-      const firstClassISO = findFirstClassDateKST(startDay, endDay, weekday);
-      if(!firstClassISO){
-        return { ok:false, error:"시작~종료 기간 안에 선택한 요일의 수업일을 찾지 못했습니다." };
-      }
-
-      const firstInstantKST = makeKoreaZonedDate(firstClassISO, parsed.hh, parsed.mm);
-      const localFirst = formatInTimeZone(firstInstantKST, tz);
-      const kstFromInstant = formatInTimeZone(firstInstantKST, "Asia/Seoul");
-      const kstBaseLine = formatShortLine("🇰🇷", kstFromInstant.weekday, kstFromInstant.amPm, kstFromInstant.time);
-      const transitions = findDstTransitionsBetween(startDay, endDay, tz);
-
-      if(dstMode === "AUTO"){
-        timeLine =
-`${timeHeader}${formatShortLine(flag, localFirst.weekday, localFirst.amPm, localFirst.time)}
-${kstBaseLine}
-`;
-      }
-
-      if(dstMode === "STUDENT_CHANGE"){
-        if(transitions.length){
-          const firstShift = transitions[0];
-
-          const nextClass = findNextClassAfterTransition({
-            startISO: startDay,
-            endISO: endDay,
-            weekdayKo: weekday,
-            kstTime24: parsed,
-            transitionInstantUtc: firstShift.instantUtc
-          });
-
-          const prevClass = findPrevClassOnOrBeforeTransition({
-            startISO: startDay,
-            endISO: endDay,
-            weekdayKo: weekday,
-            kstTime24: parsed,
-            transitionInstantUtc: firstShift.instantUtc
-          });
-
-          const beforeInst = prevClass ? prevClass.classInstantKST : firstInstantKST;
-          const afterInst = nextClass ? nextClass.classInstantKST : firstInstantKST;
-
-          const localBefore = formatInTimeZone(beforeInst, tz);
-          const localAfter = formatInTimeZone(afterInst, tz);
-
-          const appliedISO = nextClass ? getLocalISODate(nextClass.classInstantKST, tz) : firstShift.localISO;
-          const appliedDate = appliedISO ? (() => {
-            const d = toDateUTC(appliedISO);
-            return `${String(d.getUTCMonth()+1).padStart(2,"0")}. ${String(d.getUTCDate()).padStart(2,"0")}`;
-          })() : "";
-
-          const wShort = weekdayLongToShortParen(localBefore.weekday);
-          const beforeT = `${stripSi(localBefore.time)} ${koAmPmToEN(localBefore.amPm)}`.trim();
-          const afterT = `${stripSi(localAfter.time)} ${koAmPmToEN(localAfter.amPm)}`.trim();
-
-          timeLine =
-`${timeHeader}${flag} ${wShort} ${beforeT} ➜ ${afterT} *${appliedDate}부터 적용
-${kstBaseLine}
-※ 서머타임 전환 시, 한국 시간 고정
-`;
-        }else{
-          timeLine =
-`${timeHeader}${formatShortLine(flag, localFirst.weekday, localFirst.amPm, localFirst.time)}
-${kstBaseLine}
-`;
-        }
-      }
-
-      if(dstMode === "TEACHER_CHANGE"){
-        let noteLine = "";
-        if(transitions.length){
-          const firstShift = transitions[0];
-          const nextClassForNote = findNextClassAfterTransition({
-            startISO: startDay,
-            endISO: endDay,
-            weekdayKo: weekday,
-            kstTime24: parsed,
-            transitionInstantUtc: firstShift.instantUtc
-          });
-
-          if(nextClassForNote){
-            const adjustedInstant = new Date(
-              nextClassForNote.classInstantKST.getTime() - firstShift.diffMinutes * 60000
-            );
-            const kstAdjusted = formatInTimeZone(adjustedInstant, "Asia/Seoul");
-            noteLine = `※ 서머타임 전환 시, 한국 시간 ${stripSi(kstAdjusted.time)} ${koAmPmToEN(kstAdjusted.amPm)}으로 변경`;
-          }
-        }
-
-        timeLine =
-`${timeHeader}${formatShortLine(flag, localFirst.weekday, localFirst.amPm, localFirst.time)}
-${kstBaseLine}
-${noteLine ? noteLine + "\n" : ""}`;
-      }
-    }
-
-    if(weekdays.length>1 && studentLocation==="OVERSEAS"){
-      for(const slot of additional.slots){
-        const firstISO=findFirstClassDateKST(startDay,endDay,slot.weekday);
-        if(!firstISO) return {ok:false,error:slot.index+"번째 정기 요일의 수업일이 기간에 없습니다."};
-        const instant=makeKoreaZonedDate(firstISO,slot.kst.hh,slot.kst.mm);
-        const local=formatInTimeZone(instant,tz);
-        timeLine += `${formatShortLine(flag,local.weekday,local.amPm,local.time)}
-${formatShortLine("🇰🇷",WEEKDAY_LONG[slot.weekday],slot.amPm,formatTimeDisplayInput(slot.timeText))}
-`;
-      }
-      timeLine += "※ 주 "+weekdays.length+"회: 각 요일에 입력된 한국시간 기준으로 진행\n";
+    const noticeSlots=[
+      {weekday,amPm,timeText:korTimeStr,kst:parsed,classType,dstMode},
+      ...additional.slots
+    ];
+    let timeLine="";
+    try{
+      timeLine=formatWeeklyScheduleTimeBlock({
+        startDay,endDay,slots:noticeSlots,studentLocation,tz,flag
+      });
+    }catch(e){
+      return {ok:false,error:e.message||"수업 시간 안내문을 계산하지 못했습니다."};
     }
 
     const closedBlock = weekdays.length>1
@@ -2377,7 +2381,8 @@ Affinity Universe
 
   function registrationFingerprint(){
     const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
-      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "weekday3", "amPm3", "korTime3", "amPm", "korTime", "studentLocation",
+      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "classType2", "dstMode2",
+      "weekday3", "amPm3", "korTime3", "classType3", "dstMode3", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
     return JSON.stringify({fields:ids.map(id => [id, $(id).value]), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
@@ -2407,8 +2412,9 @@ Affinity Universe
     const extra=additionalScheduleState();
     if(!extra.ready) return {ok:false,error:extra.error};
     const weekdays=configuredWeekdays();
-    if($("studentLocation").value === "OVERSEAS" && $("dstMode").value === "TEACHER_CHANGE")
-      return {ok:false,error:"강사 한국시간이 바뀌는 DST 옵션은 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다."};
+    if($("studentLocation").value==="OVERSEAS" &&
+      ([$("dstMode").value,...extra.slots.map(slot=>slot.dstMode)].includes("TEACHER_CHANGE")))
+      return {ok:false,error:"강사 한국시간이 바뀌는 서머타임 방식은 Infohub TIME 한 칸으로 정확히 등록할 수 없습니다. 안내문만 생성하고 먼데이 등록은 별도로 확인해 주세요."};
     if(!WEEKDAY_GROUP_KO[weekday]) return {ok:false, error:"Infohub에는 일요일(SUN) 그룹이 없습니다. 해당 클래스의 그룹을 먼저 지정해야 합니다."};
     const startDay = $("startDay").value;
     let endDay = single?$("startDay").value:$("endDay").value;
@@ -2473,8 +2479,13 @@ Affinity Universe
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
     if(!kst) return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
+    const typeByDay={[weekday]:$("classType").value};
+    for(const slot of extra.slots)typeByDay[slot.weekday]=slot.classType;
+    if(individualAbsences.some(a=>typeByDay[getWeekdayKoFromISO(a.date)]!=="GROUP"))
+      return {ok:false,error:"개별 결석은 해당 수업 요일이 그룹 수업인 경우에만 등록할 수 있습니다."};
     return {ok:true,startDay,endDay,weekday,kst,kstSecond:extra.second,kstThird:extra.third,
-      extraSlots:extra.slots,weeklyFrequency:extra.frequency,items,lessonCount:lessonNo,holidayCount:items.length-lessonNo};
+      extraSlots:extra.slots,weeklyFrequency:extra.frequency,items,typeByDay,
+      lessonCount:lessonNo,holidayCount:items.length-lessonNo};
   }
 
   function refreshRegistrationPreview(){
@@ -2483,7 +2494,8 @@ Affinity Universe
     $("registrationPreview").classList.remove("warn");
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
       const slot=timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
-      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST";
+      const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
+      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"?"그룹 1h":"1:1 40m");
     })()}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
@@ -2575,7 +2587,8 @@ Affinity Universe
         refreshRegistrationPreview();
       })
     );
-    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","weekday3","amPm3","korTime3","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
+    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","classType2","dstMode2",
+      "weekday3","amPm3","korTime3","classType3","dstMode3","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
       $(id).addEventListener("input", ()=>{
         rePreview();
         updateExpectedEndPreview();
@@ -2602,13 +2615,15 @@ Affinity Universe
       $("weekday"+n).value="";
       $("amPm"+n).value="";
       $("korTime"+n).value="";
+      $("classType"+n).value="";
+      $("dstMode"+n).value="";
     }
     function syncWeeklyFrequency(){
       const single=["MAKEUP_40","MAKEUP_30"].includes($("messageType").value);
       for(let n=2;n<=3;n++){
         const visible=!single && activeWeeklyExtras>=n-1;
         $("weeklySlot"+n).hidden=!visible;
-        for(const id of ["weekday"+n,"amPm"+n,"korTime"+n]) $(id).disabled=!visible;
+        for(const id of ["weekday"+n,"amPm"+n,"korTime"+n,"classType"+n,"dstMode"+n]) $(id).disabled=!visible;
         const incomplete=visible && (!$("weekday"+n).value || !$("amPm"+n).value || !$("korTime"+n).value.trim());
         $("weeklySlot"+n).classList.toggle("partial",incomplete);
         $("weeklySlot"+n).classList.toggle("active",visible&&!incomplete);
@@ -2625,7 +2640,7 @@ Affinity Universe
     }
     function removeWeeklyRow(n){
       if(n===2 && activeWeeklyExtras===2){
-        for(const field of ["weekday","amPm","korTime"]){
+        for(const field of ["weekday","amPm","korTime","classType","dstMode"]){
           $(field+"2").value=$(field+"3").value;
         }
       }
@@ -2640,7 +2655,8 @@ Affinity Universe
     });
     $("removeWeeklySlot2").addEventListener("click",()=>removeWeeklyRow(2));
     $("removeWeeklySlot3").addEventListener("click",()=>removeWeeklyRow(3));
-    ["weekday2","amPm2","korTime2","weekday3","amPm3","korTime3","weekday"].forEach(id=>{
+    ["weekday2","amPm2","korTime2","classType2","dstMode2",
+      "weekday3","amPm3","korTime3","classType3","dstMode3","weekday"].forEach(id=>{
       $(id).addEventListener("input",syncWeeklyFrequency);
       $(id).addEventListener("change",syncWeeklyFrequency);
     });
@@ -3002,6 +3018,10 @@ Affinity Universe
           weeklyFrequency:plan.weeklyFrequency,
           kstTime24Second:plan.kstSecond,
           kstTime24Third:plan.kstThird,
+          classType2:plan.extraSlots[0]?.classType||null,
+          classType3:plan.extraSlots[1]?.classType||null,
+          dstMode2:plan.extraSlots[0]?.dstMode||null,
+          dstMode3:plan.extraSlots[1]?.dstMode||null,
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
