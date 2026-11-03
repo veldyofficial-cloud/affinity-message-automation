@@ -1240,9 +1240,9 @@
     return `${sY}. ${sM}. ${sD} - ${eM}. ${eD}`;
   }
 
-  function formatPeriodRangeUsingSlots(startISO,endISO,timeZone,primaryTime,secondTime){
-    const first=timeForScheduledDate(startISO,primaryTime,secondTime);
-    const last=timeForScheduledDate(endISO,primaryTime,secondTime);
+  function formatPeriodRangeUsingSlots(startISO,endISO,timeZone,primaryTime,extraTimes){
+    const first=timeForScheduledDate(startISO,primaryTime,extraTimes);
+    const last=timeForScheduledDate(endISO,primaryTime,extraTimes);
     const startLocal=getLocalISODate(makeKoreaZonedDate(startISO,first.hh,first.mm),timeZone);
     const endLocal=getLocalISODate(makeKoreaZonedDate(endISO,last.hh,last.mm),timeZone);
     const lastDate=toDateUTC(endLocal);
@@ -1429,7 +1429,8 @@
     const rows=[];
     for(let n=2;n<=3;n++){
       const root=$("weeklySlot"+n);
-      if(root ? !root.hidden : Boolean($("weekday"+n).value || $("amPm"+n).value || $("korTime"+n).value.trim())){
+      if(root && typeof root.hidden==="boolean" ? !root.hidden
+        : Boolean($("weekday"+n).value || $("amPm"+n).value || $("korTime"+n).value.trim())){
         rows.push(n);
       }
     }
@@ -1544,12 +1545,12 @@
       : "계산할 수 없음";
   }
 
-  function buildClosedScheduleBlockWithTimes(items, studentLocation, timeZone, primaryTime, secondTime){
+  function buildClosedScheduleBlockWithTimes(items, studentLocation, timeZone, primaryTime, extraTimes){
     const normalized=normalizeClosedList(items);
     if(!normalized.length) return "";
     return "• 휴강 일정 :\n"+normalized.map(item=>{
       return "- "+formatHolidayDateLine(item.date,item.name,studentLocation,timeZone,
-        timeForScheduledDate(item.date,primaryTime,secondTime));
+        timeForScheduledDate(item.date,primaryTime,extraTimes));
     }).join("\n")+"\n";
   }
 
