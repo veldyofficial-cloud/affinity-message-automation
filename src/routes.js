@@ -44,7 +44,7 @@ export async function approve(request, env, email) {
     // Use the Korean (KST) start date regardless of the student's timezone.
     // Canonicalize before reserve/create so the same course cannot be saved
     // twice under differently-prefixed names.
-    const parentName=infohubItemName(p.itemName,plan.startDay);
+    const parentName=infohubItemName(p.itemName,p.startDay);
     const dstLabel=infohubDstLabel(p);
     p.language=p.language||'KR';
     if(!['KR','ENG'].includes(p.language)) throw new Error('상위아이템 언어는 KR 또는 ENG를 선택해 주세요.');
