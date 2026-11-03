@@ -128,6 +128,7 @@ test('Notice Korean names match the requested terminology, without changing Mond
   assert.equal(app.ko[code],label);
   app.get('curriculumSelect').value=code;
   app.get('curriculumUrl').value=app.english[code];
+  app.get('discord').value=code.startsWith('[DRAWING]')?'🐰DRAWING ZOEY 조이쌤':'해당없음';
   const notice=app.buildMessage();
   assert.equal(notice.ok,true,notice.error);
   assert.ok(notice.text.includes('[학습 과정]\n'+label+'\n'));
