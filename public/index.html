@@ -229,11 +229,18 @@
     .absentee-option span { color: var(--blue-ink); font-weight: 500; }
     .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: var(--text); background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
     .registration-preview.warn { color: var(--warn); background: #fff7ed; border-color: #fdba74; }
-    .optional-slot { padding:14px; margin:3px 0 18px; border:1px solid #d9e0ec; border-radius:11px; background:#f4f5f7; }
+    .optional-slot { padding:14px; margin:8px 0 12px; border:1px solid #d9e0ec; border-radius:11px; background:#f5f7fc; }
+    .optional-slot[hidden] { display:none !important; }
+    .extra-schedule-actions { display:flex; align-items:center; flex-wrap:wrap; gap:14px; margin:5px 0 16px; }
+    .extra-schedule-actions .note { margin:0; }
+    .remove-weekly-slot { padding:5px 12px; min-height:34px; font-size:13px; }
     .optional-slot .row3 { margin-bottom:4px; }
+    .optional-slot select:has(option[value=""]:checked), .optional-slot input:placeholder-shown {
+      background:#f5f7fc; color:#a3aec0; }
+    .optional-slot select, .optional-slot input { transition:background .15s,color .15s; }
     .optional-slot label { color:#666; }
     .optional-slot select, .optional-slot input { background:#eceff3; color:#333; }
-    .optional-slot-title { display:flex; justify-content:space-between; gap:8px; color:#555; font-size:16px; font-weight:700; margin-bottom:12px; }
+    .optional-slot-title { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--blue); font-size:16px; font-weight:700; margin-bottom:12px; }
     #weeklyScheduleState { color:#666; font-size:14px; font-weight:500; }
     .optional-slot.active { background:var(--blue-soft); border-color:var(--blue); }
     .optional-slot.active label, .optional-slot.active .optional-slot-title { color:var(--blue); }
@@ -409,24 +416,51 @@
       </div>
     </div>
 
-    <div class="optional-slot" id="weeklyScheduleBox">
-      <div class="optional-slot-title">주 2회 추가 일정 <span id="weeklyScheduleState">미설정 · 주 1회</span></div>
-      <div class="row3">
-        <div><label for="weekday2">두 번째 정기 수업 요일</label>
-          <select id="weekday2">
-            <option value="">요일 선택</option>
-            <option value="월">월</option><option value="화">화</option><option value="수">수</option>
-            <option value="목">목</option><option value="금">금</option><option value="토">토</option>
-          </select>
+    <div class="extra-schedule-actions">
+      <button id="addWeeklySlot" type="button" class="secondary">＋ 수업 일정 추가</button>
+      <span id="weeklyScheduleState" class="note small">주 1회 · 추가 일정 없음</span>
+    </div>
+    <div id="weeklyScheduleBox" class="extra-schedule-list">
+      <div class="optional-slot" id="weeklySlot2" hidden>
+        <div class="optional-slot-title">두 번째 정기 수업 일정
+          <button type="button" class="secondary remove-weekly-slot" id="removeWeeklySlot2" aria-label="두 번째 정기 수업 일정 삭제">× 삭제</button>
         </div>
-        <div><label for="amPm2">두 번째 오전 / 오후</label>
-          <select id="amPm2"><option value="">오전/오후 선택</option><option value="오전">오전</option><option value="오후">오후</option></select>
-        </div>
-        <div><label for="korTime2">두 번째 한국시간 (예: 7 / 7:30)</label>
-          <input id="korTime2" type="text" placeholder="예: 7 / 7:30" />
+        <div class="row3">
+          <div><label for="weekday2">두 번째 수업 요일</label>
+            <select id="weekday2">
+              <option value="">요일 선택</option>
+              <option value="월">월</option><option value="화">화</option><option value="수">수</option>
+              <option value="목">목</option><option value="금">금</option><option value="토">토</option>
+            </select>
+          </div>
+          <div><label for="amPm2">오전 / 오후</label>
+            <select id="amPm2"><option value="">선택</option><option value="오전">오전</option><option value="오후">오후</option></select>
+          </div>
+          <div><label for="korTime2">한국시간 (예: 7 / 7:30)</label>
+            <input id="korTime2" type="text" placeholder="예: 7 / 7:30" />
+          </div>
         </div>
       </div>
-      <div class="note small">세 항목을 모두 입력하면 주 2회로 자동 적용됩니다. 모두 비우면 주 1회입니다.</div>
+      <div class="optional-slot" id="weeklySlot3" hidden>
+        <div class="optional-slot-title">세 번째 정기 수업 일정
+          <button type="button" class="secondary remove-weekly-slot" id="removeWeeklySlot3" aria-label="세 번째 정기 수업 일정 삭제">× 삭제</button>
+        </div>
+        <div class="row3">
+          <div><label for="weekday3">세 번째 수업 요일</label>
+            <select id="weekday3">
+              <option value="">요일 선택</option>
+              <option value="월">월</option><option value="화">화</option><option value="수">수</option>
+              <option value="목">목</option><option value="금">금</option><option value="토">토</option>
+            </select>
+          </div>
+          <div><label for="amPm3">오전 / 오후</label>
+            <select id="amPm3"><option value="">선택</option><option value="오전">오전</option><option value="오후">오후</option></select>
+          </div>
+          <div><label for="korTime3">한국시간 (예: 7 / 7:30)</label>
+            <input id="korTime3" type="text" placeholder="예: 7 / 7:30" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="row">
