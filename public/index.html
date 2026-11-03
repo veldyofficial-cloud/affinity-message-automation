@@ -1421,27 +1421,57 @@
     return normalizeClosedList([...closedList, ...getCheckedFetchedHolidays()]);
   }
 
+  // Number of extra rows explicitly added with the '+' button, max 2.
+  // In test harnesses without a real DOM, the presence of legacy slot values
+  // is treated as activation for backward compatibility with fixture inputs.
+  let activeWeeklyExtras=0;
+  function enabledExtraSlots(){
+    const rows=[];
+    for(let n=2;n<=3;n++){
+      const root=$("weeklySlot"+n);
+      if(root ? !root.hidden : Boolean($("weekday"+n).value || $("amPm"+n).value || $("korTime"+n).value.trim())){
+        rows.push(n);
+      }
+    }
+    return rows;
+  }
+
   function additionalScheduleState(){
-    const day=$("weekday2").value;
-    const amPm=$("amPm2").value;
-    const time=$("korTime2").value.trim();
-    const any=Boolean(day || amPm || time);
-    if(!any) return {frequency:1,ready:true,second:null};
-    if(!day || !amPm || !time) return {frequency:2,ready:false,error:"두 번째 요일·오전/오후·한국시간을 모두 입력해 주세요."};
-    if(day===$("weekday").value || WEEKDAY_TO_NUM[day]===undefined || day==="일")
-      return {frequency:2,ready:false,error:"주 2회는 서로 다른 두 요일(월~토)을 선택해 주세요."};
-    const second=parseKorTimeTo24h(amPm,time);
-    if(!second) return {frequency:2,ready:false,error:"두 번째 수업 시간을 확인해 주세요. (예: 7 또는 7:30)"};
-    return {frequency:2,ready:true,second};
+    const rows=enabledExtraSlots();
+    if(rows.length===0) return {frequency:1,ready:true,second:null,third:null,slots:[]};
+    if(rows.length>2 || rows.some((n,i)=>n!==i+2))
+      return {frequency:rows.length+1,ready:false,error:"추가 일정 순서를 확인해 주세요."};
+    const seen=new Set([$("weekday").value]);
+    const slots=[];
+    for(const n of rows){
+      const day=$("weekday"+n).value;
+      const amPm=$("amPm"+n).value;
+      const timeText=$("korTime"+n).value.trim();
+      if(!day || !amPm || !timeText)
+        return {frequency:rows.length+1,ready:false,error:n+"번째 수업의 요일·오전/오후·한국시간을 모두 입력해 주세요."};
+      if(!WEEKDAY_TO_NUM.hasOwnProperty(day) || day==="일" || seen.has(day))
+        return {frequency:rows.length+1,ready:false,error:"추가 정기 수업은 서로 다른 요일(월~토)을 선택해 주세요."};
+      const kst=parseKorTimeTo24h(amPm,timeText);
+      if(!kst) return {frequency:rows.length+1,ready:false,error:n+"번째 수업 시간을 확인해 주세요. (예: 7 또는 7:30)"};
+      seen.add(day);
+      slots.push({index:n,weekday:day,amPm,timeText,kst});
+    }
+    return {frequency:slots.length+1,ready:true,second:slots[0]?.kst||null,third:slots[1]?.kst||null,slots};
   }
 
   function configuredWeekdays(){
     const state=additionalScheduleState();
-    return state.ready ? (state.frequency===2?[$("weekday").value,$("weekday2").value]:[$("weekday").value]) : [];
+    return state.ready ? [$("weekday").value,...state.slots.map(slot=>slot.weekday)] : [];
   }
 
-  function timeForScheduledDate(date, primaryTime, secondTime){
-    return secondTime && getWeekdayKoFromISO(date)===$("weekday2").value ? secondTime : primaryTime;
+  function timeForScheduledDate(date, primaryTime, extraTimes){
+    const day=getWeekdayKoFromISO(date);
+    if(Array.isArray(extraTimes)){
+      const slot=additionalScheduleState().slots.find(slot=>slot.weekday===day);
+      return slot ? extraTimes[slot.index-2]||primaryTime : primaryTime;
+    }
+    // Compatibility with the existing single second-slot caller.
+    return extraTimes && day===$("weekday2").value ? extraTimes : primaryTime;
   }
 
   function calculateExpectedEndDate(startISO, weekdayKo, lessonCount, closedItems){
@@ -1463,7 +1493,7 @@
       const iso = dateToISO_UTC(cur);
       if(!closedDates.has(iso)) completed++;
       if(completed === count) return iso;
-      cur = addDaysUTC(cur, targetDays.length===2?1:7);
+      cur = addDaysUTC(cur, targetDays.length>1?1:7);
       while(!targetDays.includes(cur.getUTCDay())) cur=addDaysUTC(cur,1);
       guard++;
     }
