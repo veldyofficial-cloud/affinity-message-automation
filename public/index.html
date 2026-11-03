@@ -11,20 +11,20 @@
   <style>
     /* Affinity Universe: 블루 단색 계열 / Poppins + Noto Sans KR */
     :root {
-      --blue: #2d63ff;
-      --blue-dark: #1847d9;
+      --blue: #0064ff;
+      --blue-dark: #0048c9;
       --blue-ink: #193361;
       --blue-pale: #edf3ff;
       --blue-soft: #f6f9ff;
       --bg: #f8faff;
       --card: #ffffff;
-      --text: #203250;
-      --muted: #6b7992;
+      --text: #000000;
+      --muted: #000000;
       --line: #e0e8f5;
       --accent: var(--blue);
       --good: #2859d6;
-      --warn: #315bb8;
-      --bad: #24488f;
+      --warn: #c2410c;
+      --bad: #c2410c;
       --radius: 17px;
       --font: "Poppins", "Noto Sans KR", sans-serif;
     }
@@ -95,7 +95,7 @@
       font-weight: 700;
       line-height: 1.5;
       letter-spacing: -.3px;
-      color: var(--blue-ink);
+      color: var(--blue);
     }
     .card h2::before {
       content: "";
@@ -107,7 +107,7 @@
     }
     .row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; margin-bottom: 15px; }
     .row3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; margin-bottom: 15px; }
-    label { display: block; margin: 0 0 7px; color: #405474; font-size: 14px; font-weight: 600; line-height: 1.55; }
+    label { display: block; margin: 0 0 7px; color: var(--blue); font-size: 14px; font-weight: 700; line-height: 1.55; }
     input:not([type="checkbox"]), select, textarea {
       width: 100%;
       min-width: 0;
@@ -123,18 +123,18 @@
       transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
     }
     input:not([type="checkbox"]), select { min-height: 44px; }
-    input::placeholder, textarea::placeholder { color: #a3aec0; font-weight: 400; opacity: 1; }
+    input::placeholder, textarea::placeholder { color: #606060; font-weight: 400; opacity: 1; }
     input:focus, select:focus, textarea:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 2px rgba(45,99,255,.095);
     }
     input:disabled, select:disabled, textarea:disabled {
-      color: #a2afc2;
+      color: #333333;
       background: #f5f7fc;
       border-color: #e5ebf5;
       cursor: not-allowed;
     }
-    input[readonly] { color: #596b89; background: var(--blue-soft); }
+    input[readonly] { color: var(--text); background: var(--blue-soft); }
     select { cursor: pointer; }
     input[type="date"] { color-scheme: light; }
     input[type="date"]::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; }
@@ -205,7 +205,8 @@
     }
     #approve:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
     #approve svg { flex: 0 0 19px; width: 19px; height: 19px; stroke-width: 1.5px; }
-    #approveFeedback:not(:empty) { display: block; margin-top: 9px; color: var(--blue-dark); font-size: 14px; line-height: 1.75; }
+    #approveFeedback:not(:empty) { display: block; margin-top: 9px; color: var(--warn); font-size: 14px; line-height: 1.75; }
+    #approveFeedback.ok:not(:empty) { color: var(--blue-dark); }
     #approveFeedback a { color: var(--blue-dark); font-weight: 700; text-decoration: underline; }
     #approve:disabled { opacity: .65; cursor: wait; }
     .integration-intro { margin-bottom: 13px; }
@@ -226,7 +227,8 @@
     .absentee-option { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: .75px solid var(--line); border-radius: 9px; background: #fff; cursor: pointer; }
     .absentee-option input { width: 17px; height: 17px; accent-color: var(--blue); }
     .absentee-option span { color: var(--blue-ink); font-weight: 500; }
-    .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: #4d6384; background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
+    .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: var(--text); background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
+    .registration-preview.warn { color: var(--warn); background: #fff7ed; border-color: #fdba74; }
     #approvalKey { letter-spacing: .08em; }
     .note { margin-top: 9px; color: var(--muted); font-size: 14px; font-weight: 400; line-height: 1.7; }
     .small { font-size: 14px; }
@@ -242,8 +244,8 @@
     .tag { display: inline-block; padding: 1px 7px; margin-left: 4px; border: .75px solid #dce6ff; border-radius: 999px; background: #fff; color: var(--blue-dark); font-size: 14px; font-weight: 600; }
     #localPreviewPill { color: var(--blue-dark); background: var(--blue-pale); border-color: #dce6ff; }
     #alert:not(:empty) { padding: 10px 12px; border-radius: 9px; background: var(--blue-soft); }
-    #alert.ok { background: #edf3ff; } #alert.warn { background: #e9f0ff; } #alert.bad { background: #e1ebff; }
-    #closedPreview { padding: 12px 14px; color: #4d6384; background: var(--blue-soft); border: .75px solid var(--line); border-radius: 9px; font-size: 14px; line-height: 1.8; }
+    #alert.ok { background: #edf3ff; } #alert.warn { background: #fff7ed; border: 1px solid #fdba74; } #alert.bad { background: #fff7ed; border: 1px solid #fdba74; }
+    #closedPreview { padding: 12px 14px; color: var(--text); background: var(--blue-soft); border: .75px solid var(--line); border-radius: 9px; font-size: 14px; line-height: 1.8; }
     @media (max-width: 1040px) {
       .grid { grid-template-columns: minmax(0,1fr); }
       .card:nth-child(2) { position: static; }
@@ -363,6 +365,7 @@
           <option value="8">8강</option>
           <option value="10">10강</option>
           <option value="12">12강</option>
+          <option value="20">20강</option>
         </select>
         <div class="note small">종강일을 비우면 선택한 회차와 휴강일을 반영해 예상 종강일을 계산합니다.</div>
       </div>
@@ -391,6 +394,26 @@
       <div>
         <label for="korTime">한국시간 (예: 7 / 7:30)</label>
         <input id="korTime" type="text" placeholder="예: 7 / 7:30" />
+      </div>
+    </div>
+
+    <div class="row" id="weeklyScheduleBox">
+      <div>
+        <label for="weeklyFrequency">주간 수업 횟수</label>
+        <select id="weeklyFrequency">
+          <option value="1">주 1회</option>
+          <option value="2">주 2회</option>
+        </select>
+        <div class="note small">주 2회는 두 요일 모두 같은 한국시간으로 진행합니다.</div>
+      </div>
+      <div id="weekday2Box" style="display:none">
+        <label for="weekday2">두 번째 정기 수업 요일</label>
+        <select id="weekday2">
+          <option value="">두 번째 요일 선택</option>
+          <option value="월">월</option><option value="화">화</option><option value="수">수</option>
+          <option value="목">목</option><option value="금">금</option><option value="토">토</option>
+        </select>
+        <div class="note small">먼데이 상위 아이템은 첫 번째 요일 그룹에, 하위 일정에는 두 요일을 모두 기록합니다.</div>
       </div>
     </div>
 
