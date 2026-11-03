@@ -2023,12 +2023,13 @@ Step 4. 사진 구성
       const firstText=formatShortLine("🌐",local.weekday,local.amPm,local.time).replace("🌐 ","");
       const additional=additionalScheduleState();
       let secondText="";
-      if(additional.ready && additional.frequency===2){
-        const secondDate=findFirstClassDateKST(startDay,endDay,$("weekday2").value);
-        if(secondDate){
-          const secondInstant=makeKoreaZonedDate(secondDate,additional.second.hh,additional.second.mm);
-          const secondLocal=formatInTimeZone(secondInstant,tz);
-          secondText=" / "+formatShortLine("🌐",secondLocal.weekday,secondLocal.amPm,secondLocal.time).replace("🌐 ","");
+      if(additional.ready && additional.frequency>1){
+        for(const slot of additional.slots){
+          const date=findFirstClassDateKST(startDay,endDay,slot.weekday);
+          if(!date)continue;
+          const instant=makeKoreaZonedDate(date,slot.kst.hh,slot.kst.mm);
+          const localSlot=formatInTimeZone(instant,tz);
+          secondText+=" / "+formatShortLine("🌐",localSlot.weekday,localSlot.amPm,localSlot.time).replace("🌐 ","");
         }
       }
       $("localPreviewPill").textContent="현지시간 미리보기: "+firstText+secondText;
@@ -2375,10 +2376,10 @@ Affinity Universe
 
   function registrationFingerprint(){
     const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
-      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "amPm", "korTime", "studentLocation",
+      "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "weekday3", "amPm3", "korTime3", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
-    return JSON.stringify({fields:ids.map(id => [id, $(id).value]), closed:getEffectiveClosedList(),
+    return JSON.stringify({fields:ids.map(id => [id, $(id).value]), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
       individualAbsences:normalizeIndividualAbsences(individualAbsences)});
   }
 
@@ -2461,7 +2462,7 @@ Affinity Universe
         items.push({date, kind:"LESSON", name:`LESSON ${String(lessonNo).padStart(2,"0")}`,
           absentStudentIds:absentMap.get(date)||[]});
       }
-      cursor = addDaysUTC(cursor,weekdays.length===2?1:7);
+      cursor = addDaysUTC(cursor,weekdays.length>1?1:7);
       while(!targets.includes(cursor.getUTCDay())) cursor=addDaysUTC(cursor,1);
     }
     if(!items.length) return {ok:false,error:"기간 안에 수업 요일이 없습니다."};
@@ -2471,7 +2472,8 @@ Affinity Universe
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
     if(!kst) return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
-    return {ok:true, startDay, endDay, weekday, kst, kstSecond:extra.second, weeklyFrequency:extra.frequency, items, lessonCount:lessonNo, holidayCount:items.length-lessonNo};
+    return {ok:true,startDay,endDay,weekday,kst,kstSecond:extra.second,kstThird:extra.third,
+      extraSlots:extra.slots,weeklyFrequency:extra.frequency,items,lessonCount:lessonNo,holidayCount:items.length-lessonNo};
   }
 
   function refreshRegistrationPreview(){
@@ -2479,7 +2481,7 @@ Affinity Universe
     if(!r.ok){ $("registrationPreview").textContent = r.error; $("registrationPreview").classList.add("warn"); return; }
     $("registrationPreview").classList.remove("warn");
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
-      const slot=timeForScheduledDate(i.date,r.kst,r.kstSecond);
+      const slot=timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
       return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST";
     })()}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
@@ -2572,7 +2574,7 @@ Affinity Universe
         refreshRegistrationPreview();
       })
     );
-    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
+    ["startDay","endDay","weekday","weekday2","amPm2","korTime2","weekday3","amPm3","korTime3","amPm","korTime","tzSelect","studentLocation","lessonCount"].forEach(id=>{
       $(id).addEventListener("input", ()=>{
         rePreview();
         updateExpectedEndPreview();
@@ -2967,9 +2969,11 @@ Affinity Universe
           studentLocation:$("studentLocation").value,
           dstMode:$("dstMode").value,
           weekday:plan.weekday,
-          weekday2:plan.weeklyFrequency===2?$("weekday2").value:"",
+          weekday2:plan.weeklyFrequency>=2?$("weekday2").value:"",
+          weekday3:plan.weeklyFrequency===3?$("weekday3").value:"",
           weeklyFrequency:plan.weeklyFrequency,
           kstTime24Second:plan.kstSecond,
+          kstTime24Third:plan.kstThird,
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
