@@ -153,9 +153,9 @@ export async function approve(request, env, email) {
       // Parent TIME is the first-day time; append each lesson's exact KST
       // to the subitem memo so no second-day time is lost in Infohub.
       const sessionTime=isThirdDay?p.kstTime24Third:isSecondDay?p.kstTime24Second:p.kstTime24;
-      const sessionType=plan.classTypeByDay[targetDay]||p.classType;
+      const sessionType=plan.classTypeByDay?.[targetDay]||p.classType;
       const sessionDuration=sessionType==='GROUP'?'60m':'40m';
-      const hasMixedTypes=Object.values(plan.classTypeByDay).some(type=>type!==p.classType);
+      const hasMixedTypes=Object.values(plan.classTypeByDay||{}).some(type=>type!==p.classType);
       const sessionTypeNote=hasMixedTypes
         ? '수업 구분: '+(sessionType==='GROUP'?'그룹 (1h)':'1:1 (40m)') : '';
       const kstNote=Number(p.weeklyFrequency)>1
