@@ -2789,6 +2789,7 @@ Affinity Universe
       else applyCountryToTzOptions(ko);
 
       updateLocalPreview();
+      if(fetchedHolidays.length)renderHolidayList();
     });
 
     $("usStateSelect").addEventListener("change", ()=>{
