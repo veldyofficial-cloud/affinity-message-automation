@@ -2869,6 +2869,15 @@ Affinity Universe
         showAlert("휴강일 날짜를 선택해 주세요.", "warn");
         return;
       }
+      const validWindow=getKoreanClassWindow();
+      if(!validWindow){
+        showAlert("휴강일을 등록하기 전에 시작일·종강일 또는 회차와 정기 수업 요일을 확인해 주세요.", "warn");
+        return;
+      }
+      if(!inKoreanClassWindow(d,validWindow)){
+        showAlert("휴강일은 한국시간 기준 실제 수업 기간과 정기 수업 요일에 해당해야 합니다. 해외 현지 날짜가 다르면 한국 수업 날짜를 선택해 주세요.", "warn");
+        return;
+      }
 
       const individual=$("classType").value==="GROUP" && n==="수강생 요청 휴강"
         && $("requestedClosureScope").value==="STUDENT_ABSENCE";
@@ -2904,7 +2913,8 @@ Affinity Universe
     $("clearClosed").addEventListener("click", ()=>{
       closedList = [];
       individualAbsences = [];
-      for(const checkbox of $("holidayList").querySelectorAll('input[type="checkbox"]')) checkbox.checked = false;
+      selectedFetchedHolidayDates.clear();
+      renderHolidayList();
       renderClosedPreview();
       updateExpectedEndPreview();
       refreshRegistrationPreview();
@@ -2922,7 +2932,7 @@ Affinity Universe
       }
 
       if(!end){
-        const lessonCount = Number($("lessonCount").value);
+        const lessonCount = $("messageType").value==="TRIAL"?4:Number($("lessonCount").value);
         if(![4,8,10,12,20].includes(lessonCount)){
           showAlert("종강일을 비운 경우 먼저 수업 회차를 선택해 주세요.", "warn");
           return;
@@ -2931,17 +2941,31 @@ Affinity Universe
         usedEstimatedRange = true;
       }
 
-      let fetchStart = start;
-      let fetchEnd = end;
-      if(fetchStart > fetchEnd) [fetchStart, fetchEnd] = [fetchEnd, fetchStart];
-
-      $("holidayList").textContent = "불러오는 중...";
+      const fetchStart=start;
+      const fetchEnd=end;
+      if(fetchStart>fetchEnd){
+        showAlert("종료일이 시작일보다 빠릅니다. 날짜를 확인해 주세요.", "warn");
+        return;
+      }
+      const requestedState=[start,$("endDay").value,$("weekday").value,$("weekday2").value,
+        $("weekday3").value,$("lessonCount").value,$("messageType").value].join("|");
+      $("holidayList").textContent="불러오는 중...";
       try{
-        fetchedHolidays = await fetchKoreanHolidaysBetween(fetchStart, fetchEnd);
+        const nextHolidays=await fetchKoreanHolidaysBetween(fetchStart,fetchEnd);
+        const currentState=[$("startDay").value,$("endDay").value,$("weekday").value,
+          $("weekday2").value,$("weekday3").value,$("lessonCount").value,$("messageType").value].join("|");
+        if(currentState!==requestedState){
+          $("holidayList").textContent="일정이 변경되었습니다. 현재 일정으로 다시 불러와 주세요.";
+          showAlert("조회 중 수업 일정이 변경되어 이전 공휴일 결과를 적용하지 않았습니다.", "warn");
+          return;
+        }
+        fetchedHolidays=nextHolidays;
+        fetchedHolidayQueryRange={start:fetchStart,end:fetchEnd};
         renderHolidayList();
         updateExpectedEndPreview();
+        const visibleCount=getVisibleFetchedHolidayEntries().length;
         showAlert(
-          `공휴일 ${fetchedHolidays.length}개를 불러왔습니다.${usedEstimatedRange ? " 예상 종강 범위를 포함해 조회했습니다." : ""}`,
+          `현재 한국 수업 기간과 요일에 해당하는 공휴일 ${visibleCount}개를 표시했습니다.${usedEstimatedRange ? " 예상 종강 연장 가능성은 내부적으로만 조회했습니다." : ""}`,
           "ok"
         );
       }catch(e){
@@ -2956,30 +2980,37 @@ Affinity Universe
         return;
       }
 
-      const checks = Array.from($("holidayList").querySelectorAll("input[type=checkbox][data-idx]"));
-      let added = 0;
-
-      checks.forEach(ch=>{
-        if(!ch.checked) return;
-        const idx = Number(ch.dataset.idx);
-        const h = fetchedHolidays[idx];
-        if(!h) return;
-        upsertClosed(h.date, h.localName || h.name || "공휴일");
+      const range=getKoreanClassWindow();
+      let added=0;
+      for(const h of fetchedHolidays){
+        if(!selectedFetchedHolidayDates.has(h.date)||!inKoreanClassWindow(h.date,range))continue;
+        if(individualAbsences.some(item=>item.date===h.date))continue;
+        upsertClosed(h.date,h.localName||h.name||"공휴일");
         added++;
-      });
-
+      }
       renderClosedPreview();
       updateExpectedEndPreview();
-      showAlert(`선택 공휴일 ${added}개를 휴강일에 추가했습니다.`, "ok");
+      refreshRegistrationPreview();
+      showAlert(`현재 수업 일정에 해당하는 공휴일 ${added}개를 휴강일에 추가했습니다.`, "ok");
     });
 
     $("holidayList").addEventListener("change", (e)=>{
       if(e.target.matches('input[type="checkbox"][data-idx]')){
         const h=fetchedHolidays[Number(e.target.dataset.idx)];
-        if(e.target.checked && h && individualAbsences.some(a=>a.date===h.date)){
+        if(!h)return;
+        if(e.target.checked && individualAbsences.some(a=>a.date===h.date)){
           e.target.checked=false;
           showAlert("이미 개별 결석을 등록한 날짜는 전체 휴강으로 중복 지정할 수 없습니다.","warn");
+          return;
         }
+        const range=getKoreanClassWindow();
+        if(e.target.checked && !inKoreanClassWindow(h.date,range)){
+          e.target.checked=false;
+          showAlert("해당 공휴일은 한국 기준 수업 기간 또는 정기 요일에 포함되지 않습니다.","warn");
+          return;
+        }
+        if(e.target.checked)selectedFetchedHolidayDates.add(h.date);
+        else selectedFetchedHolidayDates.delete(h.date);
         updateExpectedEndPreview();
         refreshRegistrationPreview();
       }
@@ -3166,6 +3197,8 @@ Affinity Universe
       $("tzSearch").value = "";
       $("holidayList").textContent = "아직 불러오지 않았습니다.";
       fetchedHolidays = [];
+      selectedFetchedHolidayDates.clear();
+      fetchedHolidayQueryRange=null;
 
       $("usStateBox").style.display = "none";
       $("usStateSelect").value = "";
