@@ -583,8 +583,9 @@
 
     <div class="row">
       <div>
-        <label for="closedDate">휴강일 날짜(수동 추가)</label>
+        <label for="closedDate">휴강일 날짜(수동 추가 · 한국 날짜 기준)</label>
         <input id="closedDate" type="date" />
+        <div class="note small">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div>
       </div>
       <div>
         <label for="closedNamePreset">휴일 명칭(프리셋)</label>
@@ -621,7 +622,7 @@
           <span class="pill"><span class="tag">API</span> Nager.Date (무료)</span>
         </div>
         <div class="note small">
-          시작~종료 기간 사이의 한국 공휴일을 가져와 체크한 항목만 휴강일로 추가합니다.
+          한국 수업 날짜 기준으로 현재 수업 기간과 정기 수업 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.
         </div>
       </div>
       <div>
@@ -1342,6 +1343,8 @@
   // 일부 학생의 결석은 휴강 목록과 별도로 보관합니다. 수업 회차 및 종강일에 영향 없음.
   let individualAbsences = [];
   let fetchedHolidays = [];
+  let selectedFetchedHolidayDates = new Set();
+  let fetchedHolidayQueryRange = null;
 
   function normalizeClosedList(list){
     const map = new Map();
@@ -1441,18 +1444,55 @@
     closedList = normalizeClosedList(closedList);
   }
 
-  function getCheckedFetchedHolidays(){
-    const box = $("holidayList");
-    if(!box) return [];
+  function inKoreanClassWindow(dateISO, range){
+    return !!range && dateISO >= range.start && dateISO <= range.end &&
+      range.weekdays.includes(getWeekdayKoFromISO(dateISO));
+  }
 
-    return Array.from(box.querySelectorAll("input[type=checkbox][data-idx]:checked"))
-      .map(ch => fetchedHolidays[Number(ch.dataset.idx)])
-      .filter(Boolean)
-      .map(h => ({ date:h.date, name:h.localName || h.name || "공휴일" }));
+  // Holiday API dates and Infohub subitem dates are always Korean calendar dates.
+  // An overseas student's local Tuesday class can be Wednesday in Korea; never
+  // compare a Korean holiday with the student's local weekday.
+  function getKoreanClassWindow(){
+    const start=$("startDay").value;
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start))return null;
+    const weekdays=configuredWeekdays();
+    if(!weekdays.length)return null;
+    const single=["MAKEUP_40","MAKEUP_30"].includes($("messageType").value);
+    const explicit=single?start:$("endDay").value;
+    if(explicit){
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(explicit)||explicit<start)return null;
+      return {start,end:explicit,weekdays};
+    }
+    const count=$("messageType").value==="TRIAL"?4:Number($("lessonCount").value);
+    if(![4,8,10,12,20].includes(count))return null;
+    let end=calculateExpectedEndDate(start,$("weekday").value,count,[]);
+    if(!end)return null;
+    const candidates=normalizeClosedList([
+      ...closedList,
+      ...fetchedHolidays.filter(h=>selectedFetchedHolidayDates.has(h.date))
+        .map(h=>({date:h.date,name:h.localName||h.name||"공휴일"}))
+    ]);
+    // Only holidays inside the current end date can extend that end date.
+    // Re-evaluate until consecutive relevant holidays no longer push the end.
+    for(let pass=0;pass<100;pass++){
+      const allowed=candidates.filter(h=>inKoreanClassWindow(h.date,{start,end,weekdays}));
+      const next=calculateExpectedEndDate(start,$("weekday").value,count,allowed);
+      if(!next||next===end)break;
+      end=next;
+    }
+    return {start,end,weekdays};
+  }
+
+  function getCheckedFetchedHolidays(){
+    const range=getKoreanClassWindow();
+    return fetchedHolidays.filter(h=>selectedFetchedHolidayDates.has(h.date) && inKoreanClassWindow(h.date,range))
+      .map(h=>({date:h.date,name:h.localName||h.name||"공휴일"}));
   }
 
   function getEffectiveClosedList(){
-    return normalizeClosedList([...closedList, ...getCheckedFetchedHolidays()]);
+    const range=getKoreanClassWindow();
+    const items=normalizeClosedList([...closedList,...getCheckedFetchedHolidays()]);
+    return range?items.filter(item=>inKoreanClassWindow(item.date,range)):items;
   }
 
   // Number of extra rows explicitly added with the '+' button, max 2.
