@@ -1454,13 +1454,13 @@
   // compare a Korean holiday with the student's local weekday.
   function getKoreanClassWindow(){
     const start=$("startDay").value;
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start))return null;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(start))return null;
     const weekdays=configuredWeekdays();
     if(!weekdays.length)return null;
     const single=["MAKEUP_40","MAKEUP_30"].includes($("messageType").value);
     const explicit=single?start:$("endDay").value;
     if(explicit){
-      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(explicit)||explicit<start)return null;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(explicit)||explicit<start)return null;
       return {start,end:explicit,weekdays};
     }
     const count=$("messageType").value==="TRIAL"?4:Number($("lessonCount").value);
