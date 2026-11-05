@@ -12,7 +12,7 @@ function plan({startDay='2026-11-02',endDay='2026-11-12',count=4,frequency=2,wee
     if(![1,...(frequency===2?[4]:[])].includes(cur.getUTCDay()))continue;
     const date=cur.toISOString().slice(0,10);
     const closed=closures.find(c=>c.date===date);
-    if(closed) schedule.push({date,kind:'CLOSED',name:closed.name==='수강생 요청 휴강'?closed.name:closed.name+' 휴강'});
+    if(closed) schedule.push({date,kind:'CLOSED',name:closed.name==='수강생 요청 휴강'?'수강생 요청 휴강':'공휴일 휴강'});
     else {no++;schedule.push({date,kind:'LESSON',name:'LESSON '+String(no).padStart(2,'0'),absentStudentIds:[]});}
   }
   return {messageType:'CLASS',classType:'ONE_ON_ONE',templateType:'IPAD',studentLocation:'DOMESTIC',dstMode:'AUTO',
@@ -80,4 +80,13 @@ test('Inline script parses as JavaScript',()=>{
   const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
   assert.ok(scripts.length);
   for(const [i,script] of scripts.entries()) new vm.Script(script[1],{filename:'inline-'+i+'.js'});
+});
+
+test('Public holiday names use one canonical Monday subitem title without changing original reason',()=>{
+ const closures=[{date:'2026-11-09',name:'설날'}];
+ const p=derivePlan(plan({endDay:'2026-11-16',count:4,closures}));
+ const closed=p.schedule.find(row=>row.kind==='CLOSED');
+ assert.equal(closed.name,'공휴일 휴강');
+ assert.equal(closed.reason,'설날');
+ assert.equal(p.schedule.filter(row=>row.kind==='LESSON').length,4);
 });
