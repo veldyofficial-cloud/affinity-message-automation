@@ -221,9 +221,13 @@
     .student-option input { width: 16px; height: 16px; accent-color: var(--blue); }
     .student-option span { overflow-wrap: anywhere; }
     .selected-students { color: var(--blue-dark); }
+    .student-db-setup { padding:15px; margin:12px 0 20px; border:1px solid #d9e3f3; background:#f7f9fe; border-radius:10px; }
+    .student-db-setup h2 { margin:0 0 9px; }
     .notice-recipient-box { margin-bottom:15px; padding:13px; border:1px solid #d9e3f3; border-radius:10px; background:#f7f9fe; }
     .notice-recipient-box select { margin-top:7px; }
     .notice-recipient-box .note { margin-top:8px; color:#333; }
+    #saveStudentNotice { margin-top:12px; }
+    #savedStudentNotices { white-space:pre-wrap; border-top:1px solid #d9e3f3; padding-top:9px; }
     .closure-choice { margin: 10px 0 15px; padding: 12px 14px; border: .75px solid #d9e3f3; border-radius: 9px; background: var(--blue-soft); }
     .closure-choice label { margin-bottom: 7px; }
     .absentee-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 0 2px; }
@@ -340,6 +344,17 @@
           <option value="GROUP">그룹</option>
         </select>
       </div>
+    </div>
+
+    <div class="student-db-setup">
+      <h2>1. STUDENT DB · 그룹 학생 선택</h2>
+      <label for="studentSearchQuery">STUDENT DB 학생 검색</label>
+      <div class="lookup-row">
+        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
+        <button id="studentSearch" type="button" class="secondary">검색</button>
+      </div>
+      <div id="studentResults" class="student-results" aria-live="polite"></div>
+      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
     </div>
 
     <div class="row">
@@ -606,7 +621,8 @@
       <div id="absenteePickerBox" style="display:none; margin-top:12px">
         <label>결석할 수강생 선택 · STUDENT DB 연결</label>
         <div id="absenteeStudents" class="absentee-options"></div>
-        <div class="note small">먼저 오른쪽에서 이 그룹의 전체 수강생을 검색·선택한 다음, 결석할 사람만 체크하세요. 개별 결석은 LESSON을 유지하고 회차를 밀지 않습니다.</div>
+        <div class="note small">STUDENT DB에서 그룹 학생 전원을 선택한 후 결석할 학생을 지정하세요. 한 명만 출석하면 기본 1:1 40분으로 전환되며 회차는 밀리지 않습니다.</div>
+        <label class="absentee-option" style="margin-top:10px"><input id="keepGroupDuration" type="checkbox" /> 별도 요청으로 해당 회차 60분 유지 (출석 1명일 때만)</label>
       </div>
     </div>
 
@@ -681,8 +697,10 @@
     <div class="notice-recipient-box">
       <label for="noticeRecipient">안내문 대상 학생 (그룹 · 개별 결석 반영)</label>
       <select id="noticeRecipient"><option value="">학생 이름으로 자동 매칭</option></select>
-      <div class="note small">STUDENT DB에서 학생들을 연결하면 대상자를 선택할 수 있습니다. 해당 학생의 개별 결석만 안내문에 표시됩니다. 해외 학생은 그 학생의 국가·시간대를 설정해 주세요.</div>
-      <div class="note small">먼데이 승인 시 말풍선은 1개만 자동 등록됩니다. 다른 시간대 학생의 문구는 대상자와 시간대를 바꿔 생성·복사 후 기존 아이템에 수동 추가하세요. 같은 그룹을 다시 승인하지 마세요.</div>
+      <div class="note small">그룹 학생을 먼저 모두 연결하고 대상 학생을 선택하세요. 해당 학생의 국가·시간대에 맞춰 안내문을 생성한 후 저장합니다.</div>
+      <button id="saveStudentNotice" type="button" class="secondary">현재 학생 안내문 저장</button>
+      <div id="savedStudentNotices" class="note small" aria-live="polite">저장된 학생별 안내문 없음</div>
+      <div class="note small">모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개(학생별 메시지 전체 포함)를 최종 등록합니다. 승인 전에는 먼데이 DB가 변경되지 않습니다.</div>
     </div>
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
     <div class="note">
@@ -704,13 +722,7 @@
 <label for="subMemos">날짜별 MEMO (선택)</label>
 <textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
 <div class="note small">한 줄에 YYYY-MM-DD | 메모. 날짜별 메모가 공통 메모보다 우선합니다.</div>
-<label for="studentSearchQuery">STUDENT DB 학생 검색</label>
-      <div class="lookup-row">
-        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
-        <button id="studentSearch" type="button" class="secondary">검색</button>
-      </div>
-      <div id="studentResults" class="student-results" aria-live="polite"></div>
-      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
+<div class="note small">그룹 학생은 화면 왼쪽 상단에서 먼저 연결합니다. 안내문은 오른쪽에서 학생별로 저장하세요.</div>
       <label for="mondayTeacher">담당 강사</label>
       <select id="mondayTeacher"><option value="">담당 강사 선택</option></select>
       <div class="note small">OLIVIA, ONYU, AYEONG, DOORI, HANNAH, JIMIN, JUNWON, RARA, SEONYE, SHU, SION, SYEON, ZOEY 중에서 선택합니다.</div>
