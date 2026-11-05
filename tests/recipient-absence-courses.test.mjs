@@ -89,5 +89,5 @@ test('Obsolete Video Basic and Pro are removed and Editor/Creator have correct U
 test('Existing Infohub approval posts exactly one initial update, never guesses other timezone bubbles',()=>{
   const route=fs.readFileSync(new URL('../src/routes.js',import.meta.url),'utf8');
   assert.equal([...route.matchAll(/create_update\s*\(/g)].length,1);
-  assert.match(html,/다른 시간대 학생의 문구는 대상자와 시간대를 바꿔 생성·복사/);
+  assert.match(html,/모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개/);
 });
