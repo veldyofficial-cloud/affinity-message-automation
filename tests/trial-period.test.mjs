@@ -101,7 +101,7 @@ test('VIBE BASIC appears in Code Design and uses its URL and Korean notice name'
   const app=harness({type,curriculum:'[VIBE] BASIC',courseSlug:'VIBEBASIC'});
   assert.equal(app.english['[VIBE] BASIC'],'VIBEBASIC');
   assert.equal(app.ko['[VIBE] BASIC'],'바이브코딩 베이직');
-  assert.ok(app.groups.find(group=>group.group==='Code Design').items.includes('[VIBE] BASIC'));
+  assert.ok(app.groups.find(group=>group.group==='코드 디자인').items.includes('[VIBE] BASIC'));
   const result=app.buildMessage();
   assert.equal(result.ok,true,result.error);
   assert.match(result.text,/\[학습 과정\]\n바이브코딩 베이직\nhttps:\/\/affinityuniverse\.com\/VIBEBASIC/);
