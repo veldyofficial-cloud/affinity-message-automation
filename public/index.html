@@ -2344,6 +2344,28 @@ Step 4. 사진 구성
     return {ok:true,text:"• 개별 결석 일정 :\n"+formatted.join("\n")+"\n"};
   }
 
+  function buildAttendanceDurationNotice({startDay,endDay,studentLocation,tz,primary,extraTimes}){
+    if($("classType").value!=="GROUP")return "";
+    const recipient=selectedNoticeRecipient();
+    if(!recipient)return "";
+    const entries=normalizeIndividualAbsences(individualAbsences)
+      .filter(row=>row.date>=startDay && row.date<=endDay &&
+        selectedStudentRecords.size-row.studentIds.length===1 &&
+        !row.studentIds.includes(recipient.id) && !row.keepGroupDuration);
+    if(!entries.length)return "";
+    const list=entries.map(row=>{
+      let date=row.date;
+      if(studentLocation==="OVERSEAS"&&tz){
+        const when=timeForScheduledDate(row.date,primary,extraTimes);
+        date=getLocalISODate(makeKoreaZonedDate(row.date,when.hh,when.mm),tz);
+      }
+      const day=toDateUTC(date);
+      return "- "+String(day.getUTCMonth()+1).padStart(2,"0")+". "
+        +String(day.getUTCDate()).padStart(2,"0")+" ("+getWeekdayKoFromISO(date)+") : 1:1 40m (출석 1명)";
+    });
+    return "• 수업 시간 변경 :\n"+list.join("\n")+"\n";
+  }
+
   function buildMessage(){
     const messageType = $("messageType").value;
     const templateType = $("templateType").value;
@@ -2469,6 +2491,9 @@ Step 4. 사진 구성
       startDay,endDay,studentLocation,tz,primary:parsed,extraTimes
     });
     if(!absenceBlock.ok)return {ok:false,error:absenceBlock.error};
+    const durationNotice=buildAttendanceDurationNotice({
+      startDay,endDay,studentLocation,tz,primary:parsed,extraTimes
+    });
 
     const periodRangeText = weekdays.length>1 && studentLocation==="OVERSEAS"
       ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,extraTimes)
@@ -2505,7 +2530,7 @@ ${scheduleTitle}
 ${closedBlock ? `
 ${closedBlock}` : ""}${timeLine ? `
 ${timeLine}` : ""}
-${absenceBlock.text ? "\n"+absenceBlock.text : ""}
+${absenceBlock.text ? "\n"+absenceBlock.text : ""}${durationNotice ? "\n"+durationNotice : ""}
 [학습 과정]
 ${learningProcessText}
 ${learningLinkText}
