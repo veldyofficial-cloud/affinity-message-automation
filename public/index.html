@@ -2334,7 +2334,8 @@ Step 4. 사진 구성
     if (!["PC","IPAD","GALAXY"].includes(templateType)) {
       return {ok:false,error:"상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요."};
     }
-    const studentName = $("studentName").value.trim();
+    const chosenRecipient=selectedNoticeRecipient();
+    const studentName = chosenRecipient?.name || $("studentName").value.trim();
     const classType = $("classType").value;
     const siblingType = $("siblingType").value;
     let discord = $("discord").value.trim();
