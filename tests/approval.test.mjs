@@ -119,6 +119,11 @@ test('secure Monday approval flow and deduplication',async()=>{
  resp=await worker.fetch(request('/api/approve',token,{...inputs,approvalId:'different-click-id'}),env,{});
  assert.equal(resp.status,409,'Duplicate must be rejected even with fresh client approvalId');
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,1,'No second parent created');
+ resp=await worker.fetch(request('/api/approve',token,{...inputs,
+   approvalId:'new-message-version',message:inputs.message+'edited message',
+   subMemo:'edited memo'}),env,{});
+ assert.equal(resp.status,409,'Edited notes cannot create a duplicate cohort');
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,1);
  resp=await worker.fetch(request('/api/approve',token,{...inputs,teacherId:14500999}),env,{});
  assert.equal(resp.status,400,'Non-roster instructor cannot write to Infohub');
  resp=await worker.fetch(request('/api/approve',token,{...inputs,weekday:'일'}),env,{});
