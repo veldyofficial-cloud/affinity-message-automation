@@ -78,7 +78,7 @@ test('Obsolete Video Basic and Pro are removed and Editor/Creator have correct U
   assert.equal(app.map['[VIDEO] PRO'],undefined);
   assert.equal(app.map['[VIDEO] EDITOR'],'VideoEditor');
   assert.equal(app.map['[VIDEO] CREATOR'],'VideoCreator');
-  assert.equal(app.labels['[VIDEO] EDITOR'],'비디오 에디터');
+  assert.equal(app.labels['[VIDEO] EDITOR'],'비디오 EDITOR');
   assert.equal(app.labels['[VIDEO] CREATOR'],'비디오 크리에이터');
   assert.ok(app.groups.some(g=>g.group==='영상/모션'&&g.items.includes('[VIDEO] EDITOR')&&g.items.includes('[VIDEO] CREATOR')));
   for(const code of ['[AFFINITY] DESIGNER','[AFFINITY] PHOTO','[VIBE] BASIC'])

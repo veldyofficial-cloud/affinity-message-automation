@@ -10,7 +10,7 @@ assert.ok(inline,'Program inline script must exist');
 const lastInit=/^\s*init\(\);\s*$/m;
 assert.match(inline[1],lastInit);
 const code=inline[1].replace(lastInit,
-  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,english:CURRICULUM_MAP,groups:CURRICULUM_GROUPS};\n');
+  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,menu:CURRICULUM_MENU_LABELS,english:CURRICULUM_MAP,groups:CURRICULUM_GROUPS,curriculumForNotice};\n');
 
 function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
  const fields={
@@ -89,7 +89,7 @@ test('Regular and trial bubbles show Korean learning-course name without changin
   const app=harness({type});
   const m=app.buildMessage();
   assert.equal(m.ok,true,m.error);
-  assert.match(m.text,/\[학습 과정\]\n아트북 디자인 LV\.4\nhttps:\/\/affinityuniverse\.com\/Upper-intermediate/);
+  assert.match(m.text,/\[학습 과정\]\n아트북 디자인 Lv\.4\nhttps:\/\/affinityuniverse\.com\/Upper-intermediate/);
   assert.doesNotMatch(m.text,/\[학습 과정\]\n\[ART BOOK DESIGN\] LV\.4/);
   assert.deepEqual(Object.keys(app.english).filter(k=>!app.ko[k]),[]);
  }
@@ -112,15 +112,15 @@ test('VIBE BASIC appears in Code Design and uses its URL and Korean notice name'
 
 test('Notice Korean names match the requested terminology, without changing Monday codes',()=>{
  const expected={
-  '[ART BOOK DESIGN] LV.4':'아트북 디자인 LV.4',
-  '[PICTURE BOOK] FOUNDATION':'픽처북 파운데이션',
-  '[DRAWING] BASIC':'디지털 드로잉 베이직',
+  '[ART BOOK DESIGN] LV.4':'아트북 디자인 Lv.4',
+  '[PICTURE BOOK] FOUNDATION':'파운데이션',
+  '[DRAWING] BASIC':'디지털 드로잉 BASIC',
   '[VIBE] BASIC':'바이브코딩 베이직',
-  '[HTML] PRO':'HTML 프로',
-  '[CODE] PLAY BOOK':'플레이북',
+  '[HTML] PRO':'HTML PRO',
+  '[CODE] PLAY BOOK':'플레이 북',
   '[CHARACTER IP] GOODS DESIGN':'굿즈 디자인',
   '[DRAWING] BOOK':'디지털 드로잉 북',
-  '[WEB DESIGN] PRO MASTER':'웹 디자인 프로 마스터',
+  '[WEB DESIGN] PRO MASTER':'웹 프로 마스터',
   '[MARKETING] MANAGEMENT':'마케팅 매니지먼트',
  };
  const app=harness({type:'CLASS'});
@@ -134,4 +134,28 @@ test('Notice Korean names match the requested terminology, without changing Mond
   assert.ok(notice.text.includes('[학습 과정]\n'+label+'\n'));
   assert.ok(notice.text.includes('https://affinityuniverse.com/'+app.english[code]));
  }
+});
+
+test('Every selectable curriculum uses the exact same Korean text in the notice',()=>{
+ const app=harness({type:'CLASS'});
+ const keys=app.groups.flatMap(group=>group.items);
+ assert.equal(new Set(keys).size,keys.length,'no duplicate options');
+ for(const code of keys){
+  const chosen=app.menu[code];
+  assert.ok(chosen,'missing Korean menu label: '+code);
+  assert.equal(app.ko[code],chosen,'menu and notice differ: '+code);
+  assert.equal(app.curriculumForNotice(code),chosen,'notice formatter differs: '+code);
+ }
+ for(const code of ['[AFFINITY] DESIGNER','[AFFINITY] PHOTO','[VIBE] BASIC']){
+  assert.ok(keys.includes(code),'existing affinity / vibe selection must remain');
+ }
+ const video=app.groups.find(group=>group.group==='영상/모션').items;
+ assert.deepEqual(Array.from(video.slice(0,3)),[
+  '[VIDEO] EDITOR','[VIDEO] CREATOR','[MOTION] GRAPHICS'
+ ]);
+ assert.deepEqual(Array.from(video.slice(3)),[
+  '[MOTION] BOOK ANIMATION','[MOTION] PORTFOLIO','[MOTION] CAVALRY'
+ ]);
+ assert.equal(app.english['[VIDEO] EDITOR'],'VideoEditor');
+ assert.equal(app.english['[VIDEO] CREATOR'],'VideoCreator');
 });
