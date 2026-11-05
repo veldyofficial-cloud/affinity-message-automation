@@ -42,7 +42,8 @@ export async function approve(request, env, email) {
     // private notice for every linked pupil. Reject incomplete or stale batches
     // before the very first Monday write.
     let noticeText='';
-    if(p.classType==='GROUP'){
+    const groupBatch=p.classType==='GROUP' && (p.messageType==='CLASS'||p.messageType==='TRIAL');
+    if(groupBatch){
       if(!Array.isArray(p.studentNotices) || p.studentNotices.length!==studentIds.length)
         throw new Error('그룹 수강생 전원의 학생별 안내문을 먼저 저장해 주세요.');
       const noticeIds=new Set();
@@ -99,7 +100,7 @@ export async function approve(request, env, email) {
       {ids:studentIds.map(String)},env);
     if ((records.items||[]).length!==studentIds.length || records.items.some(x=>String(x.board?.id)!==String(STUDENT_DB_ID)))
       throw new Error('STUDENT DB에 속하지 않는 학생이 포함되었습니다.');
-    if(p.classType==='GROUP' && p.studentNotices.some(row=>{
+    if(groupBatch && p.studentNotices.some(row=>{
       const item=records.items.find(x=>Number(x.id)===Number(row.studentId));
       return !item || item.name.trim()!==row.name.trim();
     }))throw new Error('학생별 안내문의 이름이 STUDENT DB 이름과 다릅니다.');
