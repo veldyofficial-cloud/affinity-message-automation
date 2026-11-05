@@ -160,19 +160,25 @@ test('Every selectable curriculum uses the exact same Korean text in the notice'
  assert.equal(app.english['[VIDEO] CREATOR'],'VideoCreator');
 });
 
-test('Cross-year class period displays two-digit end year in domestic and overseas notices',()=>{
+test('Cross-year class period displays full four-digit end year in domestic and overseas notices',()=>{
  const app=harness({type:'CLASS',timeZone:'Asia/Seoul'});
  assert.equal(app.formatPeriodRange('2026-11-22','2027-02-14','Asia/Seoul',{hh:9,mm:0}),
-   '2026. 11. 22 - 27. 02. 14');
+   '2026. 11. 22 - 2027. 02. 14');
  assert.equal(app.formatPeriodRange('2026-11-22','2026-12-14','Asia/Seoul',{hh:9,mm:0}),
    '2026. 11. 22 - 12. 14');
  assert.equal(app.formatPeriodRange('2026-11-22','2027-02-14','America/Los_Angeles',{hh:9,mm:0}),
-   '2026. 11. 21 - 27. 02. 13');
+   '2026. 11. 21 - 2027. 02. 13');
  const extra=harness({type:'CLASS',timeZone:'America/Los_Angeles'});
  extra.get('weekday2').value='목';
  extra.get('amPm2').value='오전';
  extra.get('korTime2').value='9';
  assert.equal(extra.formatPeriodRangeUsingSlots('2026-11-22','2027-02-14',
    'America/Los_Angeles',{hh:9,mm:0},[{hh:9,mm:0}]),
-   '2026. 11. 21 - 27. 02. 13');
+   '2026. 11. 21 - 2027. 02. 13');
+});
+
+test('Cross-year November to April displays full 2027 instead of 27',()=>{
+ const app=harness({type:'CLASS',timeZone:'Asia/Seoul'});
+ assert.equal(app.formatPeriodRange('2026-11-04','2027-04-05','Asia/Seoul',{hh:14,mm:0}),
+  '2026. 11. 04 - 2027. 04. 05');
 });
