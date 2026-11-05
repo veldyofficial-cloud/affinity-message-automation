@@ -381,3 +381,26 @@ test('One attending GROUP student automatically converts to 40m, except explicit
   assert.equal(currentRequests.some(x=>x.query.includes('create_item(')),false,
     'incomplete group notices must fail before any Monday item is created');
 });
+
+test('Public-holiday CLOSED subitem uses canonical name and keeps original reason in memo',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const original=input();
+ const payload={...original,itemName:'[BRANDING] PERSONAL COURSE HOLIDAY LABEL TEST',
+   closures:[{date:'2026-11-09',name:'설날'}],
+   schedule:original.schedule.map(item=>item.kind==='CLOSED'
+     ? {...item,name:'공휴일 휴강'} : item)};
+ const response=await worker.fetch(request('/api/approve',token,payload),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const subitems=currentRequests.filter(req=>req.query.includes('create_subitem('));
+ assert.equal(subitems.filter(req=>req.variables.name==='공휴일 휴강').length,1);
+ const publicHoliday=subitems.find(req=>req.variables.name==='공휴일 휴강');
+ const columns=JSON.parse(publicHoliday.variables.values);
+ assert.equal(columns[COL.subMinutes].label,'휴강');
+ assert.match(columns[COL.subMemo],/공휴일 사유: 설날/);
+ const oneRequest=derivePlan({...payload,closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],
+   schedule:original.schedule});
+ assert.equal(oneRequest.schedule.find(x=>x.kind==='CLOSED').name,'수강생 요청 휴강');
+ globalThis.fetch=realFetch;
+});
