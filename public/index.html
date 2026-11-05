@@ -2831,6 +2831,7 @@ Affinity Universe
       : "연결할 학생을 선택해 주세요.";
     renderAbsenteePicker();
     renderClosedPreview();
+    renderStagedNotices();
     refreshRegistrationPreview();
   }
 
@@ -2875,7 +2876,10 @@ Affinity Universe
       span.textContent = student.name;
       checkbox.addEventListener("change",()=>{
         if(checkbox.checked) selectedStudentRecords.set(String(student.id),student.name);
-        else selectedStudentRecords.delete(String(student.id));
+        else{
+          selectedStudentRecords.delete(String(student.id));
+          stagedStudentNotices.delete(String(student.id));
+        }
         displaySelectedStudents();
       });
       label.append(checkbox,span);
@@ -3298,7 +3302,9 @@ Affinity Universe
       if(lastGeneratedFingerprint !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
       $("approveFeedback").replaceChildren();
       refreshRegistrationPreview();
-      showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
+      showAlert($("classType").value==="GROUP"
+        ? "문구를 생성했습니다. [현재 학생 안내문 저장]을 눌러 저장한 뒤 다음 학생을 선택하세요."
+        : "문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
     });
 
     $("mondayTeacher").addEventListener("change",()=>{
@@ -3331,8 +3337,9 @@ Affinity Universe
     });
     $("noticeRecipient").addEventListener("change",()=>{
       $("approveFeedback").replaceChildren();
-      refreshRegistrationPreview();
+      chooseNoticeRecipient();
     });
+    $("saveStudentNotice").addEventListener("click",saveStudentNotice);
     $("output").addEventListener("input",()=>{ $("approveFeedback").replaceChildren(); });
     $("approve").addEventListener("click",async()=>{
       const feedback = $("approveFeedback");
@@ -3344,11 +3351,22 @@ Affinity Universe
       const plan = buildRegistrationPlan();
       if(plan.ok&&subMemos.some(x=>!plan.items.some(i=>i.date===x.date))){feedback.textContent="날짜별 MEMO의 날짜가 수업 일정에 없습니다.";return;}
       if(!plan.ok){ feedback.textContent=plan.error; return; }
-      const res = buildMessage();
+      const res=$("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value)
+        ? {ok:true,text:combinedStudentNoticeText()} : buildMessage();
       if(!res.ok){ feedback.textContent=res.error; return; }
-      if(!$("output").value.trim() || lastGeneratedFingerprint !== registrationFingerprint()){
+      const isBatch=$("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value);
+      if(!isBatch && (!$("output").value.trim() || lastGeneratedFingerprint !== registrationFingerprint())){
         feedback.textContent = "입력값이 바뀌었거나 안내 문구를 생성하지 않았습니다. 먼저 [최종 문구 생성]을 다시 눌러 주세요.";
         return;
+      }
+      if(isBatch){
+        const signature=commonNoticeFingerprint();
+        const missing=[...selectedStudentRecords].filter(([id])=>stagedStudentNotices.get(id)?.signature!==signature);
+        if(missing.length){
+          feedback.textContent="그룹 학생 전원의 안내문을 동일한 일정 기준으로 저장해 주세요: "+missing.map(([,name])=>name).join(", ");
+          renderStagedNotices();
+          return;
+        }
       }
       if(approvedFingerprint === registrationFingerprint()){
         feedback.textContent = "현재 입력값은 이미 승인되었습니다. 중복 등록을 막기 위해 같은 내용을 다시 전송하지 않습니다.";
@@ -3400,7 +3418,12 @@ Affinity Universe
           closures:getEffectiveClosedList(),
           absences:normalizeIndividualAbsences(individualAbsences),
           schedule:plan.items,
-          message:$("output").value,
+          studentNotices:($("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value))
+            ? [...selectedStudentRecords].map(([id,name])=>({
+                studentId:Number(id),name,message:stagedStudentNotices.get(id)?.message||""
+              })) : undefined,
+          message:($("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value))
+            ? combinedStudentNoticeText() : $("output").value,
         });
         approvedFingerprint = approvalFingerprint;
         feedback.classList.add("ok");
@@ -3427,6 +3450,7 @@ Affinity Universe
       $("templateType").value = "";
       $("studentName").value = "";
       $("noticeRecipient").value = "";
+      $("keepGroupDuration").checked=false;
       $("classType").value = "ONE_ON_ONE";
       $("siblingType").value = "BROTHER";
       $("discord").value = "해당없음";
@@ -3468,6 +3492,7 @@ Affinity Universe
       $("studentResults").replaceChildren();
       fillTeacherOptions();
       selectedStudentRecords.clear();
+      stagedStudentNotices.clear();
       displaySelectedStudents();
       $("mondayItemName").value = "";
       mondayNameWasEdited = false;
