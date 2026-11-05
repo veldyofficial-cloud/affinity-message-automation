@@ -138,16 +138,14 @@ export async function approve(request, env, email) {
       updateAuthor=String(author.me.name||'AFFINITY FLOW');
     }
     // Use canonical server-checked fields for duplicate detection, not the browser's random approvalId.
-    registryKey=await fingerprint({board:BOARD_ID,group:plan.groupId,
-      itemName:parentName,studentIds:studentIds.slice().sort((a,b)=>a-b),
-      teacherId:Number(p.teacherId),device,duration, language:p.language,kind,emailText,subMemo:p.subMemo,subMemos:detailMemos,
-      time:p.kstTime24,secondTime:p.kstTime24Second||null,thirdTime:p.kstTime24Third||null,
-      weekday2:p.weekday2||'',weekday3:p.weekday3||'',weeklyFrequency:Number(p.weeklyFrequency||1),
-      classType2:p.classType2||null,classType3:p.classType3||null,
-      dstMode2:p.dstMode2||null,dstMode3:p.dstMode3||null,
-      schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[],
-        durationMinutes:x.durationMinutes||null,keepGroupDuration:Boolean(x.keepGroupDuration)})),
-      noticeText});
+    // A cohort/class may be approved only once. Message edits, teacher or
+    // memo changes must not mint a fresh registry key and create a duplicate
+    // parent item. Corrections belong on the existing Monday item.
+    registryKey=await fingerprint({
+      board:BOARD_ID,group:plan.groupId,itemName:parentName,
+      studentIds:studentIds.slice().sort((a,b)=>a-b),
+      startDay:p.startDay,kind
+    });
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
     if (!state.accepted) return json({ok:false,duplicate:true,itemUrl:state.itemUrl||'',
