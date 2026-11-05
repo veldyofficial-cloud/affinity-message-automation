@@ -700,6 +700,8 @@
       <div class="note small">그룹 학생을 먼저 모두 연결하고 대상 학생을 선택하세요. 해당 학생의 국가·시간대에 맞춰 안내문을 생성한 후 저장합니다.</div>
       <button id="saveStudentNotice" type="button" class="secondary">현재 학생 안내문 저장</button>
       <div id="savedStudentNotices" class="note small" aria-live="polite">저장된 학생별 안내문 없음</div>
+      <label for="combinedNoticePreview">먼데이 말풍선 전체 미리보기 (자동 합치기)</label>
+      <textarea id="combinedNoticePreview" readonly style="height:170px;min-height:130px" placeholder="그룹 학생 안내문을 저장하면 이곳에 모아서 표시합니다."></textarea>
       <div class="note small">모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개(학생별 메시지 전체 포함)를 최종 등록합니다. 승인 전에는 먼데이 DB가 변경되지 않습니다.</div>
     </div>
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
@@ -2533,6 +2535,106 @@ Affinity Universe
    *********************/
   const WEEKDAY_GROUP_KO = {"월":"MON", "화":"TUE", "수":"WED", "목":"THU", "금":"FRI", "토":"SAT"};
   let selectedStudentRecords = new Map();
+  const stagedStudentNotices=new Map();
+  // This is intentionally held in browser memory, not persisted to localStorage.
+  const PERSONAL_NOTICE_FIELDS=["studentLocation","countryInput","usStateSelect","auStateSelect",
+    "tzSelect","dstMode","customFlag","tzSearch","siblingType","dstMode2","dstMode3"];
+  function commonNoticeFingerprint(){
+    const ids=["messageType","templateType","classType","startDay","endDay",
+      "lessonCount","weekday","amPm","korTime",
+      "weekday2","amPm2","korTime2","classType2",
+      "weekday3","amPm3","korTime3","classType3",
+      "curriculumSelect","curriculumUrl","customCourseName","discord"];
+    return JSON.stringify({
+      fields:ids.map(id=>[id,$(id).value]),
+      selectedStudents:[...selectedStudentRecords].sort((a,b)=>a[0].localeCompare(b[0])),
+      closures:getEffectiveClosedList(),
+      absences:normalizeIndividualAbsences(individualAbsences),
+      activeExtras:activeWeeklyExtras
+    });
+  }
+  function readPersonalNoticeSettings(){
+    return Object.fromEntries(PERSONAL_NOTICE_FIELDS.map(id=>[id,$(id).value]));
+  }
+  function applyPersonalNoticeSettings(settings){
+    for(const id of PERSONAL_NOTICE_FIELDS){
+      const field=$(id);
+      if(!field)continue;
+      if(id==="tzSelect")continue;
+      field.value=settings?.[id]??(id==="studentLocation"?"DOMESTIC":id==="dstMode"?"AUTO":id==="siblingType"?"BROTHER":"");
+    }
+    const overseas=$("studentLocation").value==="OVERSEAS";
+    $("overseasBox").style.display=overseas?"block":"none";
+    if(overseas){
+      const country=$("countryInput").value.trim();
+      if(country)applyCountryToTzOptions(country);
+      else setSelectOptions($("tzSelect"),[],"시간대 선택");
+      const tz=settings?.tzSelect||"";
+      if(tz && ![...$("tzSelect").options].some(opt=>opt.value===tz))
+        $("tzSelect").append(new Option(tz,tz));
+      $("tzSelect").value=tz;
+    }else setSelectOptions($("tzSelect"),[],"시간대 선택");
+    $("usStateBox").style.display=overseas&&$("countryInput").value==="미국"?"block":"none";
+    $("auStateBox").style.display=overseas&&$("countryInput").value==="호주"?"block":"none";
+    updateLocalPreview();
+  }
+  function combinedStudentNoticeText(){
+    return [...selectedStudentRecords].map(([id,name],i)=>{
+      const entry=stagedStudentNotices.get(id);
+      return entry?"[학생별 안내 "+(i+1)+" | "+name+"]\n"+entry.message.trim():null;
+    }).filter(Boolean).join("\n\n------------------------------\n\n");
+  }
+  function renderStagedNotices(){
+    const ids=[...selectedStudentRecords.keys()];
+    const signature=commonNoticeFingerprint();
+    const states=ids.map(id=>{
+      const entry=stagedStudentNotices.get(id);
+      const ok=entry?.signature===signature;
+      return (ok?"✓ ":"○ ")+selectedStudentRecords.get(id)+(entry&&!ok?" (공통 일정 변경 · 다시 저장 필요)":"");
+    });
+    $("savedStudentNotices").textContent=ids.length
+      ? "저장 상태: "+ids.filter(id=>stagedStudentNotices.get(id)?.signature===signature).length
+          +"/"+ids.length+"명\n"+states.join("\n")
+      : "STUDENT DB에서 그룹 학생을 먼저 연결해 주세요.";
+    $("combinedNoticePreview").value=combinedStudentNoticeText();
+  }
+  function chooseNoticeRecipient(){
+    const id=$("noticeRecipient").value;
+    if(id && selectedStudentRecords.has(id)){
+      $("studentName").value=selectedStudentRecords.get(id);
+      const saved=stagedStudentNotices.get(id);
+      applyPersonalNoticeSettings(saved?.settings||null);
+      $("output").value=saved?.message||"";
+      lastGeneratedFingerprint="";
+    }else{
+      $("output").value="";
+      lastGeneratedFingerprint="";
+    }
+    renderStagedNotices();
+    refreshRegistrationPreview();
+  }
+  function saveStudentNotice(){
+    const recipient=selectedNoticeRecipient();
+    if(!recipient||!selectedStudentRecords.has(String(recipient.id))){
+      showAlert("먼저 안내문 대상 학생을 선택해 주세요.","warn");return;
+    }
+    if($("classType").value!=="GROUP"){
+      showAlert("학생별 안내문 저장은 그룹 수업에 적용됩니다.","warn");return;
+    }
+    const result=buildMessage();
+    if(!result.ok){showAlert(result.error,"warn");return;}
+    if(!$("output").value.trim() || $("output").value!==result.text ||
+      lastGeneratedFingerprint!==registrationFingerprint()){
+      showAlert("현재 학생의 안내문을 먼저 새로 생성한 뒤 저장해 주세요.","warn");return;
+    }
+    stagedStudentNotices.set(String(recipient.id),{
+      name:recipient.name,message:result.text,
+      settings:readPersonalNoticeSettings(),
+      signature:commonNoticeFingerprint()
+    });
+    renderStagedNotices();
+    showAlert(recipient.name+" 학생의 안내문을 저장했습니다. 다른 학생을 선택해 이어서 설정하세요.","ok");
+  }
   let lastGeneratedFingerprint = "";
   let approvedFingerprint = "";
   let partialRegistrationLocked = false;
