@@ -221,6 +221,9 @@
     .student-option input { width: 16px; height: 16px; accent-color: var(--blue); }
     .student-option span { overflow-wrap: anywhere; }
     .selected-students { color: var(--blue-dark); }
+    .notice-recipient-box { margin-bottom:15px; padding:13px; border:1px solid #d9e3f3; border-radius:10px; background:#f7f9fe; }
+    .notice-recipient-box select { margin-top:7px; }
+    .notice-recipient-box .note { margin-top:8px; color:#333; }
     .closure-choice { margin: 10px 0 15px; padding: 12px 14px; border: .75px solid #d9e3f3; border-radius: 9px; background: var(--blue-soft); }
     .closure-choice label { margin-bottom: 7px; }
     .absentee-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 0 2px; }
@@ -675,6 +678,12 @@
 
   <section class="card">
     <h2>최종 안내 문구</h2>
+    <div class="notice-recipient-box">
+      <label for="noticeRecipient">안내문 대상 학생 (그룹 · 개별 결석 반영)</label>
+      <select id="noticeRecipient"><option value="">학생 이름으로 자동 매칭</option></select>
+      <div class="note small">STUDENT DB에서 학생들을 연결하면 대상자를 선택할 수 있습니다. 해당 학생의 개별 결석만 안내문에 표시됩니다. 해외 학생은 그 학생의 국가·시간대를 설정해 주세요.</div>
+      <div class="note small">먼데이 승인 시 말풍선은 1개만 자동 등록됩니다. 다른 시간대 학생의 문구는 대상자와 시간대를 바꿔 생성·복사 후 기존 아이템에 수동 추가하세요. 같은 그룹을 다시 승인하지 마세요.</div>
+    </div>
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
     <div class="note">
       최종 안내 문구를 확인한 뒤 아래에서 먼데이 등록 대상을 선택하고 승인합니다.
@@ -745,8 +754,8 @@
     "[AFFINITY] DESIGNER":"AffinityDesigner",
     "[AFFINITY] PHOTO":"AffinityPhoto",
     "[AFFINITY] MASTER":"AffinityMaster",
-    "[VIDEO] BASIC":"VideoBasic",
-    "[VIDEO] PRO":"VideoPro",
+    "[VIDEO] EDITOR":"VideoEditor",
+    "[VIDEO] CREATOR":"VideoCreator",
     "[MOTION] GRAPHICS":"Motiongraphics",
     "[MOTION] BOOK ANIMATION":"BookAnimation",
     "[MOTION] PORTFOLIO":"Motionfolio",
@@ -792,8 +801,8 @@
     "[AFFINITY] DESIGNER": "어피니티 디자이너",
     "[AFFINITY] PHOTO": "어피니티 포토",
     "[AFFINITY] MASTER": "어피니티 마스터",
-    "[VIDEO] BASIC": "비디오 베이직",
-    "[VIDEO] PRO": "비디오 프로",
+    "[VIDEO] EDITOR": "비디오 에디터",
+    "[VIDEO] CREATOR": "비디오 크리에이터",
     "[MOTION] GRAPHICS": "모션 그래픽스",
     "[MOTION] BOOK ANIMATION": "북 애니메이션",
     "[MOTION] PORTFOLIO": "모션 포트폴리오",
@@ -818,15 +827,63 @@
   });
   function curriculumForNotice(code) {return CURRICULUM_KO_LABELS[code]||code;}
   const CURRICULUM_GROUPS = [
-    { group:"Picture Book / Art Book", items:["[ART BOOK DESIGN] LV.1","[ART BOOK DESIGN] LV.2","[ART BOOK DESIGN] LV.3","[ART BOOK DESIGN] LV.4","[ART BOOK DESIGN] LV.5","[PICTURE BOOK] FOUNDATION","[PICTURE BOOK] DIPLOMA","[PICTURE BOOK] EDITOR"] },
-    { group:"Digital Drawing / Animation", items:["[DRAWING] BASIC","[DRAWING] PRO","[DRAWING] BOOK","[DRAWING] LANDSCAPE","[ANIMATION] BASIC","[ANIMATION] PRO","[DRAWING] FIGURE"] },
-    { group:"Character / IP", items:["[CHARACTER IP] GOODS DESIGN","[CHARACTER IP] EMOTICON DESIGN"] },
-    { group:"Video / Motion", items:["[VIDEO] BASIC","[VIDEO] PRO", "[MOTION] GRAPHICS","[MOTION] BOOK ANIMATION","[MOTION] PORTFOLIO","[MOTION] CAVALRY"] },
-    { group:"Code Design", items:["[VIBE] BASIC","[SCRATCH] BASIC","[SCRATCH] PRO","[CODE] PLAY BOOK","[HTML] BEGINNER","[HTML] BASIC","[HTML] PRO","[JAVASCRIPT] BASIC","[JAVASCRIPT] PRO"] },
-    { group:"Message Design", items:["[MESSAGE DESIGN] STORY CRAFTING","[MESSAGE DESIGN] ART ESSAY","[MESSAGE DESIGN] IDENTITY BOOK","[MESSAGE DESIGN] PUBLISHING"] },
-    { group:"Web Design / Branding / Marketing", items:["[WEB DESIGN] PRO MASTER","[WEB DESIGN] PROFILE","[MARKETING] MANAGEMENT","[BRANDING] PERSONAL COURSE"] },
-    { group:"Other", items:["[AFFINITY] DESIGNER","[AFFINITY] PHOTO","[AFFINITY] MASTER"] },
+    { group:"그림책/어피니티 디자인", items:["[ART BOOK DESIGN] LV.1","[ART BOOK DESIGN] LV.2","[ART BOOK DESIGN] LV.3","[ART BOOK DESIGN] LV.4","[ART BOOK DESIGN] LV.5","[PICTURE BOOK] FOUNDATION","[PICTURE BOOK] DIPLOMA","[PICTURE BOOK] EDITOR"] },
+    { group:"디지털 드로잉", items:["[DRAWING] BASIC","[DRAWING] PRO","[DRAWING] BOOK","[DRAWING] LANDSCAPE","[ANIMATION] BASIC","[ANIMATION] PRO","[DRAWING] FIGURE"] },
+    { group:"캐릭터/IP", items:["[CHARACTER IP] GOODS DESIGN","[CHARACTER IP] EMOTICON DESIGN"] },
+    { group:"영상/모션", items:["[VIDEO] EDITOR","[MOTION] GRAPHICS","[MOTION] BOOK ANIMATION","[MOTION] PORTFOLIO","[VIDEO] CREATOR","[MOTION] CAVALRY"] },
+    { group:"코드 디자인", items:["[VIBE] BASIC","[SCRATCH] BASIC","[SCRATCH] PRO","[CODE] PLAY BOOK","[HTML] BEGINNER","[HTML] BASIC","[HTML] PRO","[JAVASCRIPT] BASIC","[JAVASCRIPT] PRO"] },
+    { group:"메시지 디자인", items:["[MESSAGE DESIGN] STORY CRAFTING","[MESSAGE DESIGN] ART ESSAY","[MESSAGE DESIGN] IDENTITY BOOK","[MESSAGE DESIGN] PUBLISHING"] },
+    { group:"웹 프로듀서", items:["[WEB DESIGN] PRO MASTER","[WEB DESIGN] PROFILE","[MARKETING] MANAGEMENT","[BRANDING] PERSONAL COURSE"] },
+    { group:"기타", items:["[AFFINITY] DESIGNER","[AFFINITY] PHOTO","[AFFINITY] MASTER"] },
   ];
+
+  // Menu labels reflect the approved screenshot; canonical codes and existing
+  // Korean wording in already-issued notices remain separate from menu display.
+  const CURRICULUM_MENU_LABELS = Object.freeze({
+    "[ART BOOK DESIGN] LV.1":"아트북 디자인 Lv.1",
+    "[ART BOOK DESIGN] LV.2":"아트북 디자인 Lv.2",
+    "[ART BOOK DESIGN] LV.3":"아트북 디자인 Lv.3",
+    "[ART BOOK DESIGN] LV.4":"아트북 디자인 Lv.4",
+    "[ART BOOK DESIGN] LV.5":"아트북 디자인 Lv.5",
+    "[PICTURE BOOK] FOUNDATION":"파운데이션",
+    "[PICTURE BOOK] DIPLOMA":"디플로마",
+    "[PICTURE BOOK] EDITOR":"에디터",
+    "[DRAWING] BASIC":"디지털 드로잉 BASIC",
+    "[DRAWING] PRO":"디지털 드로잉 PRO",
+    "[DRAWING] BOOK":"디지털 드로잉 북",
+    "[DRAWING] LANDSCAPE":"풍경화 디지털 드로잉",
+    "[ANIMATION] BASIC":"애니메이션 BASIC",
+    "[ANIMATION] PRO":"애니메이션 PRO",
+    "[DRAWING] FIGURE":"피규어 드로잉",
+    "[CHARACTER IP] GOODS DESIGN":"굿즈 디자인",
+    "[CHARACTER IP] EMOTICON DESIGN":"이모티콘 디자인",
+    "[VIDEO] EDITOR":"비디오 EDITOR",
+    "[MOTION] GRAPHICS":"모션 그래픽",
+    "[MOTION] BOOK ANIMATION":"북 애니메이션",
+    "[MOTION] PORTFOLIO":"모션폴리오",
+    "[VIDEO] CREATOR":"비디오 크리에이터",
+    "[MOTION] CAVALRY":"캐벌리",
+    "[SCRATCH] BASIC":"스크래치 BASIC",
+    "[SCRATCH] PRO":"스크래치 PRO",
+    "[CODE] PLAY BOOK":"플레이 북",
+    "[HTML] BEGINNER":"HTML BEGINNER",
+    "[HTML] BASIC":"HTML BASIC",
+    "[HTML] PRO":"HTML PRO",
+    "[JAVASCRIPT] BASIC":"자바스크립트 BASIC",
+    "[JAVASCRIPT] PRO":"자바스크립트 PRO",
+    "[MESSAGE DESIGN] STORY CRAFTING":"스토리 크래프팅",
+    "[MESSAGE DESIGN] ART ESSAY":"아트 에세이",
+    "[MESSAGE DESIGN] IDENTITY BOOK":"아이덴티티 북",
+    "[MESSAGE DESIGN] PUBLISHING":"퍼블리싱",
+    "[WEB DESIGN] PRO MASTER":"웹 프로 마스터",
+    "[WEB DESIGN] PROFILE":"웹 프로필",
+    "[MARKETING] MANAGEMENT":"마케팅 매니지먼트",
+    "[BRANDING] PERSONAL COURSE":"1:1 브랜딩 코스",
+    "[AFFINITY] MASTER":"어피니티 마스터",
+    "[AFFINITY] DESIGNER":"어피니티 디자이너",
+    "[AFFINITY] PHOTO":"어피니티 포토",
+    "[VIBE] BASIC":"바이브코딩 베이직"
+  });
 
   const CUSTOM_COURSE_LABEL = "[CUSTOM] PERSONAL COURSE";
   const BRANDING_COURSE_LABEL = "[BRANDING] PERSONAL COURSE";
@@ -1749,7 +1806,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
 
     const optCustom = document.createElement("option");
     optCustom.value = CUSTOM_COURSE_LABEL;
-    optCustom.textContent = CUSTOM_COURSE_LABEL;
+    optCustom.textContent = "커스텀 코스(개별 맞춤)";
     sel.appendChild(optCustom);
 
     CURRICULUM_GROUPS.forEach(g=>{
@@ -1758,7 +1815,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
       g.items.forEach(name=>{
         const opt = document.createElement("option");
         opt.value = name;
-        opt.textContent = name;
+        opt.textContent = CURRICULUM_MENU_LABELS[name] || CURRICULUM_KO_LABELS[name] || name;
         og.appendChild(opt);
       });
       sel.appendChild(og);
@@ -1932,7 +1989,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function buildParticipationGuide(curriculumName, discord, deviceType){
-    const videoCourses = ["[VIDEO] BASIC","[VIDEO] PRO"];
+    const videoCourses = ["[VIDEO] EDITOR","[VIDEO] CREATOR"];
     const hasDiscord = discord && discord !== "해당없음";
     const isDrawingDeviceCourse = DRAWING_DEVICE_COURSES.includes(curriculumName);
 
@@ -2069,7 +2126,7 @@ Affinity Universe
   }
 
   function getAdditionalGuideText(curriculumName){
-    if(curriculumName === "[VIDEO] BASIC" || curriculumName === "[VIDEO] PRO"){
+    if(curriculumName === "[VIDEO] EDITOR" || curriculumName === "[VIDEO] CREATOR"){
       return `[CapCut 사전 안내]
 • Cap Cut Pro 구독 필수 (월 19,800원)
 
@@ -2237,13 +2294,48 @@ Step 4. 사진 구성
     return header+"\n"+blocks.join("\n\n")+"\n";
   }
 
+  function selectedNoticeRecipient(){
+    const explicit=String($("noticeRecipient").value||"");
+    if(explicit){
+      const name=selectedStudentRecords.get(explicit);
+      return name ? {id:Number(explicit),name} : null;
+    }
+    const name=$("studentName").value.trim();
+    const matches=[...selectedStudentRecords].filter(([id,fullName])=>fullName.trim()===name);
+    return matches.length===1 ? {id:Number(matches[0][0]),name:matches[0][1]} : null;
+  }
+
+  // Keep the GROUP lesson; only the named recipient's absence appears privately.
+  function buildRecipientAbsenceBlock({startDay,endDay,studentLocation,tz,primary,extraTimes}){
+    const rows=normalizeIndividualAbsences(individualAbsences)
+      .filter(row=>row.date>=startDay && row.date<=endDay);
+    if(!rows.length)return {ok:true,text:""};
+    const recipient=selectedNoticeRecipient();
+    if(!recipient)return {ok:false,error:"개별 결석이 등록되어 있습니다. STUDENT DB에서 수강생을 연결하고 안내문 대상 학생을 선택해 주세요."};
+    const applicable=rows.filter(row=>row.studentIds.includes(recipient.id));
+    if(!applicable.length)return {ok:true,text:""};
+    const formatted=applicable.map(row=>{
+      let displayDate=row.date;
+      if(studentLocation==="OVERSEAS" && tz){
+        const when=timeForScheduledDate(row.date,primary,extraTimes);
+        displayDate=getLocalISODate(makeKoreaZonedDate(row.date,when.hh,when.mm),tz);
+      }
+      const day=toDateUTC(displayDate);
+      const date=String(day.getUTCMonth()+1).padStart(2,"0")+". "
+        +String(day.getUTCDate()).padStart(2,"0");
+      return "- "+date+" ("+getWeekdayKoFromISO(displayDate)+", 개별 결석)";
+    });
+    return {ok:true,text:"• 개별 결석 일정 :\n"+formatted.join("\n")+"\n"};
+  }
+
   function buildMessage(){
     const messageType = $("messageType").value;
     const templateType = $("templateType").value;
     if (!["PC","IPAD","GALAXY"].includes(templateType)) {
       return {ok:false,error:"상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요."};
     }
-    const studentName = $("studentName").value.trim();
+    const chosenRecipient=selectedNoticeRecipient();
+    const studentName = chosenRecipient?.name || $("studentName").value.trim();
     const classType = $("classType").value;
     const siblingType = $("siblingType").value;
     let discord = $("discord").value.trim();
@@ -2357,6 +2449,11 @@ Step 4. 사진 구성
       ? buildClosedScheduleBlockWithTimes(effectiveClosedList,studentLocation,tz,parsed,extraTimes)
       : buildClosedScheduleBlock(effectiveClosedList,studentLocation,tz,parsed);
 
+    const absenceBlock=buildRecipientAbsenceBlock({
+      startDay,endDay,studentLocation,tz,primary:parsed,extraTimes
+    });
+    if(!absenceBlock.ok)return {ok:false,error:absenceBlock.error};
+
     const periodRangeText = weekdays.length>1 && studentLocation==="OVERSEAS"
       ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,extraTimes)
       : formatPeriodRange(displayStartISO, displayEndISO, tz, parsed);
@@ -2392,6 +2489,7 @@ ${scheduleTitle}
 ${closedBlock ? `
 ${closedBlock}` : ""}${timeLine ? `
 ${timeLine}` : ""}
+${absenceBlock.text ? "\n"+absenceBlock.text : ""}
 [학습 과정]
 ${learningProcessText}
 ${learningLinkText}
@@ -2463,12 +2561,12 @@ Affinity Universe
   ];
 
   function registrationFingerprint(){
-    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
+    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "noticeRecipient", "classType", "templateType",
       "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "classType2", "dstMode2",
       "weekday3", "amPm3", "korTime3", "classType3", "dstMode3", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
-    return JSON.stringify({fields:ids.map(id => [id, $(id).value]), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
+    return JSON.stringify({fields:ids.map(id => [id, $(id).value]), selectedStudentIds:[...selectedStudentRecords.keys()].sort(), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
       individualAbsences:normalizeIndividualAbsences(individualAbsences)});
   }
 
@@ -2586,6 +2684,22 @@ Affinity Universe
   }
 
   function displaySelectedStudents(){
+    const select=$("noticeRecipient");
+    if(select && typeof select.replaceChildren==="function"){
+      const previous=select.value;
+      select.replaceChildren();
+      const first=document.createElement("option");
+      first.value="";
+      first.textContent="학생 이름으로 자동 매칭";
+      select.appendChild(first);
+      for(const [id,name] of selectedStudentRecords){
+        const option=document.createElement("option");
+        option.value=id;
+        option.textContent=name;
+        select.appendChild(option);
+      }
+      if(previous && selectedStudentRecords.has(previous))select.value=previous;
+    }
     $("selectedStudents").textContent = selectedStudentRecords.size
       ? `연결 대상 ${selectedStudentRecords.size}명: ${Array.from(selectedStudentRecords.values()).join(", ")}`
       : "연결할 학생을 선택해 주세요.";
@@ -3082,6 +3196,10 @@ Affinity Universe
     $("studentSearchQuery").addEventListener("keydown",e=>{
       if(e.key==="Enter"){e.preventDefault();$("studentSearch").click();}
     });
+    $("noticeRecipient").addEventListener("change",()=>{
+      $("approveFeedback").replaceChildren();
+      refreshRegistrationPreview();
+    });
     $("output").addEventListener("input",()=>{ $("approveFeedback").replaceChildren(); });
     $("approve").addEventListener("click",async()=>{
       const feedback = $("approveFeedback");
@@ -3175,6 +3293,7 @@ Affinity Universe
       $("messageType").value = "CLASS";
       $("templateType").value = "";
       $("studentName").value = "";
+      $("noticeRecipient").value = "";
       $("classType").value = "ONE_ON_ONE";
       $("siblingType").value = "BROTHER";
       $("discord").value = "해당없음";
