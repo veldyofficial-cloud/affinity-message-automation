@@ -2742,7 +2742,8 @@ Affinity Universe
       const date = dateToISO_UTC(cursor);
       if(closedDates.has(date)){
         const reason = closedDates.get(date);
-        items.push({date, kind:"CLOSED", reason, name: reason === "수강생 요청 휴강" ? "수강생 요청 휴강" : (reason.endsWith("휴강") ? reason : `${reason} 휴강`)});
+        const subitemName=reason==="수강생 요청 휴강"?"수강생 요청 휴강":"공휴일 휴강";
+        items.push({date,kind:"CLOSED",reason,name:subitemName});
       }else{
         lessonNo += 1;
         const absence=absentMap.get(date);
