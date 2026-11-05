@@ -1443,7 +1443,7 @@
       const date = String(row?.date||'').trim();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
       const ids = Array.from(new Set((row.studentIds||[]).map(Number))).filter(Number.isSafeInteger).sort((a,b)=>a-b);
-      byDate.set(date,{date,studentIds:ids});
+      byDate.set(date,{date,studentIds:ids,keepGroupDuration:Boolean(row.keepGroupDuration)});
     }
     return Array.from(byDate.values()).sort((a,b)=>a.date.localeCompare(b.date));
   }
@@ -1492,7 +1492,9 @@
     for(const row of individualAbsences){
       const d=toDateUTC(row.date);
       const names=row.studentIds.map(id=>selectedStudentRecords.get(String(id))||`선택 해제된 학생 ID ${id}`).join(", ");
-      lines.push(`${d.getUTCMonth()+1}/${d.getUTCDate()}(${getWeekdayKoFromISO(row.date)}) · 개별 결석 (${names}) · LESSON 진행`);
+      const attending=selectedStudentRecords.size-row.studentIds.length;
+      const duration=attending===1&&!row.keepGroupDuration?"1:1 40분":row.keepGroupDuration?"별도 요청 60분":"그룹 60분";
+      lines.push(`${d.getUTCMonth()+1}/${d.getUTCDate()}(${getWeekdayKoFromISO(row.date)}) · 개별 결석 (${names}) · LESSON 진행 · 출석 ${attending}명 / ${duration}`);
     }
     box.textContent=lines.length ? "등록된 휴강 및 결석 일정:\n"+lines.join("\n") : "등록된 휴강 및 결석 일정: 없음";
   }
@@ -2640,7 +2642,9 @@ Affinity Universe
       if(closedDates.has(absence.date)) return {ok:false,error:`${absence.date}에 그룹 전체 휴강과 개별 결석이 동시에 설정되었습니다.`};
       if(!absence.studentIds.length || absence.studentIds.length >= selectedIds.size || absence.studentIds.some(id=>!selectedIds.has(id)))
         return {ok:false,error:`${absence.date} 개별 결석 학생을 확인해 주세요. 선택한 그룹의 일부 학생만 지정할 수 있습니다.`};
-      absentMap.set(absence.date, absence.studentIds);
+      if(absence.keepGroupDuration && selectedIds.size-absence.studentIds.length!==1)
+        return {ok:false,error:"60분 유지 예외는 출석 한 명인 그룹 수업만 설정할 수 있습니다."};
+      absentMap.set(absence.date, absence);
     }
     for(const item of closures){
       if(item.date < startDay || item.date > endDay || !weekdays.includes(getWeekdayKoFromISO(item.date))){
@@ -2659,8 +2663,15 @@ Affinity Universe
         items.push({date, kind:"CLOSED", reason, name: reason === "수강생 요청 휴강" ? "수강생 요청 휴강" : (reason.endsWith("휴강") ? reason : `${reason} 휴강`)});
       }else{
         lessonNo += 1;
-        items.push({date, kind:"LESSON", name:`LESSON ${String(lessonNo).padStart(2,"0")}`,
-          absentStudentIds:absentMap.get(date)||[]});
+        const absence=absentMap.get(date);
+        const absentStudentIds=absence?.studentIds||[];
+        const attended=selectedIds.size-absentStudentIds.length;
+        const type=[$("weekday").value,...extra.slots.map(s=>s.weekday)]
+          .indexOf(getWeekdayKoFromISO(date));
+        const slotType=type===0?$("classType").value:extra.slots[type-1]?.classType||$("classType").value;
+        const durationMinutes=slotType==="GROUP" && attended===1&&!absence?.keepGroupDuration?40:slotType==="GROUP"?60:40;
+        items.push({date,kind:"LESSON",name:`LESSON ${String(lessonNo).padStart(2,"0")}`,
+          absentStudentIds,keepGroupDuration:Boolean(absence?.keepGroupDuration),durationMinutes});
       }
       cursor = addDaysUTC(cursor,weekdays.length>1?1:7);
       while(!targets.includes(cursor.getUTCDay())) cursor=addDaysUTC(cursor,1);
@@ -2688,7 +2699,8 @@ Affinity Universe
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
       const slot=timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
       const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
-      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"?"그룹 1h":"1:1 40m");
+      const duration=i.durationMinutes || (kind==="GROUP"?60:40);
+      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"&&duration===40?"1:1 전환 40m":kind==="GROUP"?"그룹 1h":"1:1 40m");
     })()}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
@@ -3015,12 +3027,18 @@ Affinity Universe
           showAlert("개별 결석은 그룹 학생 중 일부만 선택할 수 있습니다. 전원이 쉬면 '그룹 전체 휴강'을 선택하세요.","warn");return;
         }
         if(getEffectiveClosedList().some(x=>x.date===d)){showAlert("해당 날짜는 이미 그룹 전체 휴강입니다. 날짜를 확인해 주세요.","warn");return;}
-        individualAbsences=normalizeIndividualAbsences([...individualAbsences.filter(x=>x.date!==d),{date:d,studentIds:ids}]);
+        const keepGroupDuration=$("keepGroupDuration").checked;
+        if(keepGroupDuration && selectedStudentRecords.size-ids.length!==1){
+          showAlert("60분 유지 예외는 출석 학생이 한 명인 회차에만 지정할 수 있습니다.","warn");return;
+        }
+        individualAbsences=normalizeIndividualAbsences([...individualAbsences.filter(x=>x.date!==d),
+          {date:d,studentIds:ids,keepGroupDuration}]);
       } else {
         if(individualAbsences.some(x=>x.date===d)){showAlert("해당 날짜에 개별 결석이 있습니다. '휴강·결석 전체 삭제' 후 다시 입력해 주세요.","warn");return;}
         upsertClosed(d, n);
       }
       $("closedDate").value = "";
+      $("keepGroupDuration").checked=false;
 
       if($("studentLocation").value === "OVERSEAS"){
         $("closedNamePreset").value = "한국 공휴일";
@@ -3040,6 +3058,7 @@ Affinity Universe
     $("clearClosed").addEventListener("click", ()=>{
       closedList = [];
       individualAbsences = [];
+      $("keepGroupDuration").checked=false;
       selectedFetchedHolidayDates.clear();
       renderHolidayList();
       renderClosedPreview();
