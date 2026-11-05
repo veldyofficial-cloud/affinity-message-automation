@@ -1280,38 +1280,36 @@
   /*********************
    * 날짜/표기 유틸
    *********************/
-  function formatPeriodRange(startISO, endISO, timeZone, classTime24){
-    let startLocalISO = startISO;
-    let endLocalISO = endISO;
+  function formatPeriodFromLocalDates(startISO,endISO){
+    const start=toDateUTC(startISO);
+    const end=toDateUTC(endISO);
+    const startYear=start.getUTCFullYear();
+    const endYear=end.getUTCFullYear();
+    const fmt=d=>String(d.getUTCMonth()+1).padStart(2,"0")+". "
+      +String(d.getUTCDate()).padStart(2,"0");
+    // When the class crosses a year boundary, show the two-digit year on
+    // the ending date so '02. 14' is not mistaken for the start year.
+    const endPrefix=startYear===endYear?"":String(endYear%100).padStart(2,"0")+". ";
+    return startYear+". "+fmt(start)+" - "+endPrefix+fmt(end);
+  }
 
-    if(timeZone && timeZone !== "Asia/Seoul"){
-      const hh = classTime24?.hh ?? 12;
-      const mm = classTime24?.mm ?? 0;
-      startLocalISO = getLocalISODate(makeKoreaZonedDate(startISO, hh, mm), timeZone);
-      endLocalISO = getLocalISODate(makeKoreaZonedDate(endISO, hh, mm), timeZone);
+  function formatPeriodRange(startISO,endISO,timeZone,classTime24){
+    let first=startISO,last=endISO;
+    if(timeZone && timeZone!=="Asia/Seoul"){
+      const hh=classTime24?.hh ?? 12;
+      const mm=classTime24?.mm ?? 0;
+      first=getLocalISODate(makeKoreaZonedDate(startISO,hh,mm),timeZone);
+      last=getLocalISODate(makeKoreaZonedDate(endISO,hh,mm),timeZone);
     }
-
-    const s = toDateUTC(startLocalISO);
-    const e = toDateUTC(endLocalISO);
-
-    const sY = s.getUTCFullYear();
-    const sM = String(s.getUTCMonth()+1).padStart(2,"0");
-    const sD = String(s.getUTCDate()).padStart(2,"0");
-    const eM = String(e.getUTCMonth()+1).padStart(2,"0");
-    const eD = String(e.getUTCDate()).padStart(2,"0");
-
-    return `${sY}. ${sM}. ${sD} - ${eM}. ${eD}`;
+    return formatPeriodFromLocalDates(first,last);
   }
 
   function formatPeriodRangeUsingSlots(startISO,endISO,timeZone,primaryTime,extraTimes){
-    const first=timeForScheduledDate(startISO,primaryTime,extraTimes);
-    const last=timeForScheduledDate(endISO,primaryTime,extraTimes);
-    const startLocal=getLocalISODate(makeKoreaZonedDate(startISO,first.hh,first.mm),timeZone);
-    const endLocal=getLocalISODate(makeKoreaZonedDate(endISO,last.hh,last.mm),timeZone);
-    const lastDate=toDateUTC(endLocal);
-    return startLocal.replace(/-/g,". ")+" - "
-      +String(lastDate.getUTCMonth()+1).padStart(2,"0")+". "
-      +String(lastDate.getUTCDate()).padStart(2,"0");
+    const firstTime=timeForScheduledDate(startISO,primaryTime,extraTimes);
+    const lastTime=timeForScheduledDate(endISO,primaryTime,extraTimes);
+    const first=getLocalISODate(makeKoreaZonedDate(startISO,firstTime.hh,firstTime.mm),timeZone);
+    const last=getLocalISODate(makeKoreaZonedDate(endISO,lastTime.hh,lastTime.mm),timeZone);
+    return formatPeriodFromLocalDates(first,last);
   }
 
   function formatHolidayDateLine(dateISO, holidayName, studentLocation, timeZone, classTime24){
@@ -2744,7 +2742,8 @@ Affinity Universe
       const date = dateToISO_UTC(cursor);
       if(closedDates.has(date)){
         const reason = closedDates.get(date);
-        items.push({date, kind:"CLOSED", reason, name: reason === "수강생 요청 휴강" ? "수강생 요청 휴강" : (reason.endsWith("휴강") ? reason : `${reason} 휴강`)});
+        const subitemName=reason==="수강생 요청 휴강"?"수강생 요청 휴강":"공휴일 휴강";
+        items.push({date,kind:"CLOSED",reason,name:subitemName});
       }else{
         lessonNo += 1;
         const absence=absentMap.get(date);

@@ -29,6 +29,13 @@ export const COL = Object.freeze({
   subAbsentees: 'board_relation_mm4cpb0k',
 });
 
+// Infohub CLOSED subitems use one of two canonical names while preserving
+// the actual public-holiday reason separately in the memo and user notice.
+export function closureSubitemName(reason){
+  return String(reason||"").trim()==="수강생 요청 휴강"
+    ? "수강생 요청 휴강" : "공휴일 휴강";
+}
+
 export function json(body, status=200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 }
@@ -250,8 +257,7 @@ export function derivePlan(input) {
     const date=iso(cursor);
     if(closures.has(date)) {
       const reason = closures.get(date);
-      const name=reason==='수강생 요청 휴강' ? '수강생 요청 휴강' :
-        reason.endsWith('휴강') ? reason : `${reason} 휴강`;
+      const name=closureSubitemName(reason);
       schedule.push({date,kind:'CLOSED',name,reason});
     }else {
       lessonNo+=1;
