@@ -112,15 +112,15 @@ test('VIBE BASIC appears in Code Design and uses its URL and Korean notice name'
 
 test('Notice Korean names match the requested terminology, without changing Monday codes',()=>{
  const expected={
-  '[ART BOOK DESIGN] LV.4':'아트북 디자인 LV.4',
-  '[PICTURE BOOK] FOUNDATION':'픽처북 파운데이션',
-  '[DRAWING] BASIC':'디지털 드로잉 베이직',
+  '[ART BOOK DESIGN] LV.4':'아트북 디자인 Lv.4',
+  '[PICTURE BOOK] FOUNDATION':'파운데이션',
+  '[DRAWING] BASIC':'디지털 드로잉 BASIC',
   '[VIBE] BASIC':'바이브코딩 베이직',
-  '[HTML] PRO':'HTML 프로',
-  '[CODE] PLAY BOOK':'플레이북',
+  '[HTML] PRO':'HTML PRO',
+  '[CODE] PLAY BOOK':'플레이 북',
   '[CHARACTER IP] GOODS DESIGN':'굿즈 디자인',
   '[DRAWING] BOOK':'디지털 드로잉 북',
-  '[WEB DESIGN] PRO MASTER':'웹 디자인 프로 마스터',
+  '[WEB DESIGN] PRO MASTER':'웹 프로 마스터',
   '[MARKETING] MANAGEMENT':'마케팅 매니지먼트',
  };
  const app=harness({type:'CLASS'});
