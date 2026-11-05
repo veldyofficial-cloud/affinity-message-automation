@@ -34,11 +34,35 @@ export async function approve(request, env, email) {
     const p=await request.json();
     if (!p || typeof p!=='object') throw new Error('승인 요청이 올바르지 않습니다.');
     if (!p.itemName || typeof p.itemName!=='string' || p.itemName.length>255 || !p.itemName.trim()) throw new Error('상위아이템명이 올바르지 않습니다.');
-    if (!p.message || typeof p.message!=='string' || p.message.length>50000 || p.message.length<20) throw new Error('안내문을 먼저 생성해 주세요.');
     const studentIds=Array.isArray(p.studentIds) ? Array.from(new Set(p.studentIds.map(Number))) : [];
     if (!studentIds.length || studentIds.length>20 || !studentIds.every(validId)) throw new Error('학생을 검색 결과에서 선택해 주세요.');
     if (p.classType==='ONE_ON_ONE' && studentIds.length!==1) throw new Error('1:1 클래스는 학생 한 명만 연결해야 합니다.');
     if (p.classType==='GROUP' && studentIds.length<2) throw new Error('그룹 클래스는 학생 두 명 이상이 필요합니다.');
+    // A group is one parent and one combined update containing the completed
+    // private notice for every linked pupil. Reject incomplete or stale batches
+    // before the very first Monday write.
+    let noticeText='';
+    if(p.classType==='GROUP'){
+      if(!Array.isArray(p.studentNotices) || p.studentNotices.length!==studentIds.length)
+        throw new Error('그룹 수강생 전원의 학생별 안내문을 먼저 저장해 주세요.');
+      const noticeIds=new Set();
+      const notices=[];
+      for(const row of p.studentNotices){
+        if(!row || !validId(Number(row.studentId)) || !studentIds.includes(Number(row.studentId))
+            || noticeIds.has(Number(row.studentId)) || typeof row.name!=='string' ||
+            !row.name.trim() || typeof row.message!=='string' || row.message.length<20 || row.message.length>15000)
+          throw new Error('학생별 안내문에 누락·중복 또는 형식 오류가 있습니다.');
+        noticeIds.add(Number(row.studentId));
+        notices.push({studentId:Number(row.studentId),name:row.name.trim(),message:row.message});
+      }
+      if(notices.some(row=>!studentIds.includes(row.studentId)))throw new Error('연결되지 않은 학생의 안내문이 포함되었습니다.');
+      noticeText=notices.map((row,i)=>'[학생별 안내 '+(i+1)+' | '+row.name+']\n'+row.message.trim()).join('\n\n------------------------------\n\n');
+      if(noticeText.length>50000)throw new Error('학생별 안내문 전체가 50,000자를 초과합니다.');
+    }else{
+      if (!p.message || typeof p.message!=='string' || p.message.length>50000 || p.message.length<20)
+        throw new Error('안내문을 먼저 생성해 주세요.');
+      noticeText=p.message;
+    }
     if (!validId(Number(p.teacherId)) || !isAllowedTeacher(p.teacherId)) throw new Error('승인된 강사 13명 중에서 담당 강사를 선택해 주세요.');
     const plan=derivePlan(p);
     // Use the Korean (KST) start date regardless of the student's timezone.
@@ -75,6 +99,10 @@ export async function approve(request, env, email) {
       {ids:studentIds.map(String)},env);
     if ((records.items||[]).length!==studentIds.length || records.items.some(x=>String(x.board?.id)!==String(STUDENT_DB_ID)))
       throw new Error('STUDENT DB에 속하지 않는 학생이 포함되었습니다.');
+    if(p.classType==='GROUP' && p.studentNotices.some(row=>{
+      const item=records.items.find(x=>Number(x.id)===Number(row.studentId));
+      return !item || item.name.trim()!==row.name.trim();
+    }))throw new Error('학생별 안내문의 이름이 STUDENT DB 이름과 다릅니다.');
     const users=await monday('query ($ids:[ID!]) { users(ids:$ids) { id name } }',
       {ids:[String(p.teacherId)]},env);
     if ((users.users||[]).length!==1 || String(users.users[0].name||'').trim().toUpperCase()!==teacherById.get(Number(p.teacherId)).name)
@@ -116,7 +144,9 @@ export async function approve(request, env, email) {
       weekday2:p.weekday2||'',weekday3:p.weekday3||'',weeklyFrequency:Number(p.weeklyFrequency||1),
       classType2:p.classType2||null,classType3:p.classType3||null,
       dstMode2:p.dstMode2||null,dstMode3:p.dstMode3||null,
-      schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[]}))});
+      schedule:plan.schedule.map(x=>({date:x.date,kind:x.kind,name:x.name,absentStudentIds:x.absentStudentIds||[],
+        durationMinutes:x.durationMinutes||null,keepGroupDuration:Boolean(x.keepGroupDuration)})),
+      noticeText});
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
     const state=await storage.reserve(registryKey);
     if (!state.accepted) return json({ok:false,duplicate:true,itemUrl:state.itemUrl||'',
@@ -154,15 +184,18 @@ export async function approve(request, env, email) {
       // to the subitem memo so no second-day time is lost in Infohub.
       const sessionTime=isThirdDay?p.kstTime24Third:isSecondDay?p.kstTime24Second:p.kstTime24;
       const sessionType=plan.classTypeByDay?.[targetDay]||p.classType;
-      const sessionDuration=sessionType==='GROUP'?'60m':'40m';
+      const sessionDuration=row.durationMinutes ? row.durationMinutes+'m' : sessionType==='GROUP'?'60m':'40m';
       const hasMixedTypes=Object.values(plan.classTypeByDay||{}).some(type=>type!==p.classType);
       const sessionTypeNote=hasMixedTypes
         ? '수업 구분: '+(sessionType==='GROUP'?'그룹 (1h)':'1:1 (40m)') : '';
+      const attendanceNote=row.kind==='LESSON' && sessionType==='GROUP'
+        && (row.absentStudentIds||[]).length && studentIds.length-row.absentStudentIds.length===1
+        ? row.keepGroupDuration?'별도 요청: 그룹 60분 유지':'출석 1명: 1:1 40분 자동 전환' : '';
       const kstNote=Number(p.weeklyFrequency)>1
         ? '수업 시간: '+String(sessionTime.hh).padStart(2,'0')+':'+String(sessionTime.mm).padStart(2,'0')+' (한국시간)'
         : '';
       const writtenMemo=memoByDate.get(row.date)||p.subMemo.trim();
-      const mergedMemo=[writtenMemo,kstNote,sessionTypeNote].filter(Boolean).join('\n');
+      const mergedMemo=[writtenMemo,kstNote,sessionTypeNote,attendanceNote].filter(Boolean).join('\n');
       if(mergedMemo.length>1500) throw new Error('수업 시간 포함 하위아이템 메모가 1500자를 초과합니다.');
       const columns={
         [COL.subDate]:{date:row.date},
@@ -178,7 +211,7 @@ export async function approve(request, env, email) {
       }`,{parentId:String(parentId),name:row.name,values:JSON.stringify(columns)},env);
       completed+=1;
     }
-    const body=`<div>${htmlEscape(p.message).replace(/\r?\n/g,'<br>')}</div>`;
+    const body=`<div>${htmlEscape(noticeText).replace(/\r?\n/g,'<br>')}</div>`;
     const posted=await monday(`mutation ($itemId:ID!, $body:String!) {
       create_update(item_id:$itemId,body:$body){id creator{id name}}
     }`,{itemId:String(parentId),body},env,updateToken||undefined);
