@@ -10,7 +10,7 @@ assert.ok(inline,'Program inline script must exist');
 const lastInit=/^\s*init\(\);\s*$/m;
 assert.match(inline[1],lastInit);
 const code=inline[1].replace(lastInit,
-  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,menu:CURRICULUM_MENU_LABELS,english:CURRICULUM_MAP,groups:CURRICULUM_GROUPS,curriculumForNotice};\n');
+  '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,menu:CURRICULUM_MENU_LABELS,english:CURRICULUM_MAP,groups:CURRICULUM_GROUPS,curriculumForNotice,formatPeriodRange,formatPeriodRangeUsingSlots};\n');
 
 function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
  const fields={
@@ -158,4 +158,21 @@ test('Every selectable curriculum uses the exact same Korean text in the notice'
  ]);
  assert.equal(app.english['[VIDEO] EDITOR'],'VideoEditor');
  assert.equal(app.english['[VIDEO] CREATOR'],'VideoCreator');
+});
+
+test('Cross-year class period displays two-digit end year in domestic and overseas notices',()=>{
+ const app=harness({type:'CLASS',timeZone:'Asia/Seoul'});
+ assert.equal(app.formatPeriodRange('2026-11-22','2027-02-14','Asia/Seoul',{hh:9,mm:0}),
+   '2026. 11. 22 - 27. 02. 14');
+ assert.equal(app.formatPeriodRange('2026-11-22','2026-12-14','Asia/Seoul',{hh:9,mm:0}),
+   '2026. 11. 22 - 12. 14');
+ assert.equal(app.formatPeriodRange('2026-11-22','2027-02-14','America/Los_Angeles',{hh:9,mm:0}),
+   '2026. 11. 21 - 27. 02. 13');
+ const extra=harness({type:'CLASS',timeZone:'America/Los_Angeles'});
+ extra.get('weekday2').value='목';
+ extra.get('amPm2').value='오전';
+ extra.get('korTime2').value='9';
+ assert.equal(extra.formatPeriodRangeUsingSlots('2026-11-22','2027-02-14',
+   'America/Los_Angeles',{hh:9,mm:0},[{hh:9,mm:0}]),
+   '2026. 11. 21 - 27. 02. 13');
 });
