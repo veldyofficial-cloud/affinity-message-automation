@@ -217,12 +217,17 @@ export function derivePlan(input) {
     if(classTypeByDay[d.getUTCDay()]!=='GROUP') throw new Error('개별 결석은 해당 요일이 그룹 수업인 경우에만 등록할 수 있습니다.');
     if(absenceMap.has(absence.date)) throw new Error(`개별 결석 ${absence.date} 날짜가 중복되었습니다.`);
     if(!Array.isArray(absence.studentIds)) throw new Error('결석 인원 목록을 확인해 주세요.');
+    if(absence.keepGroupDuration != null && typeof absence.keepGroupDuration !== 'boolean')
+      throw new Error('60분 유지 옵션은 체크 여부(true/false)로 지정해 주세요.');
     const ids=absence.studentIds.map(Number);
     if(ids.some(id=>!Number.isSafeInteger(id) || id<=0) || new Set(ids).size!==ids.length ||
        !ids.length || ids.length>=selectedStudentIds.length || ids.some(id=>!selectedStudentIds.includes(id))) {
       throw new Error(`${absence.date} 결석 인원이 그룹에 속한 일부 수강생인지 확인해 주세요.`);
     }
-    absenceMap.set(absence.date,ids.sort((a,b)=>a-b));
+    if(absence.keepGroupDuration && selectedStudentIds.length-ids.length!==1)
+      throw new Error('60분 유지 예외는 출석 인원이 한 명으로 줄어드는 수업에만 적용합니다.');
+    absenceMap.set(absence.date,{studentIds:ids.sort((a,b)=>a-b),
+      keepGroupDuration:Boolean(absence.keepGroupDuration)});
   }
   const closures = new Map();
   for (const x of input.closures || []) {
@@ -250,8 +255,14 @@ export function derivePlan(input) {
       schedule.push({date,kind:'CLOSED',name,reason});
     }else {
       lessonNo+=1;
+      const absence=absenceMap.get(date);
+      const absentStudentIds=absence?.studentIds||[];
+      const attending=selectedStudentIds.length-absentStudentIds.length;
+      const plannedType=classTypeByDay[cursor.getUTCDay()];
+      const oneToOneConversion=plannedType==='GROUP' && attending===1 && !absence?.keepGroupDuration;
       schedule.push({date,kind:'LESSON',name:`LESSON ${String(lessonNo).padStart(2,'0')}`,
-        absentStudentIds:absenceMap.get(date)||[]});
+        absentStudentIds,keepGroupDuration:Boolean(absence?.keepGroupDuration),
+        durationMinutes:oneToOneConversion?40:plannedType==='GROUP'?60:40});
     }
     cursor=addDays(cursor,weeklyFrequency>1?1:7);
     if(weeklyFrequency>1) while(!targetDays.has(cursor.getUTCDay())) cursor=addDays(cursor,1);
@@ -266,11 +277,19 @@ export function derivePlan(input) {
     throw new Error(`입력 회차(${input.explicitLessonCount})와 실제 회차(${lessonNo})가 다릅니다.`);
   }
   if (Number(input.lessonCount)!==lessonNo) throw new Error('프론트엔드의 수업 회차 계산과 서버 결과가 다릅니다.');
-  const client = Array.isArray(input.schedule) ? input.schedule.map(({date,kind,name,absentStudentIds})=>({
-    date,kind,name,absentStudentIds:Array.isArray(absentStudentIds)?absentStudentIds.map(Number).sort((a,b)=>a-b):[]
-  })) : [];
-  const server = schedule.map(({date,kind,name,absentStudentIds})=>({date,kind,name,absentStudentIds:absentStudentIds||[]}));
-  if(JSON.stringify(client)!==JSON.stringify(server)) throw new Error('승인 일정이 서버 검증 결과와 다릅니다. 문구를 다시 생성해 주세요.');
+  const client=Array.isArray(input.schedule)?input.schedule:[];
+  const canonical=row=>({date:row.date,kind:row.kind,name:row.name,
+    absentStudentIds:Array.isArray(row.absentStudentIds)?row.absentStudentIds.map(Number).sort((a,b)=>a-b):[]});
+  if(JSON.stringify(client.map(canonical))!==JSON.stringify(schedule.map(canonical)))
+    throw new Error('승인 일정이 서버 검증 결과와 다릅니다. 문구를 다시 생성해 주세요.');
+  // The server owns computed duration and exception policy. If supplied by the
+  // client, the optional hints must agree rather than overriding this decision.
+  for(let i=0;i<client.length;i++){
+    if(client[i].durationMinutes!=null && Number(client[i].durationMinutes)!==schedule[i].durationMinutes)
+      throw new Error('수업 시간 계산 결과가 다릅니다. 최신 문구를 다시 생성해 주세요.');
+    if(client[i].keepGroupDuration!=null && Boolean(client[i].keepGroupDuration)!==Boolean(schedule[i].keepGroupDuration))
+      throw new Error('60분 유지 예외 설정이 서버 결과와 다릅니다.');
+  }
   return {groupId,schedule,lessonCount:lessonNo,holidayCount:schedule.length-lessonNo,
     classTypeByDay,absenceLessons:schedule.filter(row=>row.absentStudentIds?.length).length};
 }

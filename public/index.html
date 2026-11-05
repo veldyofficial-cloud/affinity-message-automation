@@ -221,9 +221,13 @@
     .student-option input { width: 16px; height: 16px; accent-color: var(--blue); }
     .student-option span { overflow-wrap: anywhere; }
     .selected-students { color: var(--blue-dark); }
+    .student-db-setup { padding:15px; margin:12px 0 20px; border:1px solid #d9e3f3; background:#f7f9fe; border-radius:10px; }
+    .student-db-setup h2 { margin:0 0 9px; }
     .notice-recipient-box { margin-bottom:15px; padding:13px; border:1px solid #d9e3f3; border-radius:10px; background:#f7f9fe; }
     .notice-recipient-box select { margin-top:7px; }
     .notice-recipient-box .note { margin-top:8px; color:#333; }
+    #saveStudentNotice { margin-top:12px; }
+    #savedStudentNotices { white-space:pre-wrap; border-top:1px solid #d9e3f3; padding-top:9px; }
     .closure-choice { margin: 10px 0 15px; padding: 12px 14px; border: .75px solid #d9e3f3; border-radius: 9px; background: var(--blue-soft); }
     .closure-choice label { margin-bottom: 7px; }
     .absentee-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 0 2px; }
@@ -340,6 +344,17 @@
           <option value="GROUP">그룹</option>
         </select>
       </div>
+    </div>
+
+    <div class="student-db-setup">
+      <h2>1. STUDENT DB · 그룹 학생 선택</h2>
+      <label for="studentSearchQuery">STUDENT DB 학생 검색</label>
+      <div class="lookup-row">
+        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
+        <button id="studentSearch" type="button" class="secondary">검색</button>
+      </div>
+      <div id="studentResults" class="student-results" aria-live="polite"></div>
+      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
     </div>
 
     <div class="row">
@@ -606,7 +621,8 @@
       <div id="absenteePickerBox" style="display:none; margin-top:12px">
         <label>결석할 수강생 선택 · STUDENT DB 연결</label>
         <div id="absenteeStudents" class="absentee-options"></div>
-        <div class="note small">먼저 오른쪽에서 이 그룹의 전체 수강생을 검색·선택한 다음, 결석할 사람만 체크하세요. 개별 결석은 LESSON을 유지하고 회차를 밀지 않습니다.</div>
+        <div class="note small">STUDENT DB에서 그룹 학생 전원을 선택한 후 결석할 학생을 지정하세요. 한 명만 출석하면 기본 1:1 40분으로 전환되며 회차는 밀리지 않습니다.</div>
+        <label class="absentee-option" style="margin-top:10px"><input id="keepGroupDuration" type="checkbox" /> 별도 요청으로 해당 회차 60분 유지 (출석 1명일 때만)</label>
       </div>
     </div>
 
@@ -681,8 +697,12 @@
     <div class="notice-recipient-box">
       <label for="noticeRecipient">안내문 대상 학생 (그룹 · 개별 결석 반영)</label>
       <select id="noticeRecipient"><option value="">학생 이름으로 자동 매칭</option></select>
-      <div class="note small">STUDENT DB에서 학생들을 연결하면 대상자를 선택할 수 있습니다. 해당 학생의 개별 결석만 안내문에 표시됩니다. 해외 학생은 그 학생의 국가·시간대를 설정해 주세요.</div>
-      <div class="note small">먼데이 승인 시 말풍선은 1개만 자동 등록됩니다. 다른 시간대 학생의 문구는 대상자와 시간대를 바꿔 생성·복사 후 기존 아이템에 수동 추가하세요. 같은 그룹을 다시 승인하지 마세요.</div>
+      <div class="note small">그룹 학생을 먼저 모두 연결하고 대상 학생을 선택하세요. 해당 학생의 국가·시간대에 맞춰 안내문을 생성한 후 저장합니다.</div>
+      <button id="saveStudentNotice" type="button" class="secondary">현재 학생 안내문 저장</button>
+      <div id="savedStudentNotices" class="note small" aria-live="polite">저장된 학생별 안내문 없음</div>
+      <label for="combinedNoticePreview">먼데이 말풍선 전체 미리보기 (자동 합치기)</label>
+      <textarea id="combinedNoticePreview" readonly style="height:170px;min-height:130px" placeholder="그룹 학생 안내문을 저장하면 이곳에 모아서 표시합니다."></textarea>
+      <div class="note small">모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개(학생별 메시지 전체 포함)를 최종 등록합니다. 승인 전에는 먼데이 DB가 변경되지 않습니다.</div>
     </div>
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
     <div class="note">
@@ -704,13 +724,7 @@
 <label for="subMemos">날짜별 MEMO (선택)</label>
 <textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
 <div class="note small">한 줄에 YYYY-MM-DD | 메모. 날짜별 메모가 공통 메모보다 우선합니다.</div>
-<label for="studentSearchQuery">STUDENT DB 학생 검색</label>
-      <div class="lookup-row">
-        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
-        <button id="studentSearch" type="button" class="secondary">검색</button>
-      </div>
-      <div id="studentResults" class="student-results" aria-live="polite"></div>
-      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
+<div class="note small">그룹 학생은 화면 왼쪽 상단에서 먼저 연결합니다. 안내문은 오른쪽에서 학생별로 저장하세요.</div>
       <label for="mondayTeacher">담당 강사</label>
       <select id="mondayTeacher"><option value="">담당 강사 선택</option></select>
       <div class="note small">OLIVIA, ONYU, AYEONG, DOORI, HANNAH, JIMIN, JUNWON, RARA, SEONYE, SHU, SION, SYEON, ZOEY 중에서 선택합니다.</div>
@@ -1431,7 +1445,7 @@
       const date = String(row?.date||'').trim();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
       const ids = Array.from(new Set((row.studentIds||[]).map(Number))).filter(Number.isSafeInteger).sort((a,b)=>a-b);
-      byDate.set(date,{date,studentIds:ids});
+      byDate.set(date,{date,studentIds:ids,keepGroupDuration:Boolean(row.keepGroupDuration)});
     }
     return Array.from(byDate.values()).sort((a,b)=>a.date.localeCompare(b.date));
   }
@@ -1480,7 +1494,9 @@
     for(const row of individualAbsences){
       const d=toDateUTC(row.date);
       const names=row.studentIds.map(id=>selectedStudentRecords.get(String(id))||`선택 해제된 학생 ID ${id}`).join(", ");
-      lines.push(`${d.getUTCMonth()+1}/${d.getUTCDate()}(${getWeekdayKoFromISO(row.date)}) · 개별 결석 (${names}) · LESSON 진행`);
+      const attending=selectedStudentRecords.size-row.studentIds.length;
+      const duration=attending===1&&!row.keepGroupDuration?"1:1 40분":row.keepGroupDuration?"별도 요청 60분":"그룹 60분";
+      lines.push(`${d.getUTCMonth()+1}/${d.getUTCDate()}(${getWeekdayKoFromISO(row.date)}) · 개별 결석 (${names}) · LESSON 진행 · 출석 ${attending}명 / ${duration}`);
     }
     box.textContent=lines.length ? "등록된 휴강 및 결석 일정:\n"+lines.join("\n") : "등록된 휴강 및 결석 일정: 없음";
   }
@@ -2328,6 +2344,28 @@ Step 4. 사진 구성
     return {ok:true,text:"• 개별 결석 일정 :\n"+formatted.join("\n")+"\n"};
   }
 
+  function buildAttendanceDurationNotice({startDay,endDay,studentLocation,tz,primary,extraTimes}){
+    if($("classType").value!=="GROUP")return "";
+    const recipient=selectedNoticeRecipient();
+    if(!recipient)return "";
+    const entries=normalizeIndividualAbsences(individualAbsences)
+      .filter(row=>row.date>=startDay && row.date<=endDay &&
+        selectedStudentRecords.size-row.studentIds.length===1 &&
+        !row.studentIds.includes(recipient.id) && !row.keepGroupDuration);
+    if(!entries.length)return "";
+    const list=entries.map(row=>{
+      let date=row.date;
+      if(studentLocation==="OVERSEAS"&&tz){
+        const when=timeForScheduledDate(row.date,primary,extraTimes);
+        date=getLocalISODate(makeKoreaZonedDate(row.date,when.hh,when.mm),tz);
+      }
+      const day=toDateUTC(date);
+      return "- "+String(day.getUTCMonth()+1).padStart(2,"0")+". "
+        +String(day.getUTCDate()).padStart(2,"0")+" ("+getWeekdayKoFromISO(date)+") : 1:1 40m (출석 1명)";
+    });
+    return "• 수업 시간 변경 :\n"+list.join("\n")+"\n";
+  }
+
   function buildMessage(){
     const messageType = $("messageType").value;
     const templateType = $("templateType").value;
@@ -2453,6 +2491,9 @@ Step 4. 사진 구성
       startDay,endDay,studentLocation,tz,primary:parsed,extraTimes
     });
     if(!absenceBlock.ok)return {ok:false,error:absenceBlock.error};
+    const durationNotice=buildAttendanceDurationNotice({
+      startDay,endDay,studentLocation,tz,primary:parsed,extraTimes
+    });
 
     const periodRangeText = weekdays.length>1 && studentLocation==="OVERSEAS"
       ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,extraTimes)
@@ -2489,7 +2530,7 @@ ${scheduleTitle}
 ${closedBlock ? `
 ${closedBlock}` : ""}${timeLine ? `
 ${timeLine}` : ""}
-${absenceBlock.text ? "\n"+absenceBlock.text : ""}
+${absenceBlock.text ? "\n"+absenceBlock.text : ""}${durationNotice ? "\n"+durationNotice : ""}
 [학습 과정]
 ${learningProcessText}
 ${learningLinkText}
@@ -2519,6 +2560,106 @@ Affinity Universe
    *********************/
   const WEEKDAY_GROUP_KO = {"월":"MON", "화":"TUE", "수":"WED", "목":"THU", "금":"FRI", "토":"SAT"};
   let selectedStudentRecords = new Map();
+  const stagedStudentNotices=new Map();
+  // This is intentionally held in browser memory, not persisted to localStorage.
+  const PERSONAL_NOTICE_FIELDS=["studentLocation","countryInput","usStateSelect","auStateSelect",
+    "tzSelect","dstMode","customFlag","tzSearch","siblingType","dstMode2","dstMode3"];
+  function commonNoticeFingerprint(){
+    const ids=["messageType","templateType","classType","startDay","endDay",
+      "lessonCount","weekday","amPm","korTime",
+      "weekday2","amPm2","korTime2","classType2",
+      "weekday3","amPm3","korTime3","classType3",
+      "curriculumSelect","curriculumUrl","customCourseName","discord"];
+    return JSON.stringify({
+      fields:ids.map(id=>[id,$(id).value]),
+      selectedStudents:[...selectedStudentRecords].sort((a,b)=>a[0].localeCompare(b[0])),
+      closures:getEffectiveClosedList(),
+      absences:normalizeIndividualAbsences(individualAbsences),
+      activeExtras:activeWeeklyExtras
+    });
+  }
+  function readPersonalNoticeSettings(){
+    return Object.fromEntries(PERSONAL_NOTICE_FIELDS.map(id=>[id,$(id).value]));
+  }
+  function applyPersonalNoticeSettings(settings){
+    for(const id of PERSONAL_NOTICE_FIELDS){
+      const field=$(id);
+      if(!field)continue;
+      if(id==="tzSelect")continue;
+      field.value=settings?.[id]??(id==="studentLocation"?"DOMESTIC":id==="dstMode"?"AUTO":id==="siblingType"?"BROTHER":"");
+    }
+    const overseas=$("studentLocation").value==="OVERSEAS";
+    $("overseasBox").style.display=overseas?"block":"none";
+    if(overseas){
+      const country=$("countryInput").value.trim();
+      if(country)applyCountryToTzOptions(country);
+      else setSelectOptions($("tzSelect"),[],"시간대 선택");
+      const tz=settings?.tzSelect||"";
+      if(tz && ![...$("tzSelect").options].some(opt=>opt.value===tz))
+        $("tzSelect").append(new Option(tz,tz));
+      $("tzSelect").value=tz;
+    }else setSelectOptions($("tzSelect"),[],"시간대 선택");
+    $("usStateBox").style.display=overseas&&$("countryInput").value==="미국"?"block":"none";
+    $("auStateBox").style.display=overseas&&$("countryInput").value==="호주"?"block":"none";
+    updateLocalPreview();
+  }
+  function combinedStudentNoticeText(){
+    return [...selectedStudentRecords].map(([id,name],i)=>{
+      const entry=stagedStudentNotices.get(id);
+      return entry?"[학생별 안내 "+(i+1)+" | "+name+"]\n"+entry.message.trim():null;
+    }).filter(Boolean).join("\n\n------------------------------\n\n");
+  }
+  function renderStagedNotices(){
+    const ids=[...selectedStudentRecords.keys()];
+    const signature=commonNoticeFingerprint();
+    const states=ids.map(id=>{
+      const entry=stagedStudentNotices.get(id);
+      const ok=entry?.signature===signature;
+      return (ok?"✓ ":"○ ")+selectedStudentRecords.get(id)+(entry&&!ok?" (공통 일정 변경 · 다시 저장 필요)":"");
+    });
+    $("savedStudentNotices").textContent=ids.length
+      ? "저장 상태: "+ids.filter(id=>stagedStudentNotices.get(id)?.signature===signature).length
+          +"/"+ids.length+"명\n"+states.join("\n")
+      : "STUDENT DB에서 그룹 학생을 먼저 연결해 주세요.";
+    $("combinedNoticePreview").value=combinedStudentNoticeText();
+  }
+  function chooseNoticeRecipient(){
+    const id=$("noticeRecipient").value;
+    if(id && selectedStudentRecords.has(id)){
+      $("studentName").value=selectedStudentRecords.get(id);
+      const saved=stagedStudentNotices.get(id);
+      applyPersonalNoticeSettings(saved?.settings||null);
+      $("output").value=saved?.message||"";
+      lastGeneratedFingerprint="";
+    }else{
+      $("output").value="";
+      lastGeneratedFingerprint="";
+    }
+    renderStagedNotices();
+    refreshRegistrationPreview();
+  }
+  function saveStudentNotice(){
+    const recipient=selectedNoticeRecipient();
+    if(!recipient||!selectedStudentRecords.has(String(recipient.id))){
+      showAlert("먼저 안내문 대상 학생을 선택해 주세요.","warn");return;
+    }
+    if($("classType").value!=="GROUP"){
+      showAlert("학생별 안내문 저장은 그룹 수업에 적용됩니다.","warn");return;
+    }
+    const result=buildMessage();
+    if(!result.ok){showAlert(result.error,"warn");return;}
+    if(!$("output").value.trim() || $("output").value!==result.text ||
+      lastGeneratedFingerprint!==registrationFingerprint()){
+      showAlert("현재 학생의 안내문을 먼저 새로 생성한 뒤 저장해 주세요.","warn");return;
+    }
+    stagedStudentNotices.set(String(recipient.id),{
+      name:recipient.name,message:result.text,
+      settings:readPersonalNoticeSettings(),
+      signature:commonNoticeFingerprint()
+    });
+    renderStagedNotices();
+    showAlert(recipient.name+" 학생의 안내문을 저장했습니다. 다른 학생을 선택해 이어서 설정하세요.","ok");
+  }
   let lastGeneratedFingerprint = "";
   let approvedFingerprint = "";
   let partialRegistrationLocked = false;
@@ -2628,7 +2769,9 @@ Affinity Universe
       if(closedDates.has(absence.date)) return {ok:false,error:`${absence.date}에 그룹 전체 휴강과 개별 결석이 동시에 설정되었습니다.`};
       if(!absence.studentIds.length || absence.studentIds.length >= selectedIds.size || absence.studentIds.some(id=>!selectedIds.has(id)))
         return {ok:false,error:`${absence.date} 개별 결석 학생을 확인해 주세요. 선택한 그룹의 일부 학생만 지정할 수 있습니다.`};
-      absentMap.set(absence.date, absence.studentIds);
+      if(absence.keepGroupDuration && selectedIds.size-absence.studentIds.length!==1)
+        return {ok:false,error:"60분 유지 예외는 출석 한 명인 그룹 수업만 설정할 수 있습니다."};
+      absentMap.set(absence.date, absence);
     }
     for(const item of closures){
       if(item.date < startDay || item.date > endDay || !weekdays.includes(getWeekdayKoFromISO(item.date))){
@@ -2647,8 +2790,15 @@ Affinity Universe
         items.push({date, kind:"CLOSED", reason, name: reason === "수강생 요청 휴강" ? "수강생 요청 휴강" : (reason.endsWith("휴강") ? reason : `${reason} 휴강`)});
       }else{
         lessonNo += 1;
-        items.push({date, kind:"LESSON", name:`LESSON ${String(lessonNo).padStart(2,"0")}`,
-          absentStudentIds:absentMap.get(date)||[]});
+        const absence=absentMap.get(date);
+        const absentStudentIds=absence?.studentIds||[];
+        const attended=selectedIds.size-absentStudentIds.length;
+        const type=[$("weekday").value,...extra.slots.map(s=>s.weekday)]
+          .indexOf(getWeekdayKoFromISO(date));
+        const slotType=type===0?$("classType").value:extra.slots[type-1]?.classType||$("classType").value;
+        const durationMinutes=slotType==="GROUP" && attended===1&&!absence?.keepGroupDuration?40:slotType==="GROUP"?60:40;
+        items.push({date,kind:"LESSON",name:`LESSON ${String(lessonNo).padStart(2,"0")}`,
+          absentStudentIds,keepGroupDuration:Boolean(absence?.keepGroupDuration),durationMinutes});
       }
       cursor = addDaysUTC(cursor,weekdays.length>1?1:7);
       while(!targets.includes(cursor.getUTCDay())) cursor=addDaysUTC(cursor,1);
@@ -2676,7 +2826,8 @@ Affinity Universe
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
       const slot=timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
       const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
-      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"?"그룹 1h":"1:1 40m");
+      const duration=i.durationMinutes || (kind==="GROUP"?60:40);
+      return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"&&duration===40?"1:1 전환 40m":kind==="GROUP"?"그룹 1h":"1:1 40m");
     })()}${i.absentStudentIds?.length
       ? ` · 결석: ${i.absentStudentIds.map(id=>selectedStudentRecords.get(String(id))||id).join(", ")} (출석 ${selectedStudentRecords.size-i.absentStudentIds.length}명)` : ""}`);
     const absenceCount=r.items.filter(x=>x.absentStudentIds?.length).length;
@@ -2705,6 +2856,7 @@ Affinity Universe
       : "연결할 학생을 선택해 주세요.";
     renderAbsenteePicker();
     renderClosedPreview();
+    renderStagedNotices();
     refreshRegistrationPreview();
   }
 
@@ -2749,7 +2901,10 @@ Affinity Universe
       span.textContent = student.name;
       checkbox.addEventListener("change",()=>{
         if(checkbox.checked) selectedStudentRecords.set(String(student.id),student.name);
-        else selectedStudentRecords.delete(String(student.id));
+        else{
+          selectedStudentRecords.delete(String(student.id));
+          stagedStudentNotices.delete(String(student.id));
+        }
         displaySelectedStudents();
       });
       label.append(checkbox,span);
@@ -3003,12 +3158,18 @@ Affinity Universe
           showAlert("개별 결석은 그룹 학생 중 일부만 선택할 수 있습니다. 전원이 쉬면 '그룹 전체 휴강'을 선택하세요.","warn");return;
         }
         if(getEffectiveClosedList().some(x=>x.date===d)){showAlert("해당 날짜는 이미 그룹 전체 휴강입니다. 날짜를 확인해 주세요.","warn");return;}
-        individualAbsences=normalizeIndividualAbsences([...individualAbsences.filter(x=>x.date!==d),{date:d,studentIds:ids}]);
+        const keepGroupDuration=$("keepGroupDuration").checked;
+        if(keepGroupDuration && selectedStudentRecords.size-ids.length!==1){
+          showAlert("60분 유지 예외는 출석 학생이 한 명인 회차에만 지정할 수 있습니다.","warn");return;
+        }
+        individualAbsences=normalizeIndividualAbsences([...individualAbsences.filter(x=>x.date!==d),
+          {date:d,studentIds:ids,keepGroupDuration}]);
       } else {
         if(individualAbsences.some(x=>x.date===d)){showAlert("해당 날짜에 개별 결석이 있습니다. '휴강·결석 전체 삭제' 후 다시 입력해 주세요.","warn");return;}
         upsertClosed(d, n);
       }
       $("closedDate").value = "";
+      $("keepGroupDuration").checked=false;
 
       if($("studentLocation").value === "OVERSEAS"){
         $("closedNamePreset").value = "한국 공휴일";
@@ -3028,6 +3189,7 @@ Affinity Universe
     $("clearClosed").addEventListener("click", ()=>{
       closedList = [];
       individualAbsences = [];
+      $("keepGroupDuration").checked=false;
       selectedFetchedHolidayDates.clear();
       renderHolidayList();
       renderClosedPreview();
@@ -3165,7 +3327,9 @@ Affinity Universe
       if(lastGeneratedFingerprint !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
       $("approveFeedback").replaceChildren();
       refreshRegistrationPreview();
-      showAlert("문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
+      showAlert($("classType").value==="GROUP"
+        ? "문구를 생성했습니다. [현재 학생 안내문 저장]을 눌러 저장한 뒤 다음 학생을 선택하세요."
+        : "문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
     });
 
     $("mondayTeacher").addEventListener("change",()=>{
@@ -3198,8 +3362,9 @@ Affinity Universe
     });
     $("noticeRecipient").addEventListener("change",()=>{
       $("approveFeedback").replaceChildren();
-      refreshRegistrationPreview();
+      chooseNoticeRecipient();
     });
+    $("saveStudentNotice").addEventListener("click",saveStudentNotice);
     $("output").addEventListener("input",()=>{ $("approveFeedback").replaceChildren(); });
     $("approve").addEventListener("click",async()=>{
       const feedback = $("approveFeedback");
@@ -3211,11 +3376,22 @@ Affinity Universe
       const plan = buildRegistrationPlan();
       if(plan.ok&&subMemos.some(x=>!plan.items.some(i=>i.date===x.date))){feedback.textContent="날짜별 MEMO의 날짜가 수업 일정에 없습니다.";return;}
       if(!plan.ok){ feedback.textContent=plan.error; return; }
-      const res = buildMessage();
+      const res=$("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value)
+        ? {ok:true,text:combinedStudentNoticeText()} : buildMessage();
       if(!res.ok){ feedback.textContent=res.error; return; }
-      if(!$("output").value.trim() || lastGeneratedFingerprint !== registrationFingerprint()){
+      const isBatch=$("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value);
+      if(!isBatch && (!$("output").value.trim() || lastGeneratedFingerprint !== registrationFingerprint())){
         feedback.textContent = "입력값이 바뀌었거나 안내 문구를 생성하지 않았습니다. 먼저 [최종 문구 생성]을 다시 눌러 주세요.";
         return;
+      }
+      if(isBatch){
+        const signature=commonNoticeFingerprint();
+        const missing=[...selectedStudentRecords].filter(([id])=>stagedStudentNotices.get(id)?.signature!==signature);
+        if(missing.length){
+          feedback.textContent="그룹 학생 전원의 안내문을 동일한 일정 기준으로 저장해 주세요: "+missing.map(([,name])=>name).join(", ");
+          renderStagedNotices();
+          return;
+        }
       }
       if(approvedFingerprint === registrationFingerprint()){
         feedback.textContent = "현재 입력값은 이미 승인되었습니다. 중복 등록을 막기 위해 같은 내용을 다시 전송하지 않습니다.";
@@ -3267,7 +3443,12 @@ Affinity Universe
           closures:getEffectiveClosedList(),
           absences:normalizeIndividualAbsences(individualAbsences),
           schedule:plan.items,
-          message:$("output").value,
+          studentNotices:($("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value))
+            ? [...selectedStudentRecords].map(([id,name])=>({
+                studentId:Number(id),name,message:stagedStudentNotices.get(id)?.message||""
+              })) : undefined,
+          message:($("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value))
+            ? combinedStudentNoticeText() : $("output").value,
         });
         approvedFingerprint = approvalFingerprint;
         feedback.classList.add("ok");
@@ -3294,6 +3475,7 @@ Affinity Universe
       $("templateType").value = "";
       $("studentName").value = "";
       $("noticeRecipient").value = "";
+      $("keepGroupDuration").checked=false;
       $("classType").value = "ONE_ON_ONE";
       $("siblingType").value = "BROTHER";
       $("discord").value = "해당없음";
@@ -3335,6 +3517,7 @@ Affinity Universe
       $("studentResults").replaceChildren();
       fillTeacherOptions();
       selectedStudentRecords.clear();
+      stagedStudentNotices.clear();
       displaySelectedStudents();
       $("mondayItemName").value = "";
       mondayNameWasEdited = false;

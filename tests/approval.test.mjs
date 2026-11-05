@@ -119,6 +119,11 @@ test('secure Monday approval flow and deduplication',async()=>{
  resp=await worker.fetch(request('/api/approve',token,{...inputs,approvalId:'different-click-id'}),env,{});
  assert.equal(resp.status,409,'Duplicate must be rejected even with fresh client approvalId');
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,1,'No second parent created');
+ resp=await worker.fetch(request('/api/approve',token,{...inputs,
+   approvalId:'new-message-version',message:inputs.message+'edited message',
+   subMemo:'edited memo'}),env,{});
+ assert.equal(resp.status,409,'Edited notes cannot create a duplicate cohort');
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,1);
  resp=await worker.fetch(request('/api/approve',token,{...inputs,teacherId:14500999}),env,{});
  assert.equal(resp.status,400,'Non-roster instructor cannot write to Infohub');
  resp=await worker.fetch(request('/api/approve',token,{...inputs,weekday:'일'}),env,{});
@@ -140,6 +145,9 @@ test('GROUP full closure and individual absence write into distinct subitem fiel
  studentIds:[14500123,14500124,14500125],teacherId:62107534,
  closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],
  absences:[{date:'2026-11-16',studentIds:[14500124]}],
+ studentNotices:[14500123,14500124,14500125].map(id=>({
+   studentId:id,name:`Demo Student ${id}`,message:'Affinity Universe: TEST '+id+'\n[학습 과정]\n[BRANDING] PERSONAL COURSE'
+ })),
  schedule:[
  {date:'2026-11-02',kind:'LESSON',name:'LESSON 01',absentStudentIds:[]},
  {date:'2026-11-09',kind:'CLOSED',name:'수강생 요청 휴강'},
@@ -316,4 +324,60 @@ test('Overseas DST selection must reach server; missing value fails before any b
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
  assert.match((await r.json()).error,/썸머타임/);
  globalThis.fetch=realFetch;
+});
+
+test('One attending GROUP student automatically converts to 40m, except explicitly keeping 60m',async()=>{
+  const base={
+    ...input(),itemName:'GROUP SINGLE ATTENDEE TEST',
+    messageType:'CLASS',classType:'GROUP',studentIds:[14500123,14500124],
+    closures:[],startDay:'2026-11-02',endDay:'2026-11-23',
+    absences:[{date:'2026-11-09',studentIds:[14500124]}],
+    schedule:[
+      {date:'2026-11-02',kind:'LESSON',name:'LESSON 01'},
+      {date:'2026-11-09',kind:'LESSON',name:'LESSON 02',absentStudentIds:[14500124]},
+      {date:'2026-11-16',kind:'LESSON',name:'LESSON 03'},
+      {date:'2026-11-23',kind:'LESSON',name:'LESSON 04'}
+    ],studentNotices:[14500123,14500124].map(id=>({
+      studentId:id,name:'Demo Student '+id,
+      message:'Affinity Universe: TEST '+id+'\n[학습 과정]\n[BRANDING] PERSONAL COURSE'
+    }))
+  };
+  const a=derivePlan(base);
+  assert.equal(a.schedule[1].durationMinutes,40);
+  assert.equal(a.schedule[0].durationMinutes,60);
+  const b=derivePlan({...base,absences:[{date:'2026-11-09',studentIds:[14500124],keepGroupDuration:true}]});
+  assert.equal(b.schedule[1].durationMinutes,60);
+  assert.equal(b.schedule[1].keepGroupDuration,true);
+  const three=derivePlan({...base,studentIds:[14500123,14500124,14500125],
+    absences:[{date:'2026-11-09',studentIds:[14500124,14500125]}],
+    schedule:base.schedule.map(row=>row.date==='2026-11-09'?{...row,absentStudentIds:[14500124,14500125]}:row)});
+  assert.equal(three.schedule[1].durationMinutes,40);
+  const twoOfThree=derivePlan({...base,studentIds:[14500123,14500124,14500125]});
+  assert.equal(twoOfThree.schedule[1].durationMinutes,60);
+  assert.throws(()=>derivePlan({...base,absences:[{date:'2026-11-09',studentIds:[14500124],keepGroupDuration:'yes'}]}),/옵션/);
+
+  await mockServices();
+  const token=await jwt();
+  currentRequests=[];
+  const response=await worker.fetch(request('/api/approve',token,base),env,{});
+  assert.equal(response.status,200,await response.clone().text());
+  const sub=currentRequests.filter(x=>x.query.includes('create_subitem('));
+  const second=JSON.parse(sub.find(x=>x.variables.name==='LESSON 02').variables.values);
+  assert.equal(second[COL.subMinutes].label,'40m');
+  assert.equal(second[COL.subAttendance],'1');
+  assert.match(second[COL.subMemo],/1:1 40분 자동 전환/);
+  const updates=currentRequests.filter(x=>x.query.includes('create_update('));
+  assert.equal(updates.length,1,'exactly one combined Monday bubble');
+  assert.match(updates[0].variables.body,/학생별 안내 1/);
+  assert.match(updates[0].variables.body,/학생별 안내 2/);
+  assert.match(updates[0].variables.body,/Demo Student 14500123/);
+  assert.match(updates[0].variables.body,/Demo Student 14500124/);
+
+  currentRequests=[];
+  const incomplete={...base,itemName:'GROUP INCOMPLETE NOTICES TEST',
+    studentNotices:[base.studentNotices[0]]};
+  const failed=await worker.fetch(request('/api/approve',token,incomplete),env,{});
+  assert.equal(failed.status,400);
+  assert.equal(currentRequests.some(x=>x.query.includes('create_item(')),false,
+    'incomplete group notices must fail before any Monday item is created');
 });
