@@ -277,17 +277,19 @@ export function derivePlan(input) {
     throw new Error(`입력 회차(${input.explicitLessonCount})와 실제 회차(${lessonNo})가 다릅니다.`);
   }
   if (Number(input.lessonCount)!==lessonNo) throw new Error('프론트엔드의 수업 회차 계산과 서버 결과가 다릅니다.');
-  const client = Array.isArray(input.schedule) ? input.schedule.map(({date,kind,name,absentStudentIds,keepGroupDuration,durationMinutes})=>({
-    date,kind,name,absentStudentIds:Array.isArray(absentStudentIds)?absentStudentIds.map(Number).sort((a,b)=>a-b):[],
-    keepGroupDuration:Boolean(keepGroupDuration),
-    durationMinutes:durationMinutes==null?null:Number(durationMinutes)
-  })) : [];
-  const server = schedule.map(({date,kind,name,absentStudentIds,keepGroupDuration,durationMinutes})=>({
-    date,kind,name,absentStudentIds:absentStudentIds||[],
-    keepGroupDuration:Boolean(keepGroupDuration),
-    durationMinutes:durationMinutes==null?null:Number(durationMinutes)
-  }));
-  if(JSON.stringify(client)!==JSON.stringify(server)) throw new Error('승인 일정이 서버 검증 결과와 다릅니다. 문구를 다시 생성해 주세요.');
+  const client=Array.isArray(input.schedule)?input.schedule:[];
+  const canonical=row=>({date:row.date,kind:row.kind,name:row.name,
+    absentStudentIds:Array.isArray(row.absentStudentIds)?row.absentStudentIds.map(Number).sort((a,b)=>a-b):[]});
+  if(JSON.stringify(client.map(canonical))!==JSON.stringify(schedule.map(canonical)))
+    throw new Error('승인 일정이 서버 검증 결과와 다릅니다. 문구를 다시 생성해 주세요.');
+  // The server owns computed duration and exception policy. If supplied by the
+  // client, the optional hints must agree rather than overriding this decision.
+  for(let i=0;i<client.length;i++){
+    if(client[i].durationMinutes!=null && Number(client[i].durationMinutes)!==schedule[i].durationMinutes)
+      throw new Error('수업 시간 계산 결과가 다릅니다. 최신 문구를 다시 생성해 주세요.');
+    if(client[i].keepGroupDuration!=null && Boolean(client[i].keepGroupDuration)!==Boolean(schedule[i].keepGroupDuration))
+      throw new Error('60분 유지 예외 설정이 서버 결과와 다릅니다.');
+  }
   return {groupId,schedule,lessonCount:lessonNo,holidayCount:schedule.length-lessonNo,
     classTypeByDay,absenceLessons:schedule.filter(row=>row.absentStudentIds?.length).length};
 }
