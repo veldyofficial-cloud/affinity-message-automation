@@ -89,7 +89,7 @@ test('Regular and trial bubbles show Korean learning-course name without changin
   const app=harness({type});
   const m=app.buildMessage();
   assert.equal(m.ok,true,m.error);
-  assert.match(m.text,/\[학습 과정\]\n아트북 디자인 LV\.4\nhttps:\/\/affinityuniverse\.com\/Upper-intermediate/);
+  assert.match(m.text,/\[학습 과정\]\n아트북 디자인 Lv\.4\nhttps:\/\/affinityuniverse\.com\/Upper-intermediate/);
   assert.doesNotMatch(m.text,/\[학습 과정\]\n\[ART BOOK DESIGN\] LV\.4/);
   assert.deepEqual(Object.keys(app.english).filter(k=>!app.ko[k]),[]);
  }
@@ -150,10 +150,10 @@ test('Every selectable curriculum uses the exact same Korean text in the notice'
   assert.ok(keys.includes(code),'existing affinity / vibe selection must remain');
  }
  const video=app.groups.find(group=>group.group==='영상/모션').items;
- assert.deepEqual(video.slice(0,3),[
+ assert.deepEqual(Array.from(video.slice(0,3)),[
   '[VIDEO] EDITOR','[VIDEO] CREATOR','[MOTION] GRAPHICS'
  ]);
- assert.deepEqual(video.slice(3),[
+ assert.deepEqual(Array.from(video.slice(3)),[
   '[MOTION] BOOK ANIMATION','[MOTION] PORTFOLIO','[MOTION] CAVALRY'
  ]);
  assert.equal(app.english['[VIDEO] EDITOR'],'VideoEditor');
