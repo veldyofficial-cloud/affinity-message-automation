@@ -2448,6 +2448,11 @@ Step 4. 사진 구성
       ? buildClosedScheduleBlockWithTimes(effectiveClosedList,studentLocation,tz,parsed,extraTimes)
       : buildClosedScheduleBlock(effectiveClosedList,studentLocation,tz,parsed);
 
+    const absenceBlock=buildRecipientAbsenceBlock({
+      startDay,endDay,studentLocation,tz,primary:parsed,extraTimes
+    });
+    if(!absenceBlock.ok)return {ok:false,error:absenceBlock.error};
+
     const periodRangeText = weekdays.length>1 && studentLocation==="OVERSEAS"
       ? formatPeriodRangeUsingSlots(displayStartISO,displayEndISO,tz,parsed,extraTimes)
       : formatPeriodRange(displayStartISO, displayEndISO, tz, parsed);
@@ -2483,6 +2488,7 @@ ${scheduleTitle}
 ${closedBlock ? `
 ${closedBlock}` : ""}${timeLine ? `
 ${timeLine}` : ""}
+${absenceBlock.text ? "\n"+absenceBlock.text : ""}
 [학습 과정]
 ${learningProcessText}
 ${learningLinkText}
@@ -2554,12 +2560,12 @@ Affinity Universe
   ];
 
   function registrationFingerprint(){
-    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "classType", "templateType",
+    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "noticeRecipient", "classType", "templateType",
       "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "classType2", "dstMode2",
       "weekday3", "amPm3", "korTime3", "classType3", "dstMode3", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
       "curriculumSelect", "curriculumUrl", "customCourseName"];
-    return JSON.stringify({fields:ids.map(id => [id, $(id).value]), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
+    return JSON.stringify({fields:ids.map(id => [id, $(id).value]), selectedStudentIds:[...selectedStudentRecords.keys()].sort(), activeExtras:activeWeeklyExtras, closed:getEffectiveClosedList(),
       individualAbsences:normalizeIndividualAbsences(individualAbsences)});
   }
 
@@ -2677,6 +2683,22 @@ Affinity Universe
   }
 
   function displaySelectedStudents(){
+    const select=$("noticeRecipient");
+    if(select && typeof select.replaceChildren==="function"){
+      const previous=select.value;
+      select.replaceChildren();
+      const first=document.createElement("option");
+      first.value="";
+      first.textContent="학생 이름으로 자동 매칭";
+      select.appendChild(first);
+      for(const [id,name] of selectedStudentRecords){
+        const option=document.createElement("option");
+        option.value=id;
+        option.textContent=name;
+        select.appendChild(option);
+      }
+      if(previous && selectedStudentRecords.has(previous))select.value=previous;
+    }
     $("selectedStudents").textContent = selectedStudentRecords.size
       ? `연결 대상 ${selectedStudentRecords.size}명: ${Array.from(selectedStudentRecords.values()).join(", ")}`
       : "연결할 학생을 선택해 주세요.";
@@ -3173,6 +3195,10 @@ Affinity Universe
     $("studentSearchQuery").addEventListener("keydown",e=>{
       if(e.key==="Enter"){e.preventDefault();$("studentSearch").click();}
     });
+    $("noticeRecipient").addEventListener("change",()=>{
+      $("approveFeedback").replaceChildren();
+      refreshRegistrationPreview();
+    });
     $("output").addEventListener("input",()=>{ $("approveFeedback").replaceChildren(); });
     $("approve").addEventListener("click",async()=>{
       const feedback = $("approveFeedback");
@@ -3266,6 +3292,7 @@ Affinity Universe
       $("messageType").value = "CLASS";
       $("templateType").value = "";
       $("studentName").value = "";
+      $("noticeRecipient").value = "";
       $("classType").value = "ONE_ON_ONE";
       $("siblingType").value = "BROTHER";
       $("discord").value = "해당없음";
