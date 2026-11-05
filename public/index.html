@@ -1287,9 +1287,9 @@
     const endYear=end.getUTCFullYear();
     const fmt=d=>String(d.getUTCMonth()+1).padStart(2,"0")+". "
       +String(d.getUTCDate()).padStart(2,"0");
-    // When the class crosses a year boundary, show the two-digit year on
-    // the ending date so '02. 14' is not mistaken for the start year.
-    const endPrefix=startYear===endYear?"":String(endYear%100).padStart(2,"0")+". ";
+    // When the class crosses a year boundary, print the full four-digit
+    // ending year, e.g. 2026. 11. 04 - 2027. 04. 05.
+    const endPrefix=startYear===endYear?"":String(endYear)+". ";
     return startYear+". "+fmt(start)+" - "+endPrefix+fmt(end);
   }
 
