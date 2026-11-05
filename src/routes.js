@@ -194,7 +194,9 @@ export async function approve(request, env, email) {
         ? '수업 시간: '+String(sessionTime.hh).padStart(2,'0')+':'+String(sessionTime.mm).padStart(2,'0')+' (한국시간)'
         : '';
       const writtenMemo=memoByDate.get(row.date)||p.subMemo.trim();
-      const mergedMemo=[writtenMemo,kstNote,sessionTypeNote,attendanceNote].filter(Boolean).join('\n');
+      const holidayReasonNote=row.kind==='CLOSED' && row.name==='공휴일 휴강'
+        ? '공휴일 사유: '+String(row.reason||'한국 공휴일') : '';
+      const mergedMemo=[writtenMemo,kstNote,sessionTypeNote,attendanceNote,holidayReasonNote].filter(Boolean).join('\n');
       if(mergedMemo.length>1500) throw new Error('수업 시간 포함 하위아이템 메모가 1500자를 초과합니다.');
       const columns={
         [COL.subDate]:{date:row.date},
