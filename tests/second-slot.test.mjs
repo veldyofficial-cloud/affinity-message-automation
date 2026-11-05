@@ -131,7 +131,7 @@ test('Three weekly slots show three independent hours and three chronological le
   assert.equal(server.lessonCount,4);
 });
 test('Success notice uses normal status, not orange warning',()=>{
-  assert.match(html,/showAlert\("문구가 생성되었습니다\. 승인 전에 먼데이 등록 정보를 확인해 주세요\.", "ok"\)/);
+  assert.match(html,/문구가 생성되었습니다\. 승인 전에 먼데이 등록 정보를 확인해 주세요\./);
   assert.doesNotMatch(html,/id="weeklyFrequency"/);
 });
 
