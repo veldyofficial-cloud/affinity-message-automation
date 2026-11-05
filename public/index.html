@@ -745,8 +745,8 @@
     "[AFFINITY] DESIGNER":"AffinityDesigner",
     "[AFFINITY] PHOTO":"AffinityPhoto",
     "[AFFINITY] MASTER":"AffinityMaster",
-    "[VIDEO] BASIC":"VideoBasic",
-    "[VIDEO] PRO":"VideoPro",
+    "[VIDEO] EDITOR":"VideoEditor",
+    "[VIDEO] CREATOR":"VideoCreator",
     "[MOTION] GRAPHICS":"Motiongraphics",
     "[MOTION] BOOK ANIMATION":"BookAnimation",
     "[MOTION] PORTFOLIO":"Motionfolio",
@@ -792,8 +792,8 @@
     "[AFFINITY] DESIGNER": "어피니티 디자이너",
     "[AFFINITY] PHOTO": "어피니티 포토",
     "[AFFINITY] MASTER": "어피니티 마스터",
-    "[VIDEO] BASIC": "비디오 베이직",
-    "[VIDEO] PRO": "비디오 프로",
+    "[VIDEO] EDITOR": "비디오 에디터",
+    "[VIDEO] CREATOR": "비디오 크리에이터",
     "[MOTION] GRAPHICS": "모션 그래픽스",
     "[MOTION] BOOK ANIMATION": "북 애니메이션",
     "[MOTION] PORTFOLIO": "모션 포트폴리오",
@@ -818,15 +818,63 @@
   });
   function curriculumForNotice(code) {return CURRICULUM_KO_LABELS[code]||code;}
   const CURRICULUM_GROUPS = [
-    { group:"Picture Book / Art Book", items:["[ART BOOK DESIGN] LV.1","[ART BOOK DESIGN] LV.2","[ART BOOK DESIGN] LV.3","[ART BOOK DESIGN] LV.4","[ART BOOK DESIGN] LV.5","[PICTURE BOOK] FOUNDATION","[PICTURE BOOK] DIPLOMA","[PICTURE BOOK] EDITOR"] },
-    { group:"Digital Drawing / Animation", items:["[DRAWING] BASIC","[DRAWING] PRO","[DRAWING] BOOK","[DRAWING] LANDSCAPE","[ANIMATION] BASIC","[ANIMATION] PRO","[DRAWING] FIGURE"] },
-    { group:"Character / IP", items:["[CHARACTER IP] GOODS DESIGN","[CHARACTER IP] EMOTICON DESIGN"] },
-    { group:"Video / Motion", items:["[VIDEO] BASIC","[VIDEO] PRO", "[MOTION] GRAPHICS","[MOTION] BOOK ANIMATION","[MOTION] PORTFOLIO","[MOTION] CAVALRY"] },
-    { group:"Code Design", items:["[VIBE] BASIC","[SCRATCH] BASIC","[SCRATCH] PRO","[CODE] PLAY BOOK","[HTML] BEGINNER","[HTML] BASIC","[HTML] PRO","[JAVASCRIPT] BASIC","[JAVASCRIPT] PRO"] },
-    { group:"Message Design", items:["[MESSAGE DESIGN] STORY CRAFTING","[MESSAGE DESIGN] ART ESSAY","[MESSAGE DESIGN] IDENTITY BOOK","[MESSAGE DESIGN] PUBLISHING"] },
-    { group:"Web Design / Branding / Marketing", items:["[WEB DESIGN] PRO MASTER","[WEB DESIGN] PROFILE","[MARKETING] MANAGEMENT","[BRANDING] PERSONAL COURSE"] },
-    { group:"Other", items:["[AFFINITY] DESIGNER","[AFFINITY] PHOTO","[AFFINITY] MASTER"] },
+    { group:"그림책/어피니티 디자인", items:["[ART BOOK DESIGN] LV.1","[ART BOOK DESIGN] LV.2","[ART BOOK DESIGN] LV.3","[ART BOOK DESIGN] LV.4","[ART BOOK DESIGN] LV.5","[PICTURE BOOK] FOUNDATION","[PICTURE BOOK] DIPLOMA","[PICTURE BOOK] EDITOR"] },
+    { group:"디지털 드로잉", items:["[DRAWING] BASIC","[DRAWING] PRO","[DRAWING] BOOK","[DRAWING] LANDSCAPE","[ANIMATION] BASIC","[ANIMATION] PRO","[DRAWING] FIGURE"] },
+    { group:"캐릭터/IP", items:["[CHARACTER IP] GOODS DESIGN","[CHARACTER IP] EMOTICON DESIGN"] },
+    { group:"영상/모션", items:["[VIDEO] EDITOR","[MOTION] GRAPHICS","[MOTION] BOOK ANIMATION","[MOTION] PORTFOLIO","[VIDEO] CREATOR","[MOTION] CAVALRY"] },
+    { group:"코드 디자인", items:["[VIBE] BASIC","[SCRATCH] BASIC","[SCRATCH] PRO","[CODE] PLAY BOOK","[HTML] BEGINNER","[HTML] BASIC","[HTML] PRO","[JAVASCRIPT] BASIC","[JAVASCRIPT] PRO"] },
+    { group:"메시지 디자인", items:["[MESSAGE DESIGN] STORY CRAFTING","[MESSAGE DESIGN] ART ESSAY","[MESSAGE DESIGN] IDENTITY BOOK","[MESSAGE DESIGN] PUBLISHING"] },
+    { group:"웹 프로듀서", items:["[WEB DESIGN] PRO MASTER","[WEB DESIGN] PROFILE","[MARKETING] MANAGEMENT","[BRANDING] PERSONAL COURSE"] },
+    { group:"기타", items:["[AFFINITY] DESIGNER","[AFFINITY] PHOTO","[AFFINITY] MASTER"] },
   ];
+
+  // Menu labels reflect the approved screenshot; canonical codes and existing
+  // Korean wording in already-issued notices remain separate from menu display.
+  const CURRICULUM_MENU_LABELS = Object.freeze({
+    "[ART BOOK DESIGN] LV.1":"아트북 디자인 Lv.1",
+    "[ART BOOK DESIGN] LV.2":"아트북 디자인 Lv.2",
+    "[ART BOOK DESIGN] LV.3":"아트북 디자인 Lv.3",
+    "[ART BOOK DESIGN] LV.4":"아트북 디자인 Lv.4",
+    "[ART BOOK DESIGN] LV.5":"아트북 디자인 Lv.5",
+    "[PICTURE BOOK] FOUNDATION":"파운데이션",
+    "[PICTURE BOOK] DIPLOMA":"디플로마",
+    "[PICTURE BOOK] EDITOR":"에디터",
+    "[DRAWING] BASIC":"디지털 드로잉 BASIC",
+    "[DRAWING] PRO":"디지털 드로잉 PRO",
+    "[DRAWING] BOOK":"디지털 드로잉 북",
+    "[DRAWING] LANDSCAPE":"풍경화 디지털 드로잉",
+    "[ANIMATION] BASIC":"애니메이션 BASIC",
+    "[ANIMATION] PRO":"애니메이션 PRO",
+    "[DRAWING] FIGURE":"피규어 드로잉",
+    "[CHARACTER IP] GOODS DESIGN":"굿즈 디자인",
+    "[CHARACTER IP] EMOTICON DESIGN":"이모티콘 디자인",
+    "[VIDEO] EDITOR":"비디오 EDITOR",
+    "[MOTION] GRAPHICS":"모션 그래픽",
+    "[MOTION] BOOK ANIMATION":"북 애니메이션",
+    "[MOTION] PORTFOLIO":"모션폴리오",
+    "[VIDEO] CREATOR":"비디오 크리에이터",
+    "[MOTION] CAVALRY":"캐벌리",
+    "[SCRATCH] BASIC":"스크래치 BASIC",
+    "[SCRATCH] PRO":"스크래치 PRO",
+    "[CODE] PLAY BOOK":"플레이 북",
+    "[HTML] BEGINNER":"HTML BEGINNER",
+    "[HTML] BASIC":"HTML BASIC",
+    "[HTML] PRO":"HTML PRO",
+    "[JAVASCRIPT] BASIC":"자바스크립트 BASIC",
+    "[JAVASCRIPT] PRO":"자바스크립트 PRO",
+    "[MESSAGE DESIGN] STORY CRAFTING":"스토리 크래프팅",
+    "[MESSAGE DESIGN] ART ESSAY":"아트 에세이",
+    "[MESSAGE DESIGN] IDENTITY BOOK":"아이덴티티 북",
+    "[MESSAGE DESIGN] PUBLISHING":"퍼블리싱",
+    "[WEB DESIGN] PRO MASTER":"웹 프로 마스터",
+    "[WEB DESIGN] PROFILE":"웹 프로필",
+    "[MARKETING] MANAGEMENT":"마케팅 매니지먼트",
+    "[BRANDING] PERSONAL COURSE":"1:1 브랜딩 코스",
+    "[AFFINITY] MASTER":"어피니티 마스터",
+    "[AFFINITY] DESIGNER":"어피니티 디자이너",
+    "[AFFINITY] PHOTO":"어피니티 포토",
+    "[VIBE] BASIC":"바이브코딩 베이직"
+  });
 
   const CUSTOM_COURSE_LABEL = "[CUSTOM] PERSONAL COURSE";
   const BRANDING_COURSE_LABEL = "[BRANDING] PERSONAL COURSE";
@@ -1749,7 +1797,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
 
     const optCustom = document.createElement("option");
     optCustom.value = CUSTOM_COURSE_LABEL;
-    optCustom.textContent = CUSTOM_COURSE_LABEL;
+    optCustom.textContent = "커스텀 코스(개별 맞춤)";
     sel.appendChild(optCustom);
 
     CURRICULUM_GROUPS.forEach(g=>{
@@ -1758,7 +1806,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
       g.items.forEach(name=>{
         const opt = document.createElement("option");
         opt.value = name;
-        opt.textContent = name;
+        opt.textContent = CURRICULUM_MENU_LABELS[name] || CURRICULUM_KO_LABELS[name] || name;
         og.appendChild(opt);
       });
       sel.appendChild(og);
@@ -1932,7 +1980,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function buildParticipationGuide(curriculumName, discord, deviceType){
-    const videoCourses = ["[VIDEO] BASIC","[VIDEO] PRO"];
+    const videoCourses = ["[VIDEO] EDITOR","[VIDEO] CREATOR"];
     const hasDiscord = discord && discord !== "해당없음";
     const isDrawingDeviceCourse = DRAWING_DEVICE_COURSES.includes(curriculumName);
 
@@ -2069,7 +2117,7 @@ Affinity Universe
   }
 
   function getAdditionalGuideText(curriculumName){
-    if(curriculumName === "[VIDEO] BASIC" || curriculumName === "[VIDEO] PRO"){
+    if(curriculumName === "[VIDEO] EDITOR" || curriculumName === "[VIDEO] CREATOR"){
       return `[CapCut 사전 안내]
 • Cap Cut Pro 구독 필수 (월 19,800원)
 
