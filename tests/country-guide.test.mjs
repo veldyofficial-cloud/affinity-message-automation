@@ -71,7 +71,7 @@ test('Later tablet courses share a single charging reminder across class, makeup
 });
 
 test('Picture book editor notice shows editor only while retaining Monday curriculum code', () => {
-  assert.match(html, /"\[PICTURE BOOK\] EDITOR": "에디터"/);
+  assert.match(html, /"\[PICTURE BOOK\] EDITOR"\s*:\s*"에디터"/);
   assert.match(html, /"\[PICTURE BOOK\] EDITOR":"Editor"/);
   assert.doesNotMatch(html, /"\[PICTURE BOOK\] EDITOR": "픽처북 에디터"/);
 });
