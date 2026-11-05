@@ -221,6 +221,9 @@
     .student-option input { width: 16px; height: 16px; accent-color: var(--blue); }
     .student-option span { overflow-wrap: anywhere; }
     .selected-students { color: var(--blue-dark); }
+    .notice-recipient-box { margin-bottom:15px; padding:13px; border:1px solid #d9e3f3; border-radius:10px; background:#f7f9fe; }
+    .notice-recipient-box select { margin-top:7px; }
+    .notice-recipient-box .note { margin-top:8px; color:#333; }
     .closure-choice { margin: 10px 0 15px; padding: 12px 14px; border: .75px solid #d9e3f3; border-radius: 9px; background: var(--blue-soft); }
     .closure-choice label { margin-bottom: 7px; }
     .absentee-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 0 2px; }
@@ -675,6 +678,12 @@
 
   <section class="card">
     <h2>최종 안내 문구</h2>
+    <div class="notice-recipient-box">
+      <label for="noticeRecipient">안내문 대상 학생 (그룹 · 개별 결석 반영)</label>
+      <select id="noticeRecipient"><option value="">학생 이름으로 자동 매칭</option></select>
+      <div class="note small">STUDENT DB에서 학생들을 연결하면 대상자를 선택할 수 있습니다. 해당 학생의 개별 결석만 안내문에 표시됩니다. 해외 학생은 그 학생의 국가·시간대를 설정해 주세요.</div>
+      <div class="note small">먼데이 승인 시 말풍선은 1개만 자동 등록됩니다. 다른 시간대 학생의 문구는 대상자와 시간대를 바꿔 생성·복사 후 기존 아이템에 수동 추가하세요. 같은 그룹을 다시 승인하지 마세요.</div>
+    </div>
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
     <div class="note">
       최종 안내 문구를 확인한 뒤 아래에서 먼데이 등록 대상을 선택하고 승인합니다.
@@ -2283,6 +2292,40 @@ Step 4. 사진 구성
       return line+(record.note?"\n"+record.note:"");
     });
     return header+"\n"+blocks.join("\n\n")+"\n";
+  }
+
+  function selectedNoticeRecipient(){
+    const explicit=String($("noticeRecipient").value||"");
+    if(explicit){
+      const name=selectedStudentRecords.get(explicit);
+      return name ? {id:Number(explicit),name} : null;
+    }
+    const name=$("studentName").value.trim();
+    const matches=[...selectedStudentRecords].filter(([id,fullName])=>fullName.trim()===name);
+    return matches.length===1 ? {id:Number(matches[0][0]),name:matches[0][1]} : null;
+  }
+
+  // Keep the GROUP lesson; only the named recipient's absence appears privately.
+  function buildRecipientAbsenceBlock({startDay,endDay,studentLocation,tz,primary,extraTimes}){
+    const rows=normalizeIndividualAbsences(individualAbsences)
+      .filter(row=>row.date>=startDay && row.date<=endDay);
+    if(!rows.length)return {ok:true,text:""};
+    const recipient=selectedNoticeRecipient();
+    if(!recipient)return {ok:false,error:"개별 결석이 등록되어 있습니다. STUDENT DB에서 수강생을 연결하고 안내문 대상 학생을 선택해 주세요."};
+    const applicable=rows.filter(row=>row.studentIds.includes(recipient.id));
+    if(!applicable.length)return {ok:true,text:""};
+    const formatted=applicable.map(row=>{
+      let displayDate=row.date;
+      if(studentLocation==="OVERSEAS" && tz){
+        const when=timeForScheduledDate(row.date,primary,extraTimes);
+        displayDate=getLocalISODate(makeKoreaZonedDate(row.date,when.hh,when.mm),tz);
+      }
+      const day=toDateUTC(displayDate);
+      const date=String(day.getUTCMonth()+1).padStart(2,"0")+". "
+        +String(day.getUTCDate()).padStart(2,"0");
+      return "- "+date+" ("+getWeekdayKoFromISO(displayDate)+", 개별 결석)";
+    });
+    return {ok:true,text:"• 개별 결석 일정 :\n"+formatted.join("\n")+"\n"};
   }
 
   function buildMessage(){
