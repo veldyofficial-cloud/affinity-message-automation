@@ -59,13 +59,14 @@ async function mockServices() {
     else if(q.includes('create_item(')){
       assert.equal(call.variables.boardId,String(BOARD_ID));
       const cols=JSON.parse(call.variables.values);
-      assert.ok(cols[COL.studentRelation].item_ids.includes(14500123));
+      if(cols[COL.studentRelation])assert.ok(cols[COL.studentRelation].item_ids.includes(14500123));
       assert.ok(isAllowedTeacher(cols[COL.teacher].personsAndTeams[0].id));
       data={create_item:{id:'999900000',url:'https://veldyofficials-team.monday.com/boards/1888467610/pulses/999900000'}};
     }else if(q.includes('create_subitem(')){
       const cols=JSON.parse(call.variables.values);
       assert.ok(cols[COL.subDate].date);
-      assert.ok(Number.isSafeInteger(Number(cols[COL.subAttendance])));
+      if(cols[COL.subAttendance]!==undefined)
+        assert.ok(Number.isSafeInteger(Number(cols[COL.subAttendance])));
       assert.ok(['40m','60m','휴강'].includes(cols[COL.subMinutes].label));
       data={create_subitem:{id:'999900001'}};
     }else if(q.includes('create_update(')){
@@ -559,5 +560,66 @@ test('MAKEUP and supplement titles require course + type + separator + lesson or
    }),env,{});
    assert.equal(rejected.status,400,'old format must be rejected before creating duplicate');
  }
+ globalThis.fetch=realFetch;
+});
+
+test('Unlinked new student requires explicit approval and creates no fake relation or attendance',async()=>{
+ await mockServices();
+ const token=await jwt();
+ const base={...input(),studentIds:[],studentName:'미등록 신규 수강생',
+  itemName:'[BRANDING] PERSONAL COURSE UNLINKED NEW STUDENT TEST'};
+ currentRequests=[];
+ let response=await worker.fetch(request('/api/approve',token,base),env,{});
+ assert.equal(response.status,400,'unlinked registration must not silently proceed');
+ assert.equal(currentRequests.some(x=>x.query.includes('create_item(')),false);
+ currentRequests=[];
+ response=await worker.fetch(request('/api/approve',token,{...base,allowUnlinkedStudent:true}),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const parent=JSON.parse(currentRequests.find(x=>x.query.includes('create_item(')).variables.values);
+ assert.equal(parent[COL.studentRelation],undefined);
+ assert.equal(parent[COL.email],undefined,'PC without student DB must not invent email');
+ assert.equal(parent[COL.duration].label,'40m');
+ const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ assert.equal(children.length,5);
+ for(const child of children){
+   assert.equal(JSON.parse(child.variables.values)[COL.subAttendance],undefined);
+ }
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_update(')).length,1);
+ globalThis.fetch=realFetch;
+});
+test('Unlinked GROUP uses direct notice with 60m and no fake member count',async()=>{
+ await mockServices();
+ const token=await jwt();
+ const base={...input(),studentIds:[],studentName:'그룹 신규 수강생',
+  itemName:'[BRANDING] PERSONAL COURSE UNLINKED GROUP TEST',
+  classType:'GROUP',allowUnlinkedStudent:true};
+ currentRequests=[];
+ const response=await worker.fetch(request('/api/approve',token,base),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const parent=JSON.parse(currentRequests.find(x=>x.query.includes('create_item(')).variables.values);
+ assert.equal(parent[COL.type].label,'G');
+ assert.equal(parent[COL.duration].label,'60m');
+ assert.equal(parent[COL.studentRelation],undefined);
+ const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ for(const child of children){
+   const columns=JSON.parse(child.variables.values);
+   assert.equal(columns[COL.subAttendance],undefined);
+   if(columns[COL.subMinutes].label!=='휴강')assert.equal(columns[COL.subMinutes].label,'60m');
+ }
+ globalThis.fetch=realFetch;
+});
+test('Unlinked registration rejects individual absence and missing student name',async()=>{
+ await mockServices();
+ const token=await jwt();
+ const base={...input(),studentIds:[],studentName:'',allowUnlinkedStudent:true,
+  itemName:'[BRANDING] PERSONAL COURSE UNLINKED BAD TEST'};
+ currentRequests=[];
+ const missing=await worker.fetch(request('/api/approve',token,base),env,{});
+ assert.equal(missing.status,400);
+ const bad={...base,studentName:'신규 학생',classType:'GROUP',
+   absences:[{date:'2026-11-16',studentIds:[14500123]}]};
+ const invalid=await worker.fetch(request('/api/approve',token,bad),env,{});
+ assert.equal(invalid.status,400);
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
  globalThis.fetch=realFetch;
 });
