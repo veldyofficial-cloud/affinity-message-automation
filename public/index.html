@@ -2972,6 +2972,15 @@ Affinity Universe
   function bind(){
     const rePreview = () => updateLocalPreview();
 
+    // The registration preview must re-validate when the time textbox is
+    // edited, not only when another form control changes or loses focus.
+    // Otherwise an old "time is empty" warning remains after entering 9.
+    for(const inputId of ["korTime", "korTime2", "korTime3"]){
+      for(const eventName of ["input", "change"]){
+        $(inputId).addEventListener(eventName, refreshRegistrationPreview);
+      }
+    }
+
      $("endDay").addEventListener("input", updateEndDateVisualState);
      $("endDay").addEventListener("change", updateEndDateVisualState);
      updateEndDateVisualState();
