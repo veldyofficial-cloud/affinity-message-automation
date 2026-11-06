@@ -275,6 +275,8 @@
     [hidden] { display:none !important; }
     .section-divider { margin:28px 0; height:1px; background:#cfdcf4; }
     .section-title { margin-top:0; }
+    .label-with-help { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
+    .label-with-help > label { margin:0; }
     .help-tip { display:inline-block; position:relative; vertical-align:middle; margin-left:5px; font-weight:400; z-index:2; }
     .help-tip > summary { display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px;
       border:1px solid #a8b7ce; border-radius:50%; font-size:12px; color:#6f819b; cursor:pointer; list-style:none; }
@@ -663,7 +665,7 @@
 
     <div class="row">
       <div>
-        <label>한국 공휴일 자동 적용 <details class="help-tip"><summary aria-label="공휴일 자동 적용 안내" title="공휴일 자동 적용 안내">ⓘ</summary><div class="help-popover">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></details></label>
+        <div class="label-with-help"><label>한국 공휴일 자동 적용</label><details class="help-tip"><summary aria-label="공휴일 자동 적용 안내" title="공휴일 자동 적용 안내">ⓘ</summary><div class="help-popover">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></details></div>
         <div class="inline">
           <button id="fetchHolidays" class="secondary" type="button" hidden>기간 내 공휴일 불러오기</button>
           <span class="pill"><span class="tag">API</span> Nager.Date (무료)</span>
@@ -747,7 +749,7 @@
 <select id="makeupLessonNumber"><option value="1">LESSON 01</option><option value="2">LESSON 02</option><option value="3">LESSON 03</option><option value="4">LESSON 04</option><option value="5">LESSON 05</option><option value="6">LESSON 06</option><option value="7">LESSON 07</option><option value="8">LESSON 08</option><option value="9">LESSON 09</option><option value="10">LESSON 10</option><option value="11">LESSON 11</option><option value="12">LESSON 12</option><option value="13">LESSON 13</option><option value="14">LESSON 14</option><option value="15">LESSON 15</option><option value="16">LESSON 16</option><option value="17">LESSON 17</option><option value="18">LESSON 18</option><option value="19">LESSON 19</option><option value="20">LESSON 20</option><option value="21">LESSON 21</option><option value="22">LESSON 22</option><option value="23">LESSON 23</option><option value="24">LESSON 24</option></select></div>
 <label for="subMemo">하위아이템 공통 MEMO (선택)</label>
 <textarea id="subMemo" style="height:90px;min-height:75px" placeholder="예: 개인 사정으로 보강 요청"></textarea>
-<label for="subMemos">날짜별 MEMO (선택) <details class="help-tip"><summary aria-label="날짜별 메모 안내" title="날짜별 메모 안내">ⓘ</summary><div class="help-popover">한 줄에 YYYY-MM-DD | 메모 형식으로 입력합니다. 날짜별 메모가 공통 메모보다 우선합니다. 그룹 학생은 상단 STUDENT DB에서 연결하며, 합반 합류 학생은 1명만 연결해도 그룹 아이템을 생성할 수 있습니다. 개별 결석 처리는 2명 이상 연결된 그룹에서 가능합니다.</div></details></label>
+<div class="label-with-help"><label for="subMemos">날짜별 MEMO (선택)</label><details class="help-tip"><summary aria-label="날짜별 메모 안내" title="날짜별 메모 안내">ⓘ</summary><div class="help-popover">한 줄에 YYYY-MM-DD | 메모 형식으로 입력합니다. 날짜별 메모가 공통 메모보다 우선합니다. 그룹 학생은 상단 STUDENT DB에서 연결하며, 합반 합류 학생은 1명만 연결해도 그룹 아이템을 생성할 수 있습니다. 개별 결석 처리는 2명 이상 연결된 그룹에서 가능합니다.</div></details></div>
 <textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
 
       <label for="mondayTeacher">담당 강사</label>
