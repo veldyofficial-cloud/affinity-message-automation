@@ -202,6 +202,21 @@ test('Mixed DST modes show slot-specific arrows, effective date, and time-change
   assert.match(notice.text,/🇺🇸 \(금\) 9 PM ➜ 8 PM \*11\. 06부터 적용 \/ 🇰🇷 \(토\) 1 PM \(그룹 1h\)/);
   assert.match(notice.text,/※ 서머타임 전환 시, 한국 시간 고정/);
   const plan=h.buildRegistrationPlan();
-  assert.equal(plan.ok,false);
-  assert.match(plan.error,/Infohub TIME/);
+  assert.equal(plan.ok,true,plan.error);
+  assert.equal(plan.items.find(row=>row.date==='2026-11-03').kstTime24.hh,14,
+    'Teacher adjusts KST after the US DST transition');
+});
+
+test('Overseas student time fixed option generates actual DST-shifted KST preview',()=>{
+ const h=harness({
+   weekday:'월',amPm:'오전',korTime:'10',
+   weekday2:'',amPm2:'',korTime2:'',
+   startDay:'2026-10-19',endDay:'2026-11-09',lessonCount:'4',
+   studentLocation:'OVERSEAS',tzSelect:'America/Los_Angeles',
+   countryInput:'미국',customFlag:'🇺🇸',dstMode:'TEACHER_CHANGE'
+ });
+ const plan=h.buildRegistrationPlan();
+ assert.equal(plan.ok,true,plan.error);
+ assert.deepEqual(Array.from(plan.items,entry=>entry.kstTime24.hh),[10,10,11,11]);
+ assert.equal(plan.items[2].kstTime24.mm,0);
 });

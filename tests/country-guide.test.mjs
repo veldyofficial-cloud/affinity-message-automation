@@ -75,3 +75,22 @@ test('Picture book editor notice shows editor only while retaining Monday curric
   assert.match(html, /"\[PICTURE BOOK\] EDITOR":"Editor"/);
   assert.doesNotMatch(html, /"\[PICTURE BOOK\] EDITOR": "픽처북 에디터"/);
 });
+
+test('US states are displayed in Korean alphabetical order without changing IANA mapping',()=>{
+ const usSource=section('  const US_STATES = [','  const AU_REGIONS = [');
+ const states=vm.runInNewContext(usSource+'\nUS_STATES',{Intl});
+ const options=[];
+ const sel={innerHTML:'',appendChild(opt){options.push(opt);}};
+ const nodeFactory=()=>({value:'',textContent:''});
+ const initSource=section('  function initUsStateSelect(){','  function initAuStateSelect(){');
+ const fn=vm.runInNewContext(initSource+'\ninitUsStateSelect',{
+  US_STATES:states,$:()=>sel,Intl,document:{createElement:nodeFactory}
+ });
+ fn();
+ const labels=options.slice(1).map(x=>x.textContent);
+ const sorted=[...labels].sort((a,b)=>a.localeCompare(b,'ko'));
+ assert.deepEqual(labels,sorted);
+ const california=options.find(x=>x.value==='California');
+ assert.match(california.textContent,/캘리포니아주/);
+ assert.equal(states.find(x=>x.name==='California').tzOptions[0],'America/Los_Angeles');
+});

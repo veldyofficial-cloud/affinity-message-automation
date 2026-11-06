@@ -530,7 +530,7 @@
           <option value="STUDENT_CHANGE">썸머타임 때 수강생 시간 변경 (한국 시간 고정)</option>
           <option value="TEACHER_CHANGE">썸머타임 때 강사만 바뀜</option>
         </select>
-        <div class="note small">수강생 시간 변경은 한국시간 고정으로 먼데이 DST 🇰🇷에 등록됩니다. 자동 설정은 기존 🌐 표기를 유지합니다.</div>
+        <div class="note small">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)으로 등록됩니다. 해외 시간 고정 시 먼데이 상위 TIME은 첫 수업 시간, 실제 회차별 한국시간은 하위 MEMO에 기록합니다.</div>
       </div>
     </div>
 
@@ -1145,9 +1145,9 @@
   }
 
   function getUtcOffsetMinutes(date, timeZone){
-    const fmt = new Intl.DateTimeFormat("en-US", {
+    const fmt = new Intl.DateTimeFormat("en-GB", {
       timeZone,
-      hour12: false,
+      hourCycle: "h23",
       year: "numeric", month: "2-digit", day: "2-digit",
       hour: "2-digit", minute: "2-digit"
     });
@@ -1811,7 +1811,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     first.textContent = "주 선택";
     sel.appendChild(first);
 
-    US_STATES.forEach(s=>{
+    US_STATES.slice().sort((a,b)=>a.ko.localeCompare(b.ko,"ko")).forEach(s=>{
       const opt = document.createElement("option");
       opt.value = s.name;
       opt.textContent = s.city ? `${s.ko}주 / ${s.city} (${s.name})` : `${s.ko}주 (${s.name})`;
@@ -2679,6 +2679,37 @@ Affinity Universe
     if(rows.length>32||new Set(rows.map(r=>r.date)).size!==rows.length)throw new Error("MEMO 날짜 중복 또는 개수 초과");
     return rows;
   }
+  // Calculate actual KST for each session while keeping the student's
+  // IANA-local clock fixed. Parent TIME remains the first session's KST.
+  function fixedStudentLocalKstTime(dateISO,anchorISO,baseTime,timeZone){
+    if(!timeZone)throw new Error("해외 시간 고정은 시간대 선택이 필요합니다.");
+    const nominal=makeKoreaZonedDate(dateISO,baseTime.hh,baseTime.mm);
+    const anchor=makeKoreaZonedDate(anchorISO,baseTime.hh,baseTime.mm);
+    const baseOffset=getUtcOffsetMinutes(anchor,timeZone);
+    let instant=nominal,stable=false;
+    for(let i=0;i<6;i++){
+      const offset=getUtcOffsetMinutes(instant,timeZone);
+      const next=new Date(nominal.getTime()-(offset-baseOffset)*60000);
+      if(next.getTime()===instant.getTime()){stable=true;break;}
+      instant=next;
+    }
+    if(!stable)throw new Error(dateISO+" 서머타임 전환 시각을 확인해 주세요.");
+    const shifted=new Date(instant.getTime()+9*3600000);
+    if(shifted.toISOString().slice(0,10)!==dateISO)
+      throw new Error(dateISO+" 해외 시간 고정으로 한국 수업 날짜가 바뀝니다. 해당 날짜를 개별 확인해 주세요.");
+    const fmt=(d)=>new Intl.DateTimeFormat("en-GB",{timeZone,year:"numeric",month:"2-digit",day:"2-digit",
+      hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(d);
+    const parts=d=>Object.fromEntries(fmt(d).map(x=>[x.type,x.value]));
+    const initial=parts(anchor),later=parts(instant);
+    if(initial.hour!==later.hour||initial.minute!==later.minute)
+      throw new Error(dateISO+" 현지 수업 시간이 고정되지 않습니다.");
+    const originDays=Date.UTC(Number(initial.year),Number(initial.month)-1,Number(initial.day));
+    const finalDays=Date.UTC(Number(later.year),Number(later.month)-1,Number(later.day));
+    if((finalDays-originDays)/86400000!==(toDateUTC(dateISO)-toDateUTC(anchorISO))/86400000)
+      throw new Error(dateISO+" 해외 현지 날짜가 예상과 다릅니다. 수업 요일을 확인해 주세요.");
+    return {hh:shifted.getUTCHours(),mm:shifted.getUTCMinutes()};
+  }
+
   function buildRegistrationPlan(){
     if (!["PC","IPAD","GALAXY"].includes($("templateType").value)) {
       return {ok:false,error:"상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요."};
@@ -2690,8 +2721,9 @@ Affinity Universe
     if(!extra.ready) return {ok:false,error:extra.error};
     const weekdays=configuredWeekdays();
     if($("studentLocation").value==="OVERSEAS" &&
-      ([$("dstMode").value,...extra.slots.map(slot=>slot.dstMode)].includes("TEACHER_CHANGE")))
-      return {ok:false,error:"강사 한국시간이 바뀌는 서머타임 방식은 Infohub TIME 한 칸으로 정확히 등록할 수 없습니다. 안내문만 생성하고 먼데이 등록은 별도로 확인해 주세요."};
+       ([$("dstMode").value,...extra.slots.map(slot=>slot.dstMode)].includes("TEACHER_CHANGE")) &&
+       !$("tzSelect").value)
+      return {ok:false,error:"해외 시간 고정은 수강생 시간대를 먼저 선택해야 합니다."};
     if(!WEEKDAY_GROUP_KO[weekday]) return {ok:false, error:"Infohub에는 일요일(SUN) 그룹이 없습니다. 해당 클래스의 그룹을 먼저 지정해야 합니다."};
     const startDay = $("startDay").value;
     let endDay = single?$("startDay").value:$("endDay").value;
@@ -2766,6 +2798,20 @@ Affinity Universe
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
     if(!kst) return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
+    const timeSlots=[{day:weekday,kst,mode:$("dstMode").value},...extra.slots.map(x=>({
+      day:x.weekday,kst:x.kst,mode:x.dstMode
+    }))];
+    if($("studentLocation").value==="OVERSEAS"){
+      for(const slot of timeSlots){
+        if(slot.mode!=="TEACHER_CHANGE")continue;
+        const anchor=items.find(x=>getWeekdayKoFromISO(x.date)===slot.day)?.date;
+        if(!anchor)return {ok:false,error:slot.day+"요일 수업이 기간에 없습니다."};
+        for(const row of items.filter(x=>getWeekdayKoFromISO(x.date)===slot.day)){
+          try{row.kstTime24=fixedStudentLocalKstTime(row.date,anchor,slot.kst,$("tzSelect").value);}
+          catch(e){return {ok:false,error:e.message};}
+        }
+      }
+    }
     const typeByDay={[weekday]:$("classType").value};
     for(const slot of extra.slots)typeByDay[slot.weekday]=slot.classType;
     if(individualAbsences.some(a=>typeByDay[getWeekdayKoFromISO(a.date)]!=="GROUP"))
@@ -2780,7 +2826,7 @@ Affinity Universe
     if(!r.ok){ $("registrationPreview").textContent = r.error; $("registrationPreview").classList.add("warn"); return; }
     $("registrationPreview").classList.remove("warn");
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
-      const slot=timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
+      const slot=i.kstTime24||timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
       const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
       const duration=i.durationMinutes || (kind==="GROUP"?60:40);
       return String(slot.hh).padStart(2,"0")+":"+String(slot.mm).padStart(2,"0")+" KST · "+(kind==="GROUP"&&duration===40?"1:1 전환 40m":kind==="GROUP"?"그룹 1h":"1:1 40m");
@@ -3376,6 +3422,7 @@ Affinity Universe
           classType:$("classType").value,
           templateType:$("templateType").value,
           studentLocation:$("studentLocation").value,
+          timeZone:$("studentLocation").value==="OVERSEAS"?$("tzSelect").value:null,
           dstMode:$("dstMode").value,
           weekday:plan.weekday,
           weekday2:plan.weeklyFrequency>=2?$("weekday2").value:"",

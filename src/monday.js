@@ -74,9 +74,66 @@ export function infohubDstLabel({studentLocation,dstMode}) {
   if(dstMode==='STUDENT_CHANGE') return '🇰🇷'; // KST fixed; student changes local time.
   if(dstMode==='AUTO') return '🌐';
   if(dstMode==null||dstMode==='') throw new Error('해외 수업의 썸머타임 고정 기준이 전달되지 않았습니다. 다시 선택해 주세요.');
-  if(dstMode==='TEACHER_CHANGE') throw new Error('해외 시간 고정은 먼데이 자동 등록을 지원하지 않습니다.');
+  if(dstMode==='TEACHER_CHANGE') return '🌐'; // Student local time fixed; KST changes.
   throw new Error('썸머타임 옵션이 올바르지 않습니다.');
 }
+// An overseas fixed-local-time class has a changing Korean instructor clock.
+// The parent TIME stores the first-session KST; each subitem MEMO stores its
+// individually calculated KST. Use IANA time zones (never fixed UTC offsets).
+function kstDateTimeAsUtc(dateISO, time) {
+  const [y,m,d]=dateISO.split('-').map(Number);
+  return new Date(Date.UTC(y,m-1,d,time.hh-9,time.mm));
+}
+function zonedFields(instant, timeZone){
+  const parts=new Intl.DateTimeFormat('en-GB',{
+    timeZone,year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+  }).formatToParts(instant);
+  const v=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+  return {year:Number(v.year),month:Number(v.month),day:Number(v.day),
+    hour:Number(v.hour),minute:Number(v.minute)};
+}
+function zoneOffsetMinutes(instant,timeZone){
+  const p=zonedFields(instant,timeZone);
+  return Math.round((Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute)-instant.getTime())/60000);
+}
+export function fixedLocalKstTime(dateISO, anchorISO, baseTime, timeZone){
+  if(!timeZone||typeof timeZone!=='string'||timeZone.length>100)
+    throw new Error('해외 시간 고정은 기준 시간대를 선택해야 합니다.');
+  let anchor,nominal;
+  try{
+    anchor=kstDateTimeAsUtc(anchorISO,baseTime);
+    nominal=kstDateTimeAsUtc(dateISO,baseTime);
+    // Will reject invalid IANA time zones.
+    zonedFields(anchor,timeZone);
+  }catch(_){throw new Error('해외 시간 고정 기준 시간대가 올바르지 않습니다.');}
+  const anchorOffset=zoneOffsetMinutes(anchor,timeZone);
+  let instant=nominal;
+  let stable=false;
+  for(let i=0;i<6;i++){
+    const atOffset=zoneOffsetMinutes(instant,timeZone);
+    const next=new Date(nominal.getTime()-(atOffset-anchorOffset)*60000);
+    if(next.getTime()===instant.getTime()){stable=true;break;}
+    instant=next;
+  }
+  if(!stable)throw new Error(dateISO+' 서머타임 전환 시각이 중복되거나 존재하지 않습니다. 해당 회차 시간을 확인해 주세요.');
+  const shiftedKst=new Date(instant.getTime()+9*3600000);
+  const kstDate=shiftedKst.toISOString().slice(0,10);
+  if(kstDate!==dateISO)
+    throw new Error(dateISO+' 해외 시간 고정으로 한국 수업 날짜가 '+kstDate+'로 바뀝니다. 먼데이 요일/수업 날짜를 개별 확인해 주세요.');
+  const a=zonedFields(anchor,timeZone);
+  const b=zonedFields(instant,timeZone);
+  if(a.hour!==b.hour||a.minute!==b.minute)
+    throw new Error(dateISO+' 현지 수업 시간을 고정할 수 없습니다. 서머타임 전환 시각을 확인해 주세요.');
+  const startLocal=Date.UTC(a.year,a.month-1,a.day);
+  const currentLocal=Date.UTC(b.year,b.month-1,b.day);
+  const expectedDays=(dateFromISO(dateISO)-dateFromISO(anchorISO))/86400000;
+  if((currentLocal-startLocal)/86400000!==expectedDays)
+    throw new Error(dateISO+' 해외 현지 날짜가 한국 회차와 일치하지 않습니다. 수업 날짜를 확인해 주세요.');
+  return {hh:shiftedKst.getUTCHours(),mm:shiftedKst.getUTCMinutes(),
+    shiftMinutes:(instant.getTime()-nominal.getTime())/60000};
+}
+
 // Canonical Korean-start-date label for every new Infohub parent item.
 export function infohubParentName(name,startDay){
   const d=dateFromISO(startDay);
@@ -183,9 +240,15 @@ export function derivePlan(input) {
   if (!['ONE_ON_ONE','GROUP'].includes(input.classType)) throw new Error('수업 유형이 올바르지 않습니다.');
   if (!['PC','IPAD','GALAXY'].includes(input.templateType)) throw new Error('상단 클래스 구분에서 PC / IPAD / GALAXY 중 하나를 선택해 주세요.');
   if (!['DOMESTIC','OVERSEAS'].includes(input.studentLocation)) throw new Error('국내/해외 설정 오류입니다.');
-  if (input.studentLocation==='OVERSEAS' &&
-      [input.dstMode,...extraSlots.slice(0,weeklyFrequency-1).map(x=>x.mode)].includes('TEACHER_CHANGE')) {
-    throw new Error('강사 한국시간이 바뀌는 DST 모드는 Infohub TIME 한 칸으로 정확히 표현할 수 없어 자동 등록을 막습니다.');
+  const slotSpecs=[{day:input.weekday,time:input.kstTime24,mode:input.dstMode},
+    ...extraSlots.slice(0,weeklyFrequency-1).map(x=>({day:x.day,time:x.time,mode:x.mode||input.dstMode}))];
+  const fixedLocalSlots=input.studentLocation==='OVERSEAS'
+    ? slotSpecs.filter(x=>x.mode==='TEACHER_CHANGE') : [];
+  if(fixedLocalSlots.length){
+    if(!input.timeZone||typeof input.timeZone!=='string'||input.timeZone.length>100)
+      throw new Error('해외 시간 고정 시 먼데이 등록 기준 시간대를 선택해 주세요.');
+    try{new Intl.DateTimeFormat('en-US',{timeZone:input.timeZone});}
+    catch(_){throw new Error('먼데이 등록 기준 시간대가 올바른 IANA 지역이 아닙니다.');}
   }
   if(single){
     if ((input.closures||[]).length || (input.absences||[]).length) {
@@ -274,6 +337,18 @@ export function derivePlan(input) {
     if(weeklyFrequency>1) while(!targetDays.has(cursor.getUTCDay())) cursor=addDays(cursor,1);
   }
   if (!schedule.length) throw new Error('수업 기간에 해당 요일이 없습니다.');
+  // Resolve time only after canonical lesson dates have been calculated.
+  // Every single lesson, holiday and recurring slot receives a validated KST.
+  const weekdays={'일':0,'월':1,'화':2,'수':3,'목':4,'금':5,'토':6};
+  for(const slot of slotSpecs){
+    const anchor=schedule.find(row=>dateFromISO(row.date).getUTCDay()===weekdays[slot.day]);
+    if(!anchor)throw new Error(slot.day+'요일 수업이 기간 안에 없습니다.');
+    for(const row of schedule.filter(row=>dateFromISO(row.date).getUTCDay()===weekdays[slot.day])){
+      row.kstTime24=fixedLocalSlots.includes(slot)
+        ? fixedLocalKstTime(row.date,anchor.date,slot.time,input.timeZone)
+        : {hh:slot.time.hh,mm:slot.time.mm,shiftMinutes:0};
+    }
+  }
   if(input.messageType==='TRIAL' && lessonNo!==4) throw new Error('트라이얼은 휴강을 제외한 정확히 4회차로 등록해야 합니다. 종강일을 확인해 주세요.');
   for(const date of absenceMap.keys()) {
     if(!schedule.some(row=>row.date===date && row.kind==='LESSON')) throw new Error(`개별 결석 ${date}의 수업 회차를 찾을 수 없습니다.`);
