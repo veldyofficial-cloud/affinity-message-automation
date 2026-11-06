@@ -271,6 +271,29 @@
     #alert:not(:empty) { padding: 10px 12px; border-radius: 9px; background: var(--blue-soft); }
     #alert.ok { background: #edf3ff; } #alert.warn { background: #fff7ed; border: 1px solid #fdba74; } #alert.bad { background: #fff7ed; border: 1px solid #fdba74; }
     #closedPreview { padding: 12px 14px; color: var(--text); background: var(--blue-soft); border: .75px solid var(--line); border-radius: 9px; font-size: 14px; line-height: 1.8; }
+    /* Compact, keyboard-accessible inline help and stronger section rhythm. */
+    [hidden] { display:none !important; }
+    .section-divider { margin:28px 0; height:1px; background:#cfdcf4; }
+    .section-title { margin-top:0; }
+    .help-tip { display:inline-block; position:relative; vertical-align:middle; margin-left:5px; font-weight:400; z-index:2; }
+    .help-tip > summary { display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px;
+      border:1px solid #a8b7ce; border-radius:50%; font-size:12px; color:#6f819b; cursor:pointer; list-style:none; }
+    .help-tip > summary::-webkit-details-marker { display:none; }
+    .help-tip[open] { z-index:30; }
+    .help-popover { position:absolute; left:0; top:24px; width:min(300px,75vw);
+      color:#66758d; font-size:12px; font-weight:400; line-height:1.65; background:#f6f8fc;
+      border:1px solid #dbe3ef; border-radius:9px; box-shadow:0 8px 20px rgba(30,50,80,.1);
+      padding:11px 13px; text-align:left; white-space:normal; }
+    .help-popover p { margin:5px 0 0; }
+    .folded-section { margin:0; border:1px solid var(--line); border-radius:12px; background:#fff; }
+    .folded-section > summary { display:flex; justify-content:space-between; align-items:center; gap:15px;
+      padding:17px 18px; color:var(--blue); font-size:18px; font-weight:700; cursor:pointer; }
+    .folded-section > summary::after { content:"⌄"; font-size:20px; color:var(--blue); }
+    .folded-section[open] > summary::after { content:"⌃"; }
+    .folded-content { padding:6px 18px 20px; border-top:1px solid var(--line); }
+    .section-count { font-size:12px; font-weight:500; color:#77849a; margin-left:auto; }
+    .registration-preview.pending { color:#62738f; background:#f7f9fe; border-color:#e0e8f5; }
+    #holidayAutoStatus { color:#5d6f8c; }
     @media (max-width: 1040px) {
       .grid { grid-template-columns: minmax(0,1fr); }
       .card:nth-child(2) { position: static; }
@@ -308,6 +331,20 @@
   <section class="card">
     <h2>입력</h2>
 
+    <div class="student-db-setup">
+      <h2>STUDENT DB · 그룹 학생 선택</h2>
+      <label for="studentSearchQuery">STUDENT DB 학생 검색</label>
+      <div class="lookup-row">
+        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
+        <button id="studentSearch" type="button" class="secondary">검색</button>
+      </div>
+      <div id="studentResults" class="student-results" aria-live="polite"></div>
+      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
+    </div>
+
+    <div class="divider section-divider"></div>
+    <h2 class="section-title">클래스 정보</h2>
+
     <div class="row">
       <div>
         <label for="messageType">메시지 종류</label>
@@ -317,7 +354,7 @@
           <option value="MAKEUP_30">보충</option>
           <option value="TRIAL">트라이얼</option>
         </select>
-        <div class="note small">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div>
+        <details class="help-tip"><summary aria-label="메시지 종류 안내" title="메시지 종류 안내">ⓘ</summary><div class="help-popover">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div></details>
       </div>
       <div>
         <label for="templateType">클래스 구분</label>
@@ -327,8 +364,7 @@
           <option value="IPAD">IPAD</option>
           <option value="GALAXY">GALAXY</option>
         </select>
-        <div id="mondayDevicePreview" class="note small" aria-live="polite">Infohub 기기: 선택 필요</div>
-        <div class="note small">선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 그대로 등록됩니다. 커리큘럼 변경 시에도 유지됩니다.</div>
+        <details class="help-tip"><summary aria-label="클래스 구분 안내" title="클래스 구분 안내">ⓘ</summary><div class="help-popover"><span id="mondayDevicePreview">Infohub 기기: 선택 필요</span><p>선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 등록됩니다. 커리큘럼을 변경해도 유지됩니다.</p></div></details>
       </div>
     </div>
 
@@ -346,16 +382,7 @@
       </div>
     </div>
 
-    <div class="student-db-setup">
-      <h2>1. STUDENT DB · 그룹 학생 선택</h2>
-      <label for="studentSearchQuery">STUDENT DB 학생 검색</label>
-      <div class="lookup-row">
-        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
-        <button id="studentSearch" type="button" class="secondary">검색</button>
-      </div>
-      <div id="studentResults" class="student-results" aria-live="polite"></div>
-      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
-    </div>
+
 
     <div class="row">
       <div>
@@ -365,7 +392,7 @@
           <option value="SISTER">형제</option>
         </select>
       </div>
-      <div>
+      <div id="discordField" hidden>
         <label for="discord">디스코드</label>
         <select id="discord">
           <option value="해당없음">해당없음</option>
@@ -387,14 +414,14 @@
         <label for="startDay">시작일 / 일정일(필수)</label>
         <input id="startDay" type="date" />
       </div>
-      <div>
+      <div id="endDayField">
         <label for="endDay">클래스 종료일(선택)</label>
         <input id="endDay" type="date" />
       </div>
     </div>
 
     <div class="row">
-      <div>
+      <div id="lessonCountField">
         <label for="lessonCount">수업 회차(종강일 미입력 시 필수)</label>
         <select id="lessonCount">
           <option value="">종강일 직접 입력 시 선택 안 함</option>
@@ -406,7 +433,7 @@
         </select>
         <div class="note small">종강일을 비우면 선택한 회차와 휴강일을 반영해 예상 종강일을 계산합니다.</div>
       </div>
-      <div>
+      <div id="expectedEndField">
         <label for="expectedEndPreview">예상 종강일 미리보기</label>
         <input id="expectedEndPreview" type="text" readonly placeholder="시작일·요일·회차 선택 시 자동 계산" />
       </div>
@@ -530,7 +557,7 @@
           <option value="STUDENT_CHANGE">썸머타임 때 수강생 시간 변경 (한국 시간 고정)</option>
           <option value="TEACHER_CHANGE">썸머타임 때 강사만 바뀜</option>
         </select>
-        <div class="note small">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)으로 등록됩니다. 해외 시간 고정 시 먼데이 상위 TIME은 기준 수업 시간이며, 한국시간이 달라지는 회차에만 하위 MEMO에 실제 시간을 기록합니다. 바뀌지 않는 회차의 메모는 비워둡니다.</div>
+        <details class="help-tip"><summary aria-label="서머타임 옵션 설명" title="서머타임 옵션 설명">ⓘ</summary><div class="help-popover">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)입니다. 상위 TIME은 기준 수업 시간이며, 실제 한국시간이 달라지는 회차에만 하위 MEMO에 기록합니다.</div></details>
       </div>
     </div>
 
@@ -595,15 +622,16 @@
       </div>
     </div>
 
-    <div class="divider"></div>
-
-    <h2 style="margin-top:0">휴강일(수동 + 자동 공휴일)</h2>
+    <div class="divider section-divider"></div>
+    <details class="folded-section" id="holidaySection">
+      <summary><span>휴강일</span><span id="holidaySummary" class="section-count">설정 보기</span></summary>
+      <div class="folded-content">
 
     <div class="row">
       <div>
         <label for="closedDate">휴강일 날짜(수동 추가 · 한국 날짜 기준)</label>
         <input id="closedDate" type="date" />
-        <div class="note small">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div>
+        <details class="help-tip"><summary aria-label="한국 기준 휴강 날짜 안내" title="한국 기준 휴강 날짜 안내">ⓘ</summary><div class="help-popover">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></details>
       </div>
       <div>
         <label for="closedNamePreset">휴일 명칭(프리셋)</label>
@@ -635,28 +663,30 @@
 
     <div class="row">
       <div>
-        <label>한국 공휴일 자동 불러오기</label>
+        <label>한국 공휴일 자동 적용 <details class="help-tip"><summary aria-label="공휴일 자동 적용 안내" title="공휴일 자동 적용 안내">ⓘ</summary><div class="help-popover">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></details></label>
         <div class="inline">
-          <button id="fetchHolidays" class="secondary" type="button">기간 내 공휴일 불러오기</button>
+          <button id="fetchHolidays" class="secondary" type="button" hidden>기간 내 공휴일 불러오기</button>
           <span class="pill"><span class="tag">API</span> Nager.Date (무료)</span>
         </div>
-        <div class="note small">
-          한국 수업 날짜 기준으로 현재 수업 기간과 정기 수업 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.
-        </div>
+        <div class="note small" id="holidayAutoStatus">수업 기간과 요일을 입력하면 자동으로 불러와 휴강에 적용합니다.</div>
       </div>
       <div>
-        <label>불러온 공휴일(선택해서 추가)</label>
+        <label>공휴일 적용 체크 · 쉬지 않는 날은 체크 해제</label>
         <div id="holidayList" class="list small muted">아직 불러오지 않았습니다.</div>
       </div>
     </div>
 
     <div class="btns" style="margin-top:6px">
-      <button id="addSelectedHolidays" class="secondary" type="button">선택 공휴일을 휴강일에 추가</button>
+      <button id="addSelectedHolidays" class="secondary" type="button">휴강일 업데이트</button>
     </div>
-
     <div class="divider"></div>
+    <h2 class="section-title">현재 등록된 휴강 및 결석 일정</h2>
+    <div id="closedPreview" class="note mono">등록된 휴강 및 결석 일정: 없음</div>
+      </div>
+    </details>
 
-    <h2 style="margin-top:0">커리큘럼</h2>
+    <div class="divider section-divider"></div>
+    <h2 class="section-title">커리큘럼</h2>
     <div class="row">
       <div>
         <label for="curriculumSelect">커리큘럼 선택</label>
@@ -686,15 +716,14 @@
 
     <div id="alert" class="note"></div>
 
-    <div class="divider"></div>
-
-    <h2 style="margin-top:0">현재 등록된 휴강 및 결석 일정</h2>
-    <div id="closedPreview" class="note mono">등록된 휴강 및 결석 일정: 없음</div>
   </section>
 
   <section class="card">
     <h2>최종 안내 문구</h2>
-    <div class="notice-recipient-box">
+
+    <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
+    <div class="divider section-divider"></div>
+    <div class="notice-recipient-box" id="groupNoticeBox" hidden>
       <label for="noticeRecipient">안내문 대상 학생 (그룹 · 개별 결석 반영)</label>
       <select id="noticeRecipient"><option value="">학생 이름으로 자동 매칭</option></select>
       <div class="note small">그룹 학생을 먼저 모두 연결하고 대상 학생을 선택하세요. 해당 학생의 국가·시간대에 맞춰 안내문을 생성한 후 저장합니다.</div>
@@ -704,15 +733,12 @@
       <textarea id="combinedNoticePreview" readonly style="height:170px;min-height:130px" placeholder="그룹 학생 안내문을 저장하면 이곳에 모아서 표시합니다."></textarea>
       <div class="note small">모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개(학생별 메시지 전체 포함)를 최종 등록합니다. 승인 전에는 먼데이 DB가 변경되지 않습니다.</div>
     </div>
-    <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
-    <div class="note">
-      최종 안내 문구를 확인한 뒤 아래에서 먼데이 등록 대상을 선택하고 승인합니다.
-    </div>
+    <div class="note">최종 안내 문구를 확인한 뒤 먼데이 등록을 승인합니다.</div>
     <div class="divider"></div>
     <h2>먼데이 Infohub 등록</h2>
     <p class="note integration-intro">대상: AF CLASS INFO HUB · 해당 요일 그룹. 등록 전 학생과 강사를 정확히 선택해야 합니다.</p>
     <div class="integration-fields">
-      <div class="note">접근 권한은 Cloudflare Access 직원 로그인으로 확인합니다. 매번 관리자 키를 입력할 필요가 없습니다.</div>
+      <div class="note">STUDENT DB를 연결하지 않은 신규 수강생도 안내문을 생성할 수 있습니다. 미연결 상태에서 먼데이에 등록할 때는 별도 확인을 거칩니다.</div>
       <label for="mondayItemName">먼데이 상위아이템명</label>
       <input id="mondayItemName" type="text" placeholder="커리큘럼에 맞는 상위아이템명" />
       <label for="mondayLanguage">상위아이템 언어</label>
@@ -721,13 +747,12 @@
 <select id="makeupLessonNumber"><option value="1">LESSON 01</option><option value="2">LESSON 02</option><option value="3">LESSON 03</option><option value="4">LESSON 04</option><option value="5">LESSON 05</option><option value="6">LESSON 06</option><option value="7">LESSON 07</option><option value="8">LESSON 08</option><option value="9">LESSON 09</option><option value="10">LESSON 10</option><option value="11">LESSON 11</option><option value="12">LESSON 12</option><option value="13">LESSON 13</option><option value="14">LESSON 14</option><option value="15">LESSON 15</option><option value="16">LESSON 16</option><option value="17">LESSON 17</option><option value="18">LESSON 18</option><option value="19">LESSON 19</option><option value="20">LESSON 20</option><option value="21">LESSON 21</option><option value="22">LESSON 22</option><option value="23">LESSON 23</option><option value="24">LESSON 24</option></select></div>
 <label for="subMemo">하위아이템 공통 MEMO (선택)</label>
 <textarea id="subMemo" style="height:90px;min-height:75px" placeholder="예: 개인 사정으로 보강 요청"></textarea>
-<label for="subMemos">날짜별 MEMO (선택)</label>
+<label for="subMemos">날짜별 MEMO (선택) <details class="help-tip"><summary aria-label="날짜별 메모 안내" title="날짜별 메모 안내">ⓘ</summary><div class="help-popover">한 줄에 YYYY-MM-DD | 메모 형식으로 입력합니다. 날짜별 메모가 공통 메모보다 우선합니다. 그룹 학생은 상단 STUDENT DB에서 연결하며, 합반 합류 학생은 1명만 연결해도 그룹 아이템을 생성할 수 있습니다. 개별 결석 처리는 2명 이상 연결된 그룹에서 가능합니다.</div></details></label>
 <textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
-<div class="note small">한 줄에 YYYY-MM-DD | 메모. 날짜별 메모가 공통 메모보다 우선합니다.</div>
-<div class="note small">그룹 수강생은 화면 왼쪽 상단에서 연결합니다. 합반에 합류하는 학생은 STUDENT DB에 한 명만 연결해 별도 그룹 아이템으로 등록할 수 있습니다. 개별 결석 설정은 2명 이상 연결된 그룹에서만 이용합니다.</div>
+
       <label for="mondayTeacher">담당 강사</label>
       <select id="mondayTeacher"><option value="">담당 강사 선택</option></select>
-      <div class="note small">OLIVIA, ONYU, AYEONG, DOORI, HANNAH, JIMIN, JUNWON, RARA, SEONYE, SHU, SION, SYEON, ZOEY 중에서 선택합니다.</div>
+
     </div>
     <div id="registrationPreview" class="registration-preview" aria-live="polite">안내 문구 생성 후 등록 일정이 표시됩니다.</div>
     <div class="output-actions">
@@ -739,7 +764,7 @@
       </button>
       <div id="approveFeedback" role="status" aria-live="polite"></div>
     </div>
-    <div class="note">실제 등록은 보안 서버의 먼데이 API 연동이 설정된 경우에만 실행됩니다. 승인 전까지 기존 DB는 변경되지 않습니다.</div>
+
   </section>
 </main>
 
