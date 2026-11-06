@@ -251,6 +251,7 @@ test('DST reflects KST-fixed choice and not student geographic location',async()
  assert.equal(infohubDstLabel({studentLocation:'DOMESTIC',dstMode:'AUTO'}),'🇰🇷');
  assert.equal(infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'STUDENT_CHANGE'}),'🇰🇷');
  assert.equal(infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'AUTO'}),'🌐');
+ assert.equal(infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'TEACHER_CHANGE'}),'🌐');
  assert.throws(()=>infohubDstLabel({studentLocation:'OVERSEAS',dstMode:'unsupported'}));
  await mockServices();
  currentRequests=[];
@@ -402,5 +403,44 @@ test('Public-holiday CLOSED subitem uses canonical name and keeps original reaso
  const oneRequest=derivePlan({...payload,closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}],
    schedule:original.schedule});
  assert.equal(oneRequest.schedule.find(x=>x.kind==='CLOSED').name,'수강생 요청 휴강');
+ globalThis.fetch=realFetch;
+});
+
+test('Overseas fixed-local DST is accepted and writes varying Korean clock times per lesson',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const dates=['2026-10-19','2026-10-26','2026-11-02','2026-11-09'];
+ const payload={
+  ...input(),itemName:'DST LOCAL TIME FIXED LESSON TEST',
+  studentLocation:'OVERSEAS',dstMode:'TEACHER_CHANGE',
+  timeZone:'America/Los_Angeles',templateType:'IPAD',
+  startDay:dates[0],endDay:dates.at(-1),closures:[],
+  lessonCount:4,explicitLessonCount:4,kstTime24:{hh:10,mm:0},
+  schedule:dates.map((date,i)=>({date,kind:'LESSON',name:'LESSON '+String(i+1).padStart(2,'0')}))
+ };
+ const server=derivePlan(payload);
+ assert.deepEqual(server.schedule.map(x=>x.kstTime24.hh),[10,10,11,11]);
+ const res=await worker.fetch(request('/api/approve',token,payload),env,{});
+ assert.equal(res.status,200,await res.clone().text());
+ const parent=JSON.parse(currentRequests.find(x=>x.query.includes('create_item(')).variables.values);
+ assert.deepEqual(parent[COL.domesticOrOverseas],{label:'🌐'});
+ assert.deepEqual(parent[COL.time],{hour:10,minute:0});
+ const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ assert.equal(children.length,4);
+ assert.match(JSON.parse(children[0].variables.values)[COL.subMemo],/10:00 \(한국시간\)/);
+ assert.match(JSON.parse(children[2].variables.values)[COL.subMemo],/11:00 \(한국시간\)/);
+ assert.match(JSON.parse(children[2].variables.values)[COL.subMemo],/학생 현지시간 고정/);
+ globalThis.fetch=realFetch;
+});
+test('Overseas fixed-local DST rejects invalid timezone before creating an item',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const inputBad={...input(),itemName:'DST BAD TIMEZONE TEST',
+  dstMode:'TEACHER_CHANGE',studentLocation:'OVERSEAS',timeZone:'America/Invalid'};
+ const resp=await worker.fetch(request('/api/approve',token,inputBad),env,{});
+ assert.equal(resp.status,400);
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
  globalThis.fetch=realFetch;
 });
