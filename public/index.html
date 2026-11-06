@@ -998,22 +998,33 @@
   }
 
   function parseKorTimeTo24h(amPm, korTimeStr){
-    const raw = (korTimeStr || "").trim();
-    const m = raw.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
-    if(!m) return null;
+    // Copy/paste and Korean/IME input can contain full-width numerals,
+    // zero-width marks, spaced colons or Unicode colon characters.
+    // Normalize those while still rejecting ambiguous or out-of-range time.
+    const raw=String(korTimeStr??"")
+      .normalize("NFKC")
+      .replace(/[\u200B-\u200D\u2060\uFEFF]/g,"")
+      .replace(/\s+/g,"")
+      .replace(/[：﹕꞉]/g,":");
+    const mode=String(amPm??"").normalize("NFKC").trim();
+    const m=raw.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+    if(!m || !["오전","오후"].includes(mode))return null;
 
-    let hh = Number(m[1]);
-    const mm = m[2] ? Number(m[2]) : 0;
-
-    if(!(hh >= 1 && hh <= 12)) return null;
-    if(!(mm >= 0 && mm <= 59)) return null;
-
-    if(amPm === "오전"){
-      if(hh === 12) hh = 0;
-    }else{
-      if(hh !== 12) hh += 12;
-    }
-    return { hh, mm };
+    let hh=Number(m[1]);
+    const mm=m[2]===undefined?0:Number(m[2]);
+    if(!(hh>=1&&hh<=12) || !(mm>=0&&mm<=59))return null;
+    if(mode==="오전"){
+      if(hh===12)hh=0;
+    }else if(hh!==12)hh+=12;
+    return {hh,mm};
+  }
+  function koreanTimeValidationMessage(amPm,rawValue){
+    const raw=String(rawValue??"").trim();
+    if(!["오전","오후"].includes(String(amPm??"").trim()))
+      return "오전/오후를 다시 선택해 주세요.";
+    if(!raw)return "한국시간을 입력해 주세요. 예: 오전 9시는 9 또는 9:00";
+    return "한국시간 입력을 확인해 주세요. 입력된 값: "+JSON.stringify(raw)
+      +" (1~12 또는 1:00~12:59 형식, 예: 오전 9시 = 9)";
   }
 
   function toDateUTC(iso){
@@ -2771,7 +2782,7 @@ Affinity Universe
       const num=Number($("makeupLessonNumber").value);
       if(!Number.isInteger(num)||num<1||num>24)return {ok:false,error:"회차를 선택해 주세요."};
       const kst=parseKorTimeTo24h($("amPm").value,$("korTime").value.trim());
-      if(!kst)return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
+      if(!kst)return {ok:false,error:koreanTimeValidationMessage($("amPm").value,$("korTime").value)};
       const label=messageType==="MAKEUP_40"?"보강":"보충";
       return {ok:true,startDay,endDay:startDay,weekday,kst,items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],lessonCount:1,holidayCount:0};
     }
@@ -2828,7 +2839,7 @@ Affinity Universe
       return {ok:false,error:`수업 회차 ${count}강과 실제 일정 ${lessonNo}강이 다릅니다. 종료일이나 회차를 수정해 주세요.`};
     }
     const kst = parseKorTimeTo24h($("amPm").value, $("korTime").value.trim());
-    if(!kst) return {ok:false,error:"한국시간을 올바르게 입력해 주세요."};
+    if(!kst) return {ok:false,error:koreanTimeValidationMessage($("amPm").value,$("korTime").value)};
     const timeSlots=[{day:weekday,kst,mode:$("dstMode").value},...extra.slots.map(x=>({
       day:x.weekday,kst:x.kst,mode:x.dstMode
     }))];
