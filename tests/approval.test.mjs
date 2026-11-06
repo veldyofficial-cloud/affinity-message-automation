@@ -508,7 +508,7 @@ test('GROUP joining student: one linked Student DB record writes a GROUP 60m cou
    closures:[],startDay:'2026-11-02',endDay:'2026-11-23',
    lessonCount:4,explicitLessonCount:4,
    studentNotices:[{studentId:14500123,name:'Demo Student 14500123',
-     message:'Affinity Universe: Group joining course notice\n[학습 과정]\n파운데이션'}],
+     message:'Affinity Universe: Group joining course notice\n[학습 과정]\n[BRANDING] PERSONAL COURSE'}],
    schedule:['2026-11-02','2026-11-09','2026-11-16','2026-11-23']
     .map((date,index)=>({date,kind:'LESSON',name:'LESSON '+String(index+1).padStart(2,'0')}))
  };
