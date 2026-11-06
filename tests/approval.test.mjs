@@ -229,7 +229,7 @@ test('PC emails and subitem notes appear in mocked Monday create_item/create_sub
  await mockServices();
  currentRequests=[];
  const token=await jwt();
- const p={...input(),itemName:'[PICTURE BOOK] DIPLOMA | LESSON 07 보강',
+ const p={...input(),itemName:'[PICTURE BOOK] DIPLOMA 보강 | LESSON 07',
    messageType:'MAKEUP_40',closures:[],absences:[],
    lessonCount:1,explicitLessonCount:null,makeupLessonNumber:7,endDay:'2026-11-02',
    language:'ENG',subMemo:'공통 메모',subMemos:[{date:'2026-11-02',memo:'보강 요청 사유'}],
@@ -494,6 +494,70 @@ test('Different second weekly time stores only the genuinely different time in m
   const memo=JSON.parse(children[i].variables.values)[COL.subMemo];
   if(i%2===0)assert.equal(memo,undefined);
   else assert.equal(memo,'수업 시간: 14:30 (한국시간)');
+ }
+ globalThis.fetch=realFetch;
+});
+
+test('GROUP joining student: one linked Student DB record writes a GROUP 60m course and one notice',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const initial=input();
+ const payload={...initial,itemName:'[PICTURE BOOK] FOUNDATION SINGLE JOINING GROUP TEST',
+   studentName:'Demo Student 14500123',classType:'GROUP',studentIds:[14500123],
+   closures:[],startDay:'2026-11-02',endDay:'2026-11-23',
+   lessonCount:4,explicitLessonCount:4,
+   studentNotices:[{studentId:14500123,name:'Demo Student 14500123',
+     message:'Affinity Universe: Group joining course notice\n[학습 과정]\n파운데이션'}],
+   schedule:['2026-11-02','2026-11-09','2026-11-16','2026-11-23']
+    .map((date,index)=>({date,kind:'LESSON',name:'LESSON '+String(index+1).padStart(2,'0')}))
+ };
+ const derived=derivePlan(payload);
+ assert.equal(derived.lessonCount,4);
+ assert.deepEqual(derived.schedule.map(x=>x.durationMinutes),[60,60,60,60]);
+ const response=await worker.fetch(request('/api/approve',token,payload),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const parent=JSON.parse(currentRequests.find(x=>x.query.includes('create_item(')).variables.values);
+ assert.equal(parent[COL.courseType].label,'G');
+ assert.equal(parent[COL.minutes].label,'60m');
+ assert.deepEqual(parent[COL.studentRelation],{item_ids:[14500123]});
+ const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ assert.equal(children.length,4);
+ for(const child of children){
+   const cols=JSON.parse(child.variables.values);
+   assert.equal(cols[COL.subMinutes].label,'60m');
+   assert.equal(cols[COL.subAttendance],'1');
+   assert.equal(cols[COL.subMemo],undefined);
+ }
+ const bubble=currentRequests.filter(x=>x.query.includes('create_update('));
+ assert.equal(bubble.length,1);
+ assert.match(bubble[0].variables.body,/Group joining course notice/);
+ globalThis.fetch=realFetch;
+});
+test('Single linked GROUP with recorded individual absence is invalid',()=>{
+ const base=input();
+ const payload={...base,classType:'GROUP',studentIds:[14500123],closures:[],
+  absences:[{date:'2026-11-16',studentIds:[14500123]}]};
+ assert.throws(()=>derivePlan(payload),/그룹 인원/);
+});
+test('MAKEUP and supplement titles require course + type + separator + lesson order',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ for(const [type,suffix] of [['MAKEUP_40','보강'],['MAKEUP_30','보충']]){
+   const base=input();
+   const payload={...base,messageType:type,itemName:'[DRAWING] BOOK 02 '+suffix+' | LESSON 12',
+     lessonCount:1,explicitLessonCount:null,makeupLessonNumber:12,
+     startDay:'2026-11-02',endDay:'2026-11-02',closures:[],absences:[],
+     schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 12 '+suffix,absentStudentIds:[]}]};
+   const response=await worker.fetch(request('/api/approve',token,payload),env,{});
+   assert.equal(response.status,200,await response.clone().text());
+   const latest=currentRequests.filter(x=>x.query.includes('create_item(')).at(-1);
+   assert.match(latest.variables.name,new RegExp('\\[DRAWING\\] BOOK 02 '+suffix+' \\| LESSON 12$'));
+   const rejected=await worker.fetch(request('/api/approve',token,{
+     ...payload,itemName:'[DRAWING] BOOK 02 | LESSON 12 '+suffix
+   }),env,{});
+   assert.equal(rejected.status,400,'old format must be rejected before creating duplicate');
  }
  globalThis.fetch=realFetch;
 });
