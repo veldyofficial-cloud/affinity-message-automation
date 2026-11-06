@@ -349,24 +349,24 @@
 
     <div class="row">
       <div>
-        <label for="messageType">메시지 종류</label>
+        <div class="label-with-help"><label for="messageType">메시지 종류</label><details class="help-tip"><summary aria-label="메시지 종류 안내" title="메시지 종류 안내">ⓘ</summary><div class="help-popover">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div></details></div>
         <select id="messageType">
           <option value="CLASS">클래스</option>
           <option value="MAKEUP_40">보강</option>
           <option value="MAKEUP_30">보충</option>
           <option value="TRIAL">트라이얼</option>
         </select>
-        <details class="help-tip"><summary aria-label="메시지 종류 안내" title="메시지 종류 안내">ⓘ</summary><div class="help-popover">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div></details>
+        
       </div>
       <div>
-        <label for="templateType">클래스 구분</label>
+        <div class="label-with-help"><label for="templateType">클래스 구분</label><details class="help-tip"><summary aria-label="클래스 구분 안내" title="클래스 구분 안내">ⓘ</summary><div class="help-popover"><span id="mondayDevicePreview">Infohub 기기: 선택 필요</span><p>선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 등록됩니다. 커리큘럼을 변경해도 유지됩니다.</p></div></details></div>
         <select id="templateType" required>
           <option value="">기기를 선택해 주세요</option>
           <option value="PC">PC</option>
           <option value="IPAD">IPAD</option>
           <option value="GALAXY">GALAXY</option>
         </select>
-        <details class="help-tip"><summary aria-label="클래스 구분 안내" title="클래스 구분 안내">ⓘ</summary><div class="help-popover"><span id="mondayDevicePreview">Infohub 기기: 선택 필요</span><p>선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 등록됩니다. 커리큘럼을 변경해도 유지됩니다.</p></div></details>
+        
       </div>
     </div>
 
@@ -553,13 +553,13 @@
         </select>
       </div>
       <div>
-        <label for="dstMode">썸머타임 옵션</label>
+        <div class="label-with-help"><label for="dstMode">썸머타임 옵션</label><details class="help-tip"><summary aria-label="서머타임 옵션 설명" title="서머타임 옵션 설명">ⓘ</summary><div class="help-popover">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)입니다. 상위 TIME은 기준 수업 시간이며, 실제 한국시간이 달라지는 회차에만 하위 MEMO에 기록합니다.</div></details></div>
         <select id="dstMode">
           <option value="AUTO">자동(표기 없음)</option>
           <option value="STUDENT_CHANGE">썸머타임 때 수강생 시간 변경 (한국 시간 고정)</option>
           <option value="TEACHER_CHANGE">썸머타임 때 강사만 바뀜</option>
         </select>
-        <details class="help-tip"><summary aria-label="서머타임 옵션 설명" title="서머타임 옵션 설명">ⓘ</summary><div class="help-popover">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)입니다. 상위 TIME은 기준 수업 시간이며, 실제 한국시간이 달라지는 회차에만 하위 MEMO에 기록합니다.</div></details>
+        
       </div>
     </div>
 
@@ -631,9 +631,9 @@
 
     <div class="row">
       <div>
-        <label for="closedDate">휴강일 날짜(수동 추가 · 한국 날짜 기준)</label>
+        <div class="label-with-help"><label for="closedDate">휴강일 날짜(수동 추가 · 한국 날짜 기준)</label><details class="help-tip"><summary aria-label="한국 기준 휴강 날짜 안내" title="한국 기준 휴강 날짜 안내">ⓘ</summary><div class="help-popover">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></details></div>
         <input id="closedDate" type="date" />
-        <details class="help-tip"><summary aria-label="한국 기준 휴강 날짜 안내" title="한국 기준 휴강 날짜 안내">ⓘ</summary><div class="help-popover">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></details>
+        
       </div>
       <div>
         <label for="closedNamePreset">휴일 명칭(프리셋)</label>
