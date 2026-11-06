@@ -93,3 +93,19 @@ test('Three-person group with one absence remains 60m; two absences yield 40m',(
  assert.equal(p.ok,true,p.error);
  assert.equal(p.items.find(row=>row.date==='2026-11-14').durationMinutes,60);
 });
+
+test('Single joining learner stays in GROUP 60m on browser registration preview and can save own notice',()=>{
+ const h=harness();
+ h.setStudents([['101','A']]);
+ h.setAbsences([]);
+ h.select('101');
+ const plan=h.plan();
+ assert.equal(plan.ok,true,plan.error);
+ assert.deepEqual(Array.from(plan.items,x=>x.durationMinutes),[60,60,60,60]);
+ const message=h.generateAndSave();
+ assert.equal(message.ok,true,message.error);
+ assert.match(message.text,/주 1회 \(1h\)/);
+ assert.equal(h.staged().length,1);
+ assert.match(h.status(),/1\/1명/);
+ assert.match(h.combined(),/\[학생별 안내 1 \| A\]/);
+});

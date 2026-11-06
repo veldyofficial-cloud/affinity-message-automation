@@ -37,7 +37,8 @@ export async function approve(request, env, email) {
     const studentIds=Array.isArray(p.studentIds) ? Array.from(new Set(p.studentIds.map(Number))) : [];
     if (!studentIds.length || studentIds.length>20 || !studentIds.every(validId)) throw new Error('학생을 검색 결과에서 선택해 주세요.');
     if (p.classType==='ONE_ON_ONE' && studentIds.length!==1) throw new Error('1:1 클래스는 학생 한 명만 연결해야 합니다.');
-    if (p.classType==='GROUP' && studentIds.length<2) throw new Error('그룹 클래스는 학생 두 명 이상이 필요합니다.');
+    // Students joining a larger existing class may be stored in a separate
+    // GROUP parent linked to just one Student DB record. Keep GROUP 60m.
     // A group is one parent and one combined update containing the completed
     // private notice for every linked pupil. Reject incomplete or stale batches
     // before the very first Monday write.
@@ -93,9 +94,9 @@ export async function approve(request, env, email) {
     }
     const kind=p.messageType==='MAKEUP_40'?'보강':p.messageType==='MAKEUP_30'?'보충':p.messageType==='TRIAL'?'TRIAL':'CLASS';
     const expectedName=(kind==='CLASS'||kind==='TRIAL') ? '' :
-      ' | LESSON '+String(Number(p.makeupLessonNumber)).padStart(2,'0')+' '+kind;
+      kind+' | LESSON '+String(Number(p.makeupLessonNumber)).padStart(2,'0');
     if(kind==='TRIAL' && !/\bTRIAL\s*🚀\s*$/.test(p.itemName)) throw new Error('트라이얼 제목에는 TRIAL 🚀 표시가 필요합니다.');
-    if(expectedName && !p.itemName.endsWith(expectedName)) throw new Error('보강/보충 상위아이템 제목의 LESSON 회차를 확인해 주세요.');
+    if(expectedName && !p.itemName.endsWith(expectedName)) throw new Error('보강/보충 상위아이템은 과정명 '+kind+' | LESSON 회차 순서로 입력해 주세요.');
     const records=await monday(`query ($ids:[ID!]) {items(ids:$ids) { id name board { id } column_values(ids:["text_mksvtgc8"]) { id text } }}`,
       {ids:studentIds.map(String)},env);
     if ((records.items||[]).length!==studentIds.length || records.items.some(x=>String(x.board?.id)!==String(STUDENT_DB_ID)))

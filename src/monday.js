@@ -328,7 +328,11 @@ export function derivePlan(input) {
       const absentStudentIds=absence?.studentIds||[];
       const attending=selectedStudentIds.length-absentStudentIds.length;
       const plannedType=classTypeByDay[cursor.getUTCDay()];
-      const oneToOneConversion=plannedType==='GROUP' && attending===1 && !absence?.keepGroupDuration;
+      // Convert to 1:1 only after a recorded absence reduces a real
+      // multi-student GROUP to one attendee. A single linked student
+      // joining another group remains a 60m GROUP.
+      const oneToOneConversion=plannedType==='GROUP' && absentStudentIds.length>0 &&
+        attending===1 && !absence?.keepGroupDuration;
       schedule.push({date,kind:'LESSON',name:`LESSON ${String(lessonNo).padStart(2,'0')}`,
         absentStudentIds,keepGroupDuration:Boolean(absence?.keepGroupDuration),
         durationMinutes:oneToOneConversion?40:plannedType==='GROUP'?60:40});
