@@ -518,8 +518,8 @@ test('GROUP joining student: one linked Student DB record writes a GROUP 60m cou
  const response=await worker.fetch(request('/api/approve',token,payload),env,{});
  assert.equal(response.status,200,await response.clone().text());
  const parent=JSON.parse(currentRequests.find(x=>x.query.includes('create_item(')).variables.values);
- assert.equal(parent[COL.courseType].label,'G');
- assert.equal(parent[COL.minutes].label,'60m');
+ assert.equal(parent[COL.type].label,'G');
+ assert.equal(parent[COL.duration].label,'60m');
  assert.deepEqual(parent[COL.studentRelation],{item_ids:[14500123]});
  const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
  assert.equal(children.length,4);
