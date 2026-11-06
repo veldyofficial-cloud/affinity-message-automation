@@ -179,8 +179,9 @@ export async function approve(request, env, email) {
       const weekDayNumbers={일:0,월:1,화:2,수:3,목:4,금:5,토:6};
       const isSecondDay=Number(p.weeklyFrequency)>=2 && targetDay===weekDayNumbers[p.weekday2];
       const isThirdDay=Number(p.weeklyFrequency)===3 && targetDay===weekDayNumbers[p.weekday3];
-      // Parent TIME is the first-day time; append each lesson's exact KST
-      // to the subitem memo so no second-day time is lost in Infohub.
+      // Parent TIME is the canonical reference time. Only place a time
+      // override into a subitem MEMO when that lesson's KST is different.
+      // Choosing a DST mode alone does not constitute a memo.
       const sessionTime=row.kstTime24||
         (isThirdDay?p.kstTime24Third:isSecondDay?p.kstTime24Second:p.kstTime24);
       const sessionType=plan.classTypeByDay?.[targetDay]||p.classType;
@@ -191,19 +192,15 @@ export async function approve(request, env, email) {
       const attendanceNote=row.kind==='LESSON' && sessionType==='GROUP'
         && (row.absentStudentIds||[]).length && studentIds.length-row.absentStudentIds.length===1
         ? row.keepGroupDuration?'별도 요청: 그룹 60분 유지':'출석 1명: 1:1 40분 자동 전환' : '';
-      const slotFixedMode=p.studentLocation==='OVERSEAS' && (
-        isThirdDay?(p.dstMode3||p.dstMode)==='TEACHER_CHANGE':
-        isSecondDay?(p.dstMode2||p.dstMode)==='TEACHER_CHANGE':
-        p.dstMode==='TEACHER_CHANGE');
-      const kstNote=Number(p.weeklyFrequency)>1 || slotFixedMode
+      const changedFromParent=Number(sessionTime.hh)!==Number(p.kstTime24.hh) ||
+        Number(sessionTime.mm)!==Number(p.kstTime24.mm);
+      const kstNote=changedFromParent
         ? '수업 시간: '+String(sessionTime.hh).padStart(2,'0')+':'+String(sessionTime.mm).padStart(2,'0')+' (한국시간)'
         : '';
       const writtenMemo=memoByDate.get(row.date)||p.subMemo.trim();
       const holidayReasonNote=row.kind==='CLOSED' && row.name==='공휴일 휴강'
         ? '공휴일 사유: '+String(row.reason||'한국 공휴일') : '';
-      const dstNote=slotFixedMode?
-        '서머타임: 학생 현지시간 고정 / 한국 강사 시간은 해당 회차 기준': '';
-      const mergedMemo=[writtenMemo,kstNote,dstNote,sessionTypeNote,attendanceNote,holidayReasonNote].filter(Boolean).join('\n');
+      const mergedMemo=[writtenMemo,kstNote,sessionTypeNote,attendanceNote,holidayReasonNote].filter(Boolean).join('\n');
       if(mergedMemo.length>1500) throw new Error('수업 시간 포함 하위아이템 메모가 1500자를 초과합니다.');
       const columns={
         [COL.subDate]:{date:row.date},
