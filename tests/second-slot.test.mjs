@@ -8,7 +8,7 @@ const html=fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8
 const match=html.match(/<script>([\s\S]*?)<\/script>/);
 assert.ok(match);
 const code=match[1].replace(/^\s*init\(\);\s*$/m,
-  '\n globalThis.__slotTests={additionalScheduleState,configuredWeekdays,buildMessage,buildRegistrationPlan,syncTeacherFromDiscord};\n');
+  '\n globalThis.__slotTests={additionalScheduleState,configuredWeekdays,buildMessage,buildRegistrationPlan,syncTeacherFromDiscord,parseKorTimeTo24h};\n');
 
 function harness(overrides={}){
   const base={
@@ -219,4 +219,39 @@ test('Overseas student time fixed option generates actual DST-shifted KST previe
  assert.equal(plan.ok,true,plan.error);
  assert.deepEqual(Array.from(plan.items,entry=>entry.kstTime24.hh),[10,10,11,11]);
  assert.equal(plan.items[2].kstTime24.mm,0);
+});
+
+test('November 19 Thursday 9 AM is valid for a single makeup or supplement class',()=>{
+ for(const type of ['MAKEUP_40','MAKEUP_30']){
+  const h=harness({
+   messageType:type,startDay:'2026-11-19',endDay:'',
+   weekday:'목',amPm:'오전',korTime:'9',weekday2:'',amPm2:'',korTime2:'',
+   lessonCount:'12',makeupLessonNumber:'12'
+  });
+  const p=h.buildRegistrationPlan();
+  assert.equal(p.ok,true,JSON.stringify({type,error:p.error}));
+  assert.equal(p.kst.hh,9);
+  assert.equal(p.kst.mm,0);
+  assert.equal(p.items[0].date,'2026-11-19');
+ }
+});
+test('Korean time entry handles full-width numerals and invisible paste marks safely',()=>{
+ const h=harness();
+ for(const [value,amPm,hh,mm] of [
+  ['9','오전',9,0],
+  ['９','오전',9,0],
+  ['９：００','오전',9,0],
+  ['9\u200b','오전',9,0],
+  [' 9 : 00 ','오전',9,0],
+  ['12:00','오전',0,0],
+  ['12:00','오후',12,0],
+  ['7:30','오후',19,30]
+ ]){
+  const result=h.parseKorTimeTo24h(amPm,value);
+  assert.equal(result?.hh,hh,value);
+  assert.equal(result?.mm,mm,value);
+ }
+ for(const value of ['13','0','9:99','9am','9:00:00'])
+  assert.equal(h.parseKorTimeTo24h('오전',value),null,value);
+ assert.equal(h.parseKorTimeTo24h('', '9'),null);
 });
