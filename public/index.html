@@ -1076,6 +1076,28 @@
     return `${flag} ${w} ${t}`.replace(/\s+/g," ").trim();
   }
 
+  // Every country/region/time-zone chooser follows Korean alphabetical order.
+  // Keep IANA option values intact for exact DST and Monday calculations.
+  const KOREAN_SORTER = new Intl.Collator("ko-KR", {numeric:true});
+  const TIME_ZONE_DISPLAY_DATE = new Date("2026-01-15T12:00:00Z");
+  const koreanTimeZoneNameCache = new Map();
+  function koreanTimeZoneLabel(zone){
+    if(koreanTimeZoneNameCache.has(zone))return koreanTimeZoneNameCache.get(zone);
+    let name=zone;
+    try{
+      const part=new Intl.DateTimeFormat("ko-KR",{
+        timeZone:zone,timeZoneName:"longGeneric"
+      }).formatToParts(TIME_ZONE_DISPLAY_DATE).find(x=>x.type==="timeZoneName");
+      if(part?.value?.trim())name=part.value.trim()+" ("+zone+")";
+    }catch(_){/* Keep the original IANA identifier if localization is unsupported. */}
+    koreanTimeZoneNameCache.set(zone,name);
+    return name;
+  }
+  function sortedTimeZones(options){
+    return [...new Set(options)].sort((a,b)=>
+      KOREAN_SORTER.compare(koreanTimeZoneLabel(a),koreanTimeZoneLabel(b)) ||
+      a.localeCompare(b,"en"));
+  }
   function setSelectOptions(selectEl, options, placeholder){
     selectEl.innerHTML = "";
     if(placeholder){
@@ -1084,13 +1106,23 @@
       o.textContent = placeholder;
       selectEl.appendChild(o);
     }
-    options.forEach(v=>{
+    sortedTimeZones(options).forEach(zone=>{
       const o = document.createElement("option");
-      o.value = v;
-      o.textContent = v;
+      o.value = zone;
+      o.textContent = koreanTimeZoneLabel(zone);
       selectEl.appendChild(o);
     });
     selectEl.disabled = options.length === 0;
+  }
+  function ensureTimeZoneOption(selectEl,zone){
+    if(!zone)return;
+    if(![...selectEl.options].some(option=>option.value===zone)){
+      const placeholder=selectEl.options[0]?.value===""?
+        selectEl.options[0].textContent:"시간대 선택";
+      const current=[...selectEl.options].filter(option=>option.value).map(option=>option.value);
+      setSelectOptions(selectEl,[...current,zone],placeholder);
+    }
+    selectEl.value=zone;
   }
 
   function flagFromCountryKo(koName){
@@ -1827,7 +1859,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     first.textContent = "주/지역 선택";
     sel.appendChild(first);
 
-    AU_REGIONS.forEach(r=>{
+    AU_REGIONS.slice().sort((a,b)=>a.ko.localeCompare(b.ko,"ko")).forEach(r=>{
       const opt = document.createElement("option");
       opt.value = r.code;
       opt.textContent = `${r.ko} (${r.code}) - ${r.city}`;
@@ -2550,9 +2582,7 @@ Affinity Universe
       if(country)applyCountryToTzOptions(country);
       else setSelectOptions($("tzSelect"),[],"시간대 선택");
       const tz=settings?.tzSelect||"";
-      if(tz && ![...$("tzSelect").options].some(opt=>opt.value===tz))
-        $("tzSelect").append(new Option(tz,tz));
-      $("tzSelect").value=tz;
+      ensureTimeZoneOption($("tzSelect"),tz);
     }else setSelectOptions($("tzSelect"),[],"시간대 선택");
     $("usStateBox").style.display=overseas&&$("countryInput").value==="미국"?"block":"none";
     $("auStateBox").style.display=overseas&&$("countryInput").value==="호주"?"block":"none";
@@ -3106,15 +3136,7 @@ Affinity Universe
         return;
       }
 
-      const sel = $("tzSelect");
-      const exists = Array.from(sel.options).some(o => o.value === tz);
-      if(!exists){
-        const opt = document.createElement("option");
-        opt.value = tz;
-        opt.textContent = tz;
-        sel.appendChild(opt);
-      }
-      sel.value = tz;
+      ensureTimeZoneOption($("tzSelect"),tz);
       showAlert("시간대가 설정되었습니다.", "ok");
       updateLocalPreview();
     });
