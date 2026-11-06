@@ -94,3 +94,41 @@ test('US states are displayed in Korean alphabetical order without changing IANA
  assert.match(california.textContent,/캘리포니아주/);
  assert.equal(states.find(x=>x.name==='California').tzOptions[0],'America/Los_Angeles');
 });
+
+test('Australian state and territory dropdown uses Korean 가나다 sorting',()=>{
+ const auSource=section('  const AU_REGIONS = [','  const ALL_TZ = ');
+ const regions=vm.runInNewContext(auSource+'\nAU_REGIONS',{Intl});
+ const options=[];
+ const select={innerHTML:'',appendChild(opt){options.push(opt)}};
+ const source=section('  function initAuStateSelect(){','  function applyCountryToTzOptions(');
+ vm.runInNewContext(source+'\ninitAuStateSelect()',{
+  AU_REGIONS:regions,$:()=>select,document:{createElement:()=>({value:'',textContent:''})},Intl
+ });
+ const labels=options.slice(1).map(x=>x.textContent);
+ assert.deepEqual(labels,[...labels].sort((a,b)=>a.localeCompare(b,'ko')));
+ assert.equal(options.find(x=>x.value==='NSW').value,'NSW');
+ assert.deepEqual(Array.from(regions.find(x=>x.code==='NSW').tzOptions),['Australia/Sydney']);
+});
+test('Every timezone picker shows Korean localized labels sorted by 가나다 without altering IANA values',()=>{
+ const source=section('  // Every country/region/time-zone chooser follows Korean alphabetical order.',
+  '  function flagFromCountryKo(');
+ const doc={createElement:()=>({value:'',textContent:''})};
+ const fns=vm.runInNewContext(source+
+  '\n({sortedTimeZones,koreanTimeZoneLabel,setSelectOptions,ensureTimeZoneOption})',{Intl,Date,document:doc});
+ const values=['America/New_York','Asia/Tokyo','Europe/Paris','Asia/Seoul','Australia/Sydney','America/Los_Angeles'];
+ const ordered=Array.from(fns.sortedTimeZones(values));
+ const collator=new Intl.Collator('ko-KR',{numeric:true});
+ assert.deepEqual(ordered.map(fns.koreanTimeZoneLabel),
+  [...ordered.map(fns.koreanTimeZoneLabel)].sort((a,b)=>collator.compare(a,b)));
+ assert.deepEqual([...ordered].sort(),[...values].sort());
+ const select={options:[],innerHTML:'',disabled:false,appendChild(option){this.options.push(option)}};
+ fns.setSelectOptions(select,values,'시간대 선택');
+ assert.equal(select.options.length,values.length+1);
+ assert.equal(select.options[0].value,'');
+ assert.deepEqual(select.options.slice(1).map(x=>x.value),ordered);
+ for(const o of select.options.slice(1))assert.ok(o.textContent.endsWith('('+o.value+')'));
+ fns.ensureTimeZoneOption(select,'Pacific/Pago_Pago');
+ assert.equal(select.value,'Pacific/Pago_Pago');
+ const labels=select.options.slice(1).map(x=>x.textContent);
+ assert.deepEqual(labels,[...labels].sort((a,b)=>collator.compare(a,b)));
+});
