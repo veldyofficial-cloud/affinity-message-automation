@@ -428,9 +428,11 @@ test('Overseas fixed-local DST is accepted and writes varying Korean clock times
  assert.deepEqual(parent[COL.time],{hour:10,minute:0});
  const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
  assert.equal(children.length,4);
- assert.match(JSON.parse(children[0].variables.values)[COL.subMemo],/10:00 \(한국시간\)/);
+ assert.equal(JSON.parse(children[0].variables.values)[COL.subMemo],undefined,'No repeated note before DST switch');
+ assert.equal(JSON.parse(children[1].variables.values)[COL.subMemo],undefined,'Unchanged KST should leave MEMO empty');
  assert.match(JSON.parse(children[2].variables.values)[COL.subMemo],/11:00 \(한국시간\)/);
- assert.match(JSON.parse(children[2].variables.values)[COL.subMemo],/학생 현지시간 고정/);
+ assert.match(JSON.parse(children[3].variables.values)[COL.subMemo],/11:00 \(한국시간\)/);
+ assert.doesNotMatch(JSON.parse(children[2].variables.values)[COL.subMemo],/학생 현지시간 고정/);
  globalThis.fetch=realFetch;
 });
 test('Overseas fixed-local DST rejects invalid timezone before creating an item',async()=>{
@@ -442,5 +444,56 @@ test('Overseas fixed-local DST rejects invalid timezone before creating an item'
  const resp=await worker.fetch(request('/api/approve',token,inputBad),env,{});
  assert.equal(resp.status,400);
  assert.equal(currentRequests.filter(x=>x.query.includes('create_item(')).length,0);
+ globalThis.fetch=realFetch;
+});
+
+test('One-day weekly DST mode with identical 01:00 KST creates blank MEMO for all 12 lessons',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const dates=Array.from({length:12},(_,i)=>new Date(Date.UTC(2026,10,2+i*7)).toISOString().slice(0,10));
+ const payload={
+  ...input(),itemName:'DST UNCHANGED SAME KST EMPTY MEMO TEST',
+  startDay:dates[0],endDay:dates.at(-1),closures:[],
+  studentLocation:'OVERSEAS',dstMode:'STUDENT_CHANGE',
+  timeZone:'Asia/Manila',kstTime24:{hh:1,mm:0},
+  lessonCount:12,explicitLessonCount:12,
+  subMemo:'',subMemos:'',
+  schedule:dates.map((date,i)=>({date,kind:'LESSON',name:'LESSON '+String(i+1).padStart(2,'0')}))
+ };
+ const response=await worker.fetch(request('/api/approve',token,payload),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ assert.equal(children.length,12);
+ for(const child of children){
+  const columns=JSON.parse(child.variables.values);
+  assert.equal(columns[COL.subMemo],undefined,child.variables.name+' should have no generated MEMO');
+ }
+ globalThis.fetch=realFetch;
+});
+
+test('Different second weekly time stores only the genuinely different time in memo',async()=>{
+ await mockServices();
+ currentRequests=[];
+ const token=await jwt();
+ const dates=['2026-11-02','2026-11-05','2026-11-09','2026-11-12'];
+ const payload={
+  ...input(),itemName:'MULTI WEEKLY TIME DIFFERENCE MEMO TEST',
+  studentLocation:'DOMESTIC',dstMode:'AUTO',
+  closures:[],weeklyFrequency:2,weekday:'월',weekday2:'목',
+  kstTime24:{hh:13,mm:0},kstTime24Second:{hh:14,mm:30},
+  startDay:dates[0],endDay:dates.at(-1),
+  lessonCount:4,explicitLessonCount:4,
+  schedule:dates.map((date,i)=>({date,kind:'LESSON',name:'LESSON '+String(i+1).padStart(2,'0')}))
+ };
+ const response=await worker.fetch(request('/api/approve',token,payload),env,{});
+ assert.equal(response.status,200,await response.clone().text());
+ const children=currentRequests.filter(x=>x.query.includes('create_subitem('));
+ assert.equal(children.length,4);
+ for(let i=0;i<4;i++){
+  const memo=JSON.parse(children[i].variables.values)[COL.subMemo];
+  if(i%2===0)assert.equal(memo,undefined);
+  else assert.equal(memo,'수업 시간: 14:30 (한국시간)');
+ }
  globalThis.fetch=realFetch;
 });
