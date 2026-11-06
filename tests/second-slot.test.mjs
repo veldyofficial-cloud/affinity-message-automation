@@ -255,3 +255,28 @@ test('Korean time entry handles full-width numerals and invisible paste marks sa
   assert.equal(h.parseKorTimeTo24h('오전',value),null,value);
  assert.equal(h.parseKorTimeTo24h('', '9'),null);
 });
+
+test('Every Korean-time edit immediately revalidates registration before other previews',()=>{
+  const bindStart=html.indexOf('  function bind(){');
+  assert.ok(bindStart>0);
+  const directStart=html.indexOf('    for(const inputId of ["korTime", "korTime2", "korTime3"]){',bindStart);
+  const genericStart=html.indexOf('    ["startDay","endDay","weekday"',bindStart);
+  assert.ok(directStart>bindStart && directStart<genericStart,
+    'direct revalidation must run before optional local/holiday preview processing');
+  const chunk=html.slice(directStart,html.indexOf('\n\n',directStart));
+  const events=new Map();
+  let refreshed=0;
+  const controls=Object.fromEntries(['korTime','korTime2','korTime3'].map(id=>[
+    id,{addEventListener(event,fn){events.set(id+':'+event,fn)}}
+  ]));
+  new Function('$','refreshRegistrationPreview',chunk)(
+    id=>controls[id],()=>{refreshed++}
+  );
+  for(const id of Object.keys(controls)){
+    for(const type of ['input','change']){
+      assert.equal(typeof events.get(id+':'+type),'function',id+' '+type);
+      events.get(id+':'+type)();
+    }
+  }
+  assert.equal(refreshed,6);
+});
