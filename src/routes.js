@@ -35,15 +35,28 @@ export async function approve(request, env, email) {
     if (!p || typeof p!=='object') throw new Error('승인 요청이 올바르지 않습니다.');
     if (!p.itemName || typeof p.itemName!=='string' || p.itemName.length>255 || !p.itemName.trim()) throw new Error('상위아이템명이 올바르지 않습니다.');
     const studentIds=Array.isArray(p.studentIds) ? Array.from(new Set(p.studentIds.map(Number))) : [];
-    if (!studentIds.length || studentIds.length>20 || !studentIds.every(validId)) throw new Error('학생을 검색 결과에서 선택해 주세요.');
-    if (p.classType==='ONE_ON_ONE' && studentIds.length!==1) throw new Error('1:1 클래스는 학생 한 명만 연결해야 합니다.');
+    if (studentIds.length>20 || !studentIds.every(validId))
+      throw new Error('선택한 STUDENT DB 연결을 확인해 주세요.');
+    const unlinked=studentIds.length===0;
+    if(unlinked){
+      if(p.allowUnlinkedStudent!==true)
+        throw new Error('STUDENT DB 미연결 등록은 별도의 확인을 거쳐야 합니다.');
+      if(typeof p.studentName!=='string'||p.studentName.trim().length<2||
+         p.studentName.trim().length>100)
+        throw new Error('DB 미연결 신규 수강생은 이름을 2~100자로 입력해 주세요.');
+      if((p.absences||[]).length)
+        throw new Error('DB 연결 없이 개별 결석을 지정할 수 없습니다.');
+    }
+    if (p.classType==='ONE_ON_ONE' && !unlinked && studentIds.length!==1)
+      throw new Error('1:1 클래스는 학생 한 명만 연결해야 합니다.');
     // Students joining a larger existing class may be stored in a separate
     // GROUP parent linked to just one Student DB record. Keep GROUP 60m.
     // A group is one parent and one combined update containing the completed
     // private notice for every linked pupil. Reject incomplete or stale batches
     // before the very first Monday write.
     let noticeText='';
-    const groupBatch=p.classType==='GROUP' && (p.messageType==='CLASS'||p.messageType==='TRIAL');
+    const groupBatch=!unlinked && p.classType==='GROUP' &&
+      (p.messageType==='CLASS'||p.messageType==='TRIAL');
     if(groupBatch){
       if(!Array.isArray(p.studentNotices) || p.studentNotices.length!==studentIds.length)
         throw new Error('그룹 수강생 전원의 학생별 안내문을 먼저 저장해 주세요.');
@@ -97,7 +110,8 @@ export async function approve(request, env, email) {
       kind+' | LESSON '+String(Number(p.makeupLessonNumber)).padStart(2,'0');
     if(kind==='TRIAL' && !/\bTRIAL\s*🚀\s*$/.test(p.itemName)) throw new Error('트라이얼 제목에는 TRIAL 🚀 표시가 필요합니다.');
     if(expectedName && !p.itemName.endsWith(expectedName)) throw new Error('보강/보충 상위아이템은 과정명 '+kind+' | LESSON 회차 순서로 입력해 주세요.');
-    const records=await monday(`query ($ids:[ID!]) {items(ids:$ids) { id name board { id } column_values(ids:["text_mksvtgc8"]) { id text } }}`,
+    const records=unlinked?{items:[]}:await monday(
+      `query ($ids:[ID!]) {items(ids:$ids) { id name board { id } column_values(ids:["text_mksvtgc8"]) { id text } }}`,
       {ids:studentIds.map(String)},env);
     if ((records.items||[]).length!==studentIds.length || records.items.some(x=>String(x.board?.id)!==String(STUDENT_DB_ID)))
       throw new Error('STUDENT DB에 속하지 않는 학생이 포함되었습니다.');
@@ -145,6 +159,7 @@ export async function approve(request, env, email) {
     registryKey=await fingerprint({
       board:BOARD_ID,group:plan.groupId,itemName:parentName,
       studentIds:studentIds.slice().sort((a,b)=>a-b),
+      ...(unlinked?{studentName:p.studentName.trim().toLocaleLowerCase()}:{}),
       startDay:p.startDay,kind
     });
     const storage=env.REGISTRY.get(env.REGISTRY.idFromName('affinity-infohub-approvals-v1'));
@@ -164,7 +179,7 @@ export async function approve(request, env, email) {
       [COL.device]:{label:device},
       [COL.domesticOrOverseas]:{label:dstLabel},
       [COL.teacher]:{personsAndTeams:[{id:Number(p.teacherId),kind:'person'}]},
-      [COL.studentRelation]:{item_ids:studentIds},
+      ...(!unlinked?{[COL.studentRelation]:{item_ids:studentIds}}:{}),
     };
     attemptedWrite=true;
     const created=await monday(`mutation ($boardId:ID!, $groupId:String!, $name:String!, $values:JSON!) {
@@ -207,7 +222,8 @@ export async function approve(request, env, email) {
         [COL.subDate]:{date:row.date},
         [COL.subMinutes]:{label:row.kind==='CLOSED'?'휴강':sessionDuration},
         // Individual absence is attached to its LESSON, not an extra holiday.
-        [COL.subAttendance]:String(row.kind==='CLOSED'?0:studentIds.length-(row.absentStudentIds||[]).length),
+        ...(!unlinked?{[COL.subAttendance]:String(row.kind==='CLOSED'?0:
+          studentIds.length-(row.absentStudentIds||[]).length)}:{}),
         ...(mergedMemo?{[COL.subMemo]:mergedMemo}:{}),
         ...(row.kind==='LESSON' && row.absentStudentIds?.length
           ? {[COL.subAbsentees]:{item_ids:row.absentStudentIds}} : {}),
