@@ -41,9 +41,9 @@ export async function approve(request, env, email) {
     if(unlinked){
       if(p.allowUnlinkedStudent!==true)
         throw new Error('STUDENT DB 미연결 등록은 별도의 확인을 거쳐야 합니다.');
-      if(typeof p.studentName!=='string'||p.studentName.trim().length<2||
+      if(typeof p.studentName!=='string'||p.studentName.trim().length<1||
          p.studentName.trim().length>100)
-        throw new Error('DB 미연결 신규 수강생은 이름을 2~100자로 입력해 주세요.');
+        throw new Error('DB 미연결 신규 수강생의 이름을 1~100자로 입력해 주세요.');
       if((p.absences||[]).length)
         throw new Error('DB 연결 없이 개별 결석을 지정할 수 없습니다.');
     }
