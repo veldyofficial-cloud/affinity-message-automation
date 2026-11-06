@@ -3414,9 +3414,9 @@ Affinity Universe
       if(lastGeneratedFingerprint !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
       $("approveFeedback").replaceChildren();
       refreshRegistrationPreview();
-      showAlert($("classType").value==="GROUP"
+      showAlert($("classType").value==="GROUP" && selectedStudentRecords.size>0
         ? "문구를 생성했습니다. [현재 학생 안내문 저장]을 눌러 저장한 뒤 다음 학생을 선택하세요."
-        : "문구가 생성되었습니다. 승인 전에 먼데이 등록 정보를 확인해 주세요.", "ok");
+        : "문구가 생성되었습니다. 먼데이 등록 전에 내용을 확인해 주세요.", "ok");
     });
 
     $("mondayTeacher").addEventListener("change",()=>{
@@ -3463,10 +3463,11 @@ Affinity Universe
       const plan = buildRegistrationPlan();
       if(plan.ok&&subMemos.some(x=>!plan.items.some(i=>i.date===x.date))){feedback.textContent="날짜별 MEMO의 날짜가 수업 일정에 없습니다.";return;}
       if(!plan.ok){ feedback.textContent=plan.error; return; }
-      const res=$("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value)
-        ? {ok:true,text:combinedStudentNoticeText()} : buildMessage();
+      const batchRequired=$("classType").value==="GROUP" && selectedStudentRecords.size>0 &&
+        ["CLASS","TRIAL"].includes($("messageType").value);
+      const res=batchRequired?{ok:true,text:combinedStudentNoticeText()}:buildMessage();
       if(!res.ok){ feedback.textContent=res.error; return; }
-      const isBatch=$("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value);
+      const isBatch=batchRequired;
       if(!isBatch && (!$("output").value.trim() || lastGeneratedFingerprint !== registrationFingerprint())){
         feedback.textContent = "입력값이 바뀌었거나 안내 문구를 생성하지 않았습니다. 먼저 [최종 문구 생성]을 다시 눌러 주세요.";
         return;
@@ -3485,11 +3486,19 @@ Affinity Universe
         return;
       }
       const studentIds = Array.from(selectedStudentRecords.keys()).map(Number);
-      if(!studentIds.length){ feedback.textContent="STUDENT DB에서 연결할 수강생을 검색·선택해 주세요."; return; }
-      if($("classType").value==="ONE_ON_ONE" && studentIds.length !== 1){ feedback.textContent="1:1 클래스는 학생 한 명만 연결해야 합니다.";return; }
-      // A learner joining an existing group may have a dedicated Infohub
-      // parent linked to only their own Student DB record.
-      if($("classType").value==="GROUP" && studentIds.length < 1){ feedback.textContent="그룹 클래스는 학생 한 명 이상을 연결해 주세요.";return; }
+      if($("classType").value==="ONE_ON_ONE" && studentIds.length>1){
+        feedback.textContent="1:1 클래스는 STUDENT DB에 학생 한 명만 연결할 수 있습니다.";return;
+      }
+      const allowUnlinkedStudent=studentIds.length===0;
+      if(allowUnlinkedStudent){
+        if($("studentName").value.trim().length<2){
+          feedback.textContent="DB 미연결 신규 수강생의 이름을 2자 이상 입력해 주세요.";return;
+        }
+        const approved=window.confirm(
+          "STUDENT DB에 연결된 학생이 없습니다.\n\n학생 연결, PC 이메일, 하위아이템 출석 인원은 빈 상태로 Infohub 클래스가 생성됩니다.\n\n안내문을 먼저 보낸 신규 수강생에 한해서 계속 진행하시겠습니까?"
+        );
+        if(!approved){feedback.textContent="STUDENT DB 미연결 등록을 취소했습니다.";return;}
+      }
       const teacherId = Number($("mondayTeacher").value);
       if(!teacherId){feedback.textContent="담당 강사를 선택해 주세요.";return;}
       const itemName = $("mondayItemName").value.trim();
@@ -3504,6 +3513,7 @@ Affinity Universe
           studentName:$("studentName").value.trim(),
           itemName,
           studentIds,
+          allowUnlinkedStudent,
           teacherId,
           messageType:$("messageType").value,
           classType:$("classType").value,
@@ -3533,12 +3543,10 @@ Affinity Universe
           closures:getEffectiveClosedList(),
           absences:normalizeIndividualAbsences(individualAbsences),
           schedule:plan.items,
-          studentNotices:($("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value))
-            ? [...selectedStudentRecords].map(([id,name])=>({
-                studentId:Number(id),name,message:stagedStudentNotices.get(id)?.message||""
-              })) : undefined,
-          message:($("classType").value==="GROUP" && ["CLASS","TRIAL"].includes($("messageType").value))
-            ? combinedStudentNoticeText() : $("output").value,
+          studentNotices:isBatch?[...selectedStudentRecords].map(([id,name])=>({
+            studentId:Number(id),name,message:stagedStudentNotices.get(id)?.message||""
+          })):undefined,
+          message:isBatch?combinedStudentNoticeText():$("output").value,
         });
         approvedFingerprint = approvalFingerprint;
         feedback.classList.add("ok");
