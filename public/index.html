@@ -1998,18 +1998,19 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   function updateDiscordAvailability(){
-    const discordSelect = $("discord");
-    const isDrawing = DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value);
-    const isMakeupPc = ["MAKEUP_40","MAKEUP_30"].includes($("messageType").value)
-      && $("templateType").value === "PC" && !isDrawing;
-    discordSelect.disabled = isMakeupPc;
-    if(isMakeupPc) discordSelect.value = "해당없음";
-    discordSelect.title = isDrawing
-      ? "디지털 드로잉은 강사별 디스코드 채널을 선택해 주세요."
-      : isMakeupPc ? "디지털 드로잉 외 PC 보강/보충은 디스코드 안내가 제외됩니다." : "";
-    $("discordGuideHint").textContent = isDrawing
-      ? "디스코드 채널을 선택하면 담당 강사도 자동 선택됩니다. 콩써니쌤·채리쌤 모두 SEONYE로 등록됩니다."
-      : "강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.";
+    const discordSelect=$("discord");
+    const device=$("templateType").value;
+    const visible=device==="IPAD" || device==="GALAXY";
+    $("discordField").hidden=!visible;
+    discordSelect.disabled=!visible;
+    if(!visible){
+      discordSelect.value="해당없음";
+      lastAutoDiscordChannel="";
+    }
+    discordSelect.title=visible?"강사별 디스코드 채널을 선택할 수 있습니다.":"";
+    $("discordGuideHint").textContent=visible && DRAWING_DEVICE_COURSES.includes($("curriculumSelect").value)
+      ? "채널을 선택하면 담당 강사가 자동으로 매칭됩니다."
+      : "";
   }
 
   /*********************
@@ -2889,9 +2890,16 @@ Affinity Universe
   }
 
   function refreshRegistrationPreview(){
-    const r = buildRegistrationPlan();
-    if(!r.ok){ $("registrationPreview").textContent = r.error; $("registrationPreview").classList.add("warn"); return; }
-    $("registrationPreview").classList.remove("warn");
+    const r=buildRegistrationPlan();
+    const preview=$("registrationPreview");
+    if(!r.ok){
+      const incomplete=/선택해 주세요|입력해 주세요|회차를 선택|설정해야|시간을 입력|시작일을 입력|기기를 선택|종료일이 없으면|추가 일정 입력/.test(r.error);
+      preview.textContent=incomplete?"등록 미리보기 · 필수 정보를 입력하면 일정이 표시됩니다.":r.error;
+      preview.classList.toggle("pending",incomplete);
+      preview.classList.toggle("warn",!incomplete);
+      return;
+    }
+    preview.classList.remove("warn","pending");
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
       const slot=i.kstTime24||timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
       const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
@@ -2922,7 +2930,14 @@ Affinity Universe
     }
     $("selectedStudents").textContent = selectedStudentRecords.size
       ? `연결 대상 ${selectedStudentRecords.size}명: ${Array.from(selectedStudentRecords.values()).join(", ")}`
-      : "연결할 학생을 선택해 주세요.";
+      : "STUDENT DB 미연결 · 안내문은 먼저 생성할 수 있습니다.";
+    if(selectedStudentRecords.size===1){
+      const [id,name]=[...selectedStudentRecords][0];
+      $("studentName").value=name;
+      if($("classType").value==="GROUP" && $("noticeRecipient").value!==id)
+        $("noticeRecipient").value=id;
+    }
+    $("groupNoticeBox").hidden=$("classType").value!=="GROUP";
     renderAbsenteePicker();
     renderClosedPreview();
     renderStagedNotices();
@@ -3101,15 +3116,16 @@ Affinity Universe
       }
       if(v==="TRIAL")$("lessonCount").value="4";
       $("endDay").disabled=isSingle;
-      updateEndDateVisualState();
-      $("endDay").closest("div").style.opacity=isSingle?"0.45":"1";
+      $("endDayField").hidden=isSingle;
       $("lessonCount").disabled=isSingle||v==="TRIAL";
-      $("lessonCount").closest("div").style.opacity=(isSingle||v==="TRIAL")?"0.45":"1";
+      $("lessonCountField").hidden=isSingle;
+      $("expectedEndField").hidden=isSingle;
+      updateEndDateVisualState();
       document.querySelector('label[for="startDay"]').textContent=isSingle?"일정일(필수)":"클래스 시작일(필수)";
       document.querySelector('label[for="endDay"]').textContent=isSingle?"종료일 사용 안 함":v==="TRIAL"?"트라이얼 종료일(4회)":"클래스 종료일(선택)";
       mondayNameWasEdited=false;
       updateMondayItemName();
-      showAlert(v==="CLASS"?"클래스 일정 양식입니다.":v==="TRIAL"?"트라이얼 4회 일정입니다.":"보강/보충 1회 일정입니다.","ok");
+      showAlert("","ok");
       syncWeeklyFrequency();
       updateMondayDevicePreview();
       updateDiscordAvailability();
@@ -3194,6 +3210,7 @@ Affinity Universe
     $("closedName").addEventListener("input",syncRequestedClosureScope);
     $("requestedClosureScope").addEventListener("change",syncRequestedClosureScope);
     $("classType").addEventListener("change",()=>{
+      $("groupNoticeBox").hidden=$("classType").value!=="GROUP";
       syncRequestedClosureScope();
       renderClosedPreview();
       refreshRegistrationPreview();
