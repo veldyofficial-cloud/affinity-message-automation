@@ -2649,7 +2649,7 @@ Affinity Universe
     $("savedStudentNotices").textContent=ids.length
       ? "저장 상태: "+ids.filter(id=>stagedStudentNotices.get(id)?.signature===signature).length
           +"/"+ids.length+"명\n"+states.join("\n")
-      : "STUDENT DB에서 그룹 학생을 먼저 연결해 주세요.";
+      : "STUDENT DB 미연결: 안내문 생성 후 등록 전 확인창에서 승인할 수 있습니다.";
     $("combinedNoticePreview").value=combinedStudentNoticeText();
   }
   function chooseNoticeRecipient(){
@@ -2944,7 +2944,7 @@ Affinity Universe
       if($("classType").value==="GROUP" && $("noticeRecipient").value!==id)
         $("noticeRecipient").value=id;
     }
-    $("groupNoticeBox").hidden=$("classType").value!=="GROUP";
+    $("groupNoticeBox").hidden=$("classType").value!=="GROUP" || selectedStudentRecords.size===0;
     renderAbsenteePicker();
     renderClosedPreview();
     renderStagedNotices();
@@ -3217,7 +3217,7 @@ Affinity Universe
     $("closedName").addEventListener("input",syncRequestedClosureScope);
     $("requestedClosureScope").addEventListener("change",syncRequestedClosureScope);
     $("classType").addEventListener("change",()=>{
-      $("groupNoticeBox").hidden=$("classType").value!=="GROUP";
+      $("groupNoticeBox").hidden=$("classType").value!=="GROUP" || selectedStudentRecords.size===0;
       syncRequestedClosureScope();
       renderClosedPreview();
       refreshRegistrationPreview();
@@ -3523,8 +3523,8 @@ Affinity Universe
       }
       const allowUnlinkedStudent=studentIds.length===0;
       if(allowUnlinkedStudent){
-        if($("studentName").value.trim().length<2){
-          feedback.textContent="DB 미연결 신규 수강생의 이름을 2자 이상 입력해 주세요.";return;
+        if(!$("studentName").value.trim()){
+          feedback.textContent="DB 미연결 신규 수강생의 이름을 입력해 주세요.";return;
         }
         const approved=window.confirm(
           "STUDENT DB에 연결된 학생이 없습니다.\n\n학생 연결, PC 이메일, 하위아이템 출석 인원은 빈 상태로 Infohub 클래스가 생성됩니다.\n\n안내문을 먼저 보낸 신규 수강생에 한해서 계속 진행하시겠습니까?"
