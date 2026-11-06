@@ -121,7 +121,7 @@ test('Every timezone picker shows Korean localized labels sorted by 가나다 wi
  assert.deepEqual(ordered.map(fns.koreanTimeZoneLabel),
   [...ordered.map(fns.koreanTimeZoneLabel)].sort((a,b)=>collator.compare(a,b)));
  assert.deepEqual([...ordered].sort(),[...values].sort());
- const select={options:[],innerHTML:'',disabled:false,appendChild(option){this.options.push(option)}};
+ const select={options:[],disabled:false,appendChild(option){this.options.push(option)},set innerHTML(value){this.options=[]},get innerHTML(){return ''}};
  fns.setSelectOptions(select,values,'시간대 선택');
  assert.equal(select.options.length,values.length+1);
  assert.equal(select.options[0].value,'');
