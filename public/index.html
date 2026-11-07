@@ -298,7 +298,9 @@
       font-family:var(--font); font-style:normal; font-size:12px; font-weight:600;
       line-height:1; color:#6f819b; cursor:help; }
     .help-tip:hover, .help-tip:focus-visible { z-index:30; }
-    .help-popover { display:none; position:absolute; left:0; top:100%; width:min(300px,75vw);
+    .help-popover { display:none; position:fixed; left:12px; top:12px;
+      width:min(300px,calc(100vw - 24px)); max-height:min(420px,calc(100dvh - 24px));
+      overflow-x:hidden; overflow-y:auto; overflow-wrap:anywhere; z-index:100;
       color:#66758d; font-size:12px; font-weight:400; line-height:1.65; background:#f6f8fc;
       border:1px solid #dbe3ef; border-radius:9px; box-shadow:0 8px 20px rgba(30,50,80,.1);
       padding:11px 13px; text-align:left; white-space:normal; }
@@ -3748,6 +3750,71 @@ Affinity Universe
   }
 
   init();
+</script>
+<script>
+  // Display help inside the visible screen, even when the icon is near an edge.
+  // Read-only UI positioning: no message generation or Monday API logic changes.
+  (() => {
+    const margin = 12;
+    const gap = 7;
+    const tips = Array.from(document.querySelectorAll(".help-tip"));
+    function placeHelp(tip) {
+      const pop = tip.querySelector(".help-popover");
+      if (!pop) return;
+      const viewport = window.visualViewport;
+      const vw = viewport ? viewport.width : document.documentElement.clientWidth;
+      const vh = viewport ? viewport.height : window.innerHeight;
+      const vx = viewport ? viewport.offsetLeft : 0;
+      const vy = viewport ? viewport.offsetTop : 0;
+      const width = Math.max(0, Math.min(300, vw - margin * 2));
+      const rect = tip.getBoundingClientRect();
+      const left = Math.max(vx + margin, Math.min(rect.left, vx + vw - margin - width));
+      pop.style.width = width + "px";
+      pop.style.maxHeight = Math.max(0, Math.min(420, vh - margin * 2)) + "px";
+      pop.style.left = left + "px";
+
+      // Measure invisibly to flip the tooltip above an icon near the bottom.
+      pop.style.visibility = "hidden";
+      pop.style.display = "block";
+      const height = pop.getBoundingClientRect().height;
+      pop.style.removeProperty("display");
+      pop.style.removeProperty("visibility");
+      const bottomLimit = vy + vh - margin;
+      const topLimit = vy + margin;
+      const below = rect.bottom + gap;
+      const above = rect.top - gap - height;
+      let top = below + height <= bottomLimit ? below : above;
+      top = Math.max(topLimit, Math.min(top, bottomLimit - height));
+      pop.style.top = top + "px";
+    }
+    function refreshActiveHelp() {
+      for (const tip of tips) {
+        if (tip.matches(":hover") || tip === document.activeElement) placeHelp(tip);
+      }
+    }
+    for (const tip of tips) {
+      tip.addEventListener("pointerenter", () => placeHelp(tip));
+      tip.addEventListener("focus", () => placeHelp(tip));
+      tip.addEventListener("touchstart", () => placeHelp(tip), { passive: true });
+      tip.addEventListener("click", () => {
+        // Touch devices have no persistent hover; tap to focus for the tooltip.
+        if (window.matchMedia("(hover: none)").matches) {
+          tip.focus({ preventScroll: true });
+          placeHelp(tip);
+        }
+      });
+    }
+    document.addEventListener("pointerdown", event => {
+      const active = document.activeElement;
+      if (active && active.classList.contains("help-tip") && !active.contains(event.target)) active.blur();
+    }, true);
+    document.addEventListener("scroll", refreshActiveHelp, true);
+    window.addEventListener("resize", refreshActiveHelp);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("scroll", refreshActiveHelp);
+      window.visualViewport.addEventListener("resize", refreshActiveHelp);
+    }
+  })();
 </script>
 </body>
 </html>
