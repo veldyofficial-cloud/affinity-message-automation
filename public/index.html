@@ -58,7 +58,7 @@
     }
     .topbar > div:first-child { flex: 1 1 440px; min-width: 0; }
     h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; line-height: 1.45; letter-spacing: -.5px; }
-    .sub { font-size: 18px; font-weight: 400; line-height: 1.5; color: rgba(255,255,255,.9); }
+    .sub { font-size: 13px; font-weight: 400; line-height: 1.5; color: rgba(255,255,255,.9); }
     .status { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .pill {
       display: inline-flex;
@@ -307,11 +307,19 @@
       main { padding: 15px 12px 28px; }
       .topbar { padding: 21px 20px; min-height: 0; }
       h1 { font-size: 24px; }
-      .sub { font-size: 18px; }
+      .sub { font-size: 12px; }
       .card { padding: 21px 17px 24px; }
-      .row, .row3 { grid-template-columns: minmax(0,1fr); gap: 12px; }
+      /* Keep paired inputs side by side on phones; give the longer third time field a full row. */
+      .row, .row3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+      .row3 > :nth-child(3) { grid-column: 1 / -1; }
+      .row > div, .row3 > div { min-width: 0; }
       .btns button { flex: 1 1 auto; }
       .status { gap: 6px; }
+    }
+    @media (max-width: 359px) {
+      /* Very narrow displays keep fields legible instead of squeezing or overflowing. */
+      .row, .row3 { grid-template-columns: minmax(0, 1fr); }
+      .row3 > :nth-child(3) { grid-column: auto; }
     }
   </style>
 </head>
