@@ -227,6 +227,8 @@
     .heading-with-help > h2 { margin:0; }
     .heading-with-help .help-tip { margin-left:0; }
     .student-db-setup .heading-with-help { margin-bottom:9px; }
+    .holiday-manual-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; align-items:stretch; }
+    .holiday-manual-actions button { width:100%; min-width:0; white-space:normal; }
     .holiday-update-control { display:inline-flex; align-items:center; gap:8px; }
     .holiday-update-control .help-tip { margin-left:0; }
     .holiday-subheading { margin:0 0 12px; font-size:15px; font-weight:700; line-height:1.5; color:var(--blue); }
@@ -281,20 +283,29 @@
     #closedPreview { padding: 12px 14px; color: var(--text); background: var(--blue-soft); border: .75px solid var(--line); border-radius: 9px; font-size: 14px; line-height: 1.8; }
     /* Compact, keyboard-accessible inline help and stronger section rhythm. */
     [hidden] { display:none !important; }
-    .section-divider { margin:28px 0; height:1px; background:#cfdcf4; }
+    .section-divider { margin:46px 0; height:1.5px; background:#bbcded; }
     .section-title { margin-top:0; }
     .label-with-help { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
     .label-with-help > label { margin:0; }
-    .help-tip { display:inline-block; position:relative; vertical-align:middle; margin-left:5px; font-weight:400; z-index:2; }
-    .help-tip > summary { display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px;
-      border:1px solid #a8b7ce; border-radius:50%; font-size:12px; color:#6f819b; cursor:pointer; list-style:none; }
-    .help-tip > summary::-webkit-details-marker { display:none; }
-    .help-tip[open] { z-index:30; }
-    .help-popover { position:absolute; left:0; top:24px; width:min(300px,75vw);
+    /* Single-outline i icons show guidance on hover and disappear on mouseout.
+       Keyboard focus and touch focus provide accessible alternatives. */
+    .help-tip { display:inline-flex; align-items:center; justify-content:center; position:relative;
+      vertical-align:middle; margin-left:5px; font-weight:400; flex:0 0 auto; z-index:2; outline-offset:3px; }
+    .help-icon { display:inline-flex; align-items:center; justify-content:center;
+      width:19px; height:19px; border:1px solid #a8b7ce; border-radius:50%;
+      font-family:var(--font); font-style:normal; font-size:12px; font-weight:600;
+      line-height:1; color:#6f819b; cursor:help; }
+    .help-tip:hover, .help-tip:focus-visible { z-index:30; }
+    .help-popover { display:none; position:absolute; left:0; top:100%; width:min(300px,75vw);
       color:#66758d; font-size:12px; font-weight:400; line-height:1.65; background:#f6f8fc;
       border:1px solid #dbe3ef; border-radius:9px; box-shadow:0 8px 20px rgba(30,50,80,.1);
       padding:11px 13px; text-align:left; white-space:normal; }
+    .help-tip:hover > .help-popover, .help-tip:focus-visible > .help-popover { display:block; }
     .help-popover p { margin:5px 0 0; }
+    @media (hover:none) {
+      .help-tip:focus > .help-popover { display:block; }
+      .help-tip:focus { z-index:30; }
+    }
     .folded-section { margin:0; border:1px solid var(--line); border-radius:12px; background:#fff; }
     .folded-section > summary { display:flex; justify-content:space-between; align-items:center; gap:15px;
       padding:17px 18px; color:var(--blue); font-size:18px; font-weight:700; cursor:pointer; }
@@ -324,6 +335,9 @@
       /* Holiday settings remain one column on mobile even when other fields use two. */
       #holidaySection .row, #holidaySection .row3 { grid-template-columns: minmax(0,1fr); }
       #holidaySection .row3 > :nth-child(3) { grid-column: auto; }
+      .holiday-manual-actions { grid-template-columns:minmax(0,1fr); gap:10px; }
+      #customCourseBox .row { grid-template-columns:minmax(0,1fr); }
+      .section-divider { margin:38px 0; }
       .btns button { flex: 1 1 auto; }
       .status { gap: 6px; }
     }
@@ -355,7 +369,7 @@
     <div class="student-db-setup">
       <div class="heading-with-help">
         <h2>STUDENT DB · 그룹 학생 선택</h2>
-        <details class="help-tip"><summary aria-label="STUDENT DB 미연결 안내" title="STUDENT DB 미연결 안내">ⓘ</summary><div class="help-popover">STUDENT DB 미연결 · 안내문은 먼저 생성할 수 있습니다.</div></details>
+        <div class="help-tip" tabindex="0" role="group" aria-label="STUDENT DB 미연결 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">STUDENT DB 미연결 · 안내문은 먼저 생성할 수 있습니다.</div></div>
       </div>
       <div class="lookup-row">
         <input id="studentSearchQuery" type="text" aria-label="STUDENT DB 학생 검색" placeholder="학생 이름으로 검색" />
@@ -370,7 +384,7 @@
 
     <div class="row">
       <div>
-        <div class="label-with-help"><label for="messageType">메시지 종류</label><details class="help-tip"><summary aria-label="메시지 종류 안내" title="메시지 종류 안내">ⓘ</summary><div class="help-popover">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div></details></div>
+        <div class="label-with-help"><label for="messageType">메시지 종류</label><div class="help-tip" tabindex="0" role="group" aria-label="메시지 종류 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">정규 클래스는 설정한 회차, 보강/보충은 1회(종강일 없음), 트라이얼은 4회 등록합니다.</div></div></div>
         <select id="messageType">
           <option value="CLASS">클래스</option>
           <option value="MAKEUP_40">보강</option>
@@ -380,7 +394,7 @@
         
       </div>
       <div>
-        <div class="label-with-help"><label for="templateType">클래스 구분</label><details class="help-tip"><summary aria-label="클래스 구분 안내" title="클래스 구분 안내">ⓘ</summary><div class="help-popover"><span id="mondayDevicePreview">Infohub 기기: 선택 필요</span><p>선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 등록됩니다. 커리큘럼을 변경해도 유지됩니다.</p></div></details></div>
+        <div class="label-with-help"><label for="templateType">클래스 구분</label><div class="help-tip" tabindex="0" role="group" aria-label="클래스 구분 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip"><span id="mondayDevicePreview">Infohub 기기: 선택 필요</span><p>선택한 기기 라벨이 먼데이 Infohub 기기 컬럼에 등록됩니다. 커리큘럼을 변경해도 유지됩니다.</p></div></div></div>
         <select id="templateType" required>
           <option value="">기기를 선택해 주세요</option>
           <option value="PC">PC</option>
@@ -434,18 +448,18 @@
 
     <div class="row">
       <div>
-        <label for="startDay">시작일 / 일정일(필수)</label>
+        <label for="startDay">클래스 시작일</label>
         <input id="startDay" type="date" />
       </div>
       <div id="endDayField">
-        <label for="endDay">클래스 종료일(선택)</label>
+        <label for="endDay">클래스 종료일</label>
         <input id="endDay" type="date" />
       </div>
     </div>
 
     <div class="row">
       <div id="lessonCountField">
-        <div class="label-with-help"><label for="lessonCount">수업 회차</label><details class="help-tip"><summary aria-label="수업 회차 안내" title="수업 회차 안내">ⓘ</summary><div class="help-popover">종강일을 비우면 선택한 회차와 휴강일을 반영해 예상 종강일을 계산합니다.</div></details></div>
+        <div class="label-with-help"><label for="lessonCount">수업 회차</label><div class="help-tip" tabindex="0" role="group" aria-label="수업 회차 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">종강일을 비우면 선택한 회차와 휴강일을 반영해 예상 종강일을 계산합니다.</div></div></div>
         <select id="lessonCount">
           <option value="">종강일 직접 입력 시 선택 안 함</option>
           <option value="4">4강</option>
@@ -573,7 +587,7 @@
         </select>
       </div>
       <div>
-        <div class="label-with-help"><label for="dstMode">썸머타임 옵션</label><details class="help-tip"><summary aria-label="서머타임 옵션 설명" title="서머타임 옵션 설명">ⓘ</summary><div class="help-popover">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)입니다. 상위 TIME은 기준 수업 시간이며, 실제 한국시간이 달라지는 회차에만 하위 MEMO에 기록합니다.</div></details></div>
+        <div class="label-with-help"><label for="dstMode">썸머타임 옵션</label><div class="help-tip" tabindex="0" role="group" aria-label="서머타임 옵션 설명"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">수강생 시간 변경은 한국시간 고정(DST 🇰🇷), 강사만 변경은 학생 현지시간 고정(DST 🌐)입니다. 상위 TIME은 기준 수업 시간이며, 실제 한국시간이 달라지는 회차에만 하위 MEMO에 기록합니다.</div></div></div>
         <select id="dstMode">
           <option value="AUTO">자동(표기 없음)</option>
           <option value="STUDENT_CHANGE">썸머타임 때 수강생 시간 변경 (한국 시간 고정)</option>
@@ -651,7 +665,7 @@
 
     <div class="row">
       <div>
-        <div class="label-with-help"><label>한국 공휴일 자동 적용</label><details class="help-tip"><summary aria-label="공휴일 자동 적용 안내" title="공휴일 자동 적용 안내">ⓘ</summary><div class="help-popover">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></details></div>
+        <div class="label-with-help"><label>한국 공휴일 자동 적용</label><div class="help-tip" tabindex="0" role="group" aria-label="공휴일 자동 적용 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></div></div>
         <div class="inline">
           <button id="fetchHolidays" class="secondary" type="button" hidden>기간 내 공휴일 불러오기</button>
           <span class="pill"><span class="tag">API</span> Nager.Date (무료)</span>
@@ -667,7 +681,7 @@
     <div class="btns" style="margin-top:6px">
       <div class="holiday-update-control">
         <button id="addSelectedHolidays" class="secondary" type="button">휴강일 업데이트</button>
-        <details class="help-tip"><summary aria-label="휴강일 업데이트 안내" title="휴강일 업데이트 안내">ⓘ</summary><div class="help-popover">클래스 시작일, 요일, 종강일 또는 수업 회차 입력 후 공휴일이 자동 적용됩니다.</div></details>
+        <div class="help-tip" tabindex="0" role="group" aria-label="휴강일 업데이트 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">클래스 시작일, 요일, 종강일 또는 수업 회차 입력 후 공휴일이 자동 적용됩니다.</div></div>
       </div>
     </div>
     <div class="divider"></div>
@@ -675,7 +689,7 @@
 
     <div class="row">
       <div>
-        <div class="label-with-help"><label for="closedDate">휴강일 날짜</label><details class="help-tip"><summary aria-label="한국 기준 휴강 날짜 안내" title="한국 기준 휴강 날짜 안내">ⓘ</summary><div class="help-popover">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></details></div>
+        <div class="label-with-help"><label for="closedDate">휴강일 날짜</label><div class="help-tip" tabindex="0" role="group" aria-label="한국 기준 휴강 날짜 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></div></div>
         <input id="closedDate" type="date" />
         
       </div>
@@ -700,7 +714,7 @@
       </div>
     </div>
 
-    <div class="btns" style="margin-top:0">
+    <div class="btns holiday-manual-actions" style="margin-top:0">
       <button id="addClosed" class="secondary" type="button">휴강 / 결석 일정 추가</button>
       <button id="clearClosed" class="danger" type="button">휴강·결석 전체 삭제</button>
     </div>
@@ -731,7 +745,6 @@
           <input id="customCourseName" type="text" placeholder="예: 000" />
           <div class="note small">출력 문구: “1:1 000 클래스는 개별 맞춤 커리큘럼으로 진행됩니다.”</div>
         </div>
-        <div></div>
       </div>
     </div>
 
@@ -747,7 +760,7 @@
   <section class="card">
     <div class="heading-with-help">
       <h2>최종 안내 문구</h2>
-      <details class="help-tip"><summary aria-label="최종 안내 문구 확인 안내" title="최종 안내 문구 확인 안내">ⓘ</summary><div class="help-popover">최종 안내 문구를 확인한 뒤 먼데이 등록을 승인합니다.</div></details>
+      <div class="help-tip" tabindex="0" role="group" aria-label="최종 안내 문구 확인 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">최종 안내 문구를 확인한 뒤 먼데이 등록을 승인합니다.</div></div>
     </div>
 
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
@@ -765,7 +778,7 @@
     <div class="divider"></div>
     <div class="heading-with-help">
       <h2>먼데이 Infohub 등록</h2>
-      <details class="help-tip"><summary aria-label="먼데이 등록 안내" title="먼데이 등록 안내">ⓘ</summary><div class="help-popover">대상: AF CLASS INFO HUB · 해당 요일 그룹. 등록 전 학생과 강사를 정확히 선택해야 합니다.<p>STUDENT DB를 연결하지 않은 신규 수강생도 안내문을 생성할 수 있습니다. 미연결 상태에서 먼데이에 등록할 때는 별도 확인을 거칩니다.</p></div></details>
+      <div class="help-tip" tabindex="0" role="group" aria-label="먼데이 등록 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">대상: AF CLASS INFO HUB · 해당 요일 그룹. 등록 전 학생과 강사를 정확히 선택해야 합니다.<p>STUDENT DB를 연결하지 않은 신규 수강생도 안내문을 생성할 수 있습니다. 미연결 상태에서 먼데이에 등록할 때는 별도 확인을 거칩니다.</p></div></div>
     </div>
     <div class="integration-fields">
       <label for="mondayItemName">먼데이 상위아이템명</label>
@@ -776,7 +789,7 @@
 <select id="makeupLessonNumber"><option value="1">LESSON 01</option><option value="2">LESSON 02</option><option value="3">LESSON 03</option><option value="4">LESSON 04</option><option value="5">LESSON 05</option><option value="6">LESSON 06</option><option value="7">LESSON 07</option><option value="8">LESSON 08</option><option value="9">LESSON 09</option><option value="10">LESSON 10</option><option value="11">LESSON 11</option><option value="12">LESSON 12</option><option value="13">LESSON 13</option><option value="14">LESSON 14</option><option value="15">LESSON 15</option><option value="16">LESSON 16</option><option value="17">LESSON 17</option><option value="18">LESSON 18</option><option value="19">LESSON 19</option><option value="20">LESSON 20</option><option value="21">LESSON 21</option><option value="22">LESSON 22</option><option value="23">LESSON 23</option><option value="24">LESSON 24</option></select></div>
 <label for="subMemo">하위아이템 공통 MEMO (선택)</label>
 <textarea id="subMemo" style="height:90px;min-height:75px" placeholder="예: 개인 사정으로 보강 요청"></textarea>
-<div class="label-with-help"><label for="subMemos">날짜별 MEMO (선택)</label><details class="help-tip"><summary aria-label="날짜별 메모 안내" title="날짜별 메모 안내">ⓘ</summary><div class="help-popover">한 줄에 YYYY-MM-DD | 메모 형식으로 입력합니다. 날짜별 메모가 공통 메모보다 우선합니다. 그룹 학생은 상단 STUDENT DB에서 연결하며, 합반 합류 학생은 1명만 연결해도 그룹 아이템을 생성할 수 있습니다. 개별 결석 처리는 2명 이상 연결된 그룹에서 가능합니다.</div></details></div>
+<div class="label-with-help"><label for="subMemos">날짜별 MEMO (선택)</label><div class="help-tip" tabindex="0" role="group" aria-label="날짜별 메모 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">한 줄에 YYYY-MM-DD | 메모 형식으로 입력합니다. 날짜별 메모가 공통 메모보다 우선합니다. 그룹 학생은 상단 STUDENT DB에서 연결하며, 합반 합류 학생은 1명만 연결해도 그룹 아이템을 생성할 수 있습니다. 개별 결석 처리는 2명 이상 연결된 그룹에서 가능합니다.</div></div></div>
 <textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
 
       <label for="mondayTeacher">담당 강사</label>
