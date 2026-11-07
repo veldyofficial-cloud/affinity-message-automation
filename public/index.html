@@ -106,6 +106,8 @@
       background: var(--blue);
     }
     .row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; margin-bottom: 15px; }
+    /* The custom course name and explanatory copy fill one row at every screen size. */
+    #customCourseBox .row { grid-template-columns: minmax(0,1fr); }
     .row3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; margin-bottom: 15px; }
     label { display: block; margin: 0 0 7px; color: var(--blue); font-size: 14px; font-weight: 700; line-height: 1.55; }
     input:not([type="checkbox"]), select, textarea {
@@ -336,7 +338,6 @@
       #holidaySection .row, #holidaySection .row3 { grid-template-columns: minmax(0,1fr); }
       #holidaySection .row3 > :nth-child(3) { grid-column: auto; }
       .holiday-manual-actions { grid-template-columns:minmax(0,1fr); gap:10px; }
-      #customCourseBox .row { grid-template-columns:minmax(0,1fr); }
       .section-divider { margin:38px 0; }
       .btns button { flex: 1 1 auto; }
       .status { gap: 6px; }
