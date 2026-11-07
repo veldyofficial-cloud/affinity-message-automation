@@ -307,6 +307,8 @@
     .help-tip:hover > .help-popover, .help-tip:focus-visible > .help-popover { display:block; }
     .help-popover p { margin:5px 0 0; }
     @media (hover:none) {
+      /* Prevent sticky mobile hover; show only while the tapped icon has focus. */
+      .help-tip:hover > .help-popover { display:none; }
       .help-tip:focus > .help-popover { display:block; }
       .help-tip:focus { z-index:30; }
     }
