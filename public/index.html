@@ -223,6 +223,14 @@
     .selected-students { color: var(--blue-dark); }
     .student-db-setup { padding:15px; margin:12px 0 20px; border:1px solid #d9e3f3; background:#f7f9fe; border-radius:10px; }
     .student-db-setup h2 { margin:0 0 9px; }
+    .heading-with-help { display:flex; align-items:center; gap:7px; margin-bottom:18px; }
+    .heading-with-help > h2 { margin:0; }
+    .heading-with-help .help-tip { margin-left:0; }
+    .student-db-setup .heading-with-help { margin-bottom:9px; }
+    .holiday-update-control { display:inline-flex; align-items:center; gap:8px; }
+    .holiday-update-control .help-tip { margin-left:0; }
+    .holiday-subheading { margin:0 0 12px; font-size:15px; font-weight:700; line-height:1.5; color:var(--blue); }
+    #holidayAutoStatus:empty { display:none; }
     .notice-recipient-box { margin-bottom:15px; padding:13px; border:1px solid #d9e3f3; border-radius:10px; background:#f7f9fe; }
     .notice-recipient-box select { margin-top:7px; }
     .notice-recipient-box .note { margin-top:8px; color:#333; }
@@ -313,6 +321,9 @@
       .row, .row3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
       .row3 > :nth-child(3) { grid-column: 1 / -1; }
       .row > div, .row3 > div { min-width: 0; }
+      /* Holiday settings remain one column on mobile even when other fields use two. */
+      #holidaySection .row, #holidaySection .row3 { grid-template-columns: minmax(0,1fr); }
+      #holidaySection .row3 > :nth-child(3) { grid-column: auto; }
       .btns button { flex: 1 1 auto; }
       .status { gap: 6px; }
     }
@@ -342,14 +353,16 @@
     <h2>입력</h2>
 
     <div class="student-db-setup">
-      <h2>STUDENT DB · 그룹 학생 선택</h2>
-      <label for="studentSearchQuery">STUDENT DB 학생 검색</label>
+      <div class="heading-with-help">
+        <h2>STUDENT DB · 그룹 학생 선택</h2>
+        <details class="help-tip"><summary aria-label="STUDENT DB 미연결 안내" title="STUDENT DB 미연결 안내">ⓘ</summary><div class="help-popover">STUDENT DB 미연결 · 안내문은 먼저 생성할 수 있습니다.</div></details>
+      </div>
       <div class="lookup-row">
-        <input id="studentSearchQuery" type="text" placeholder="학생 이름으로 검색" />
+        <input id="studentSearchQuery" type="text" aria-label="STUDENT DB 학생 검색" placeholder="학생 이름으로 검색" />
         <button id="studentSearch" type="button" class="secondary">검색</button>
       </div>
       <div id="studentResults" class="student-results" aria-live="polite"></div>
-      <div id="selectedStudents" class="note selected-students">연결할 학생을 선택해 주세요.</div>
+      <div id="selectedStudents" class="note selected-students"></div>
     </div>
 
     <div class="divider section-divider"></div>
@@ -432,7 +445,7 @@
 
     <div class="row">
       <div id="lessonCountField">
-        <label for="lessonCount">수업 회차(종강일 미입력 시 필수)</label>
+        <div class="label-with-help"><label for="lessonCount">수업 회차</label><details class="help-tip"><summary aria-label="수업 회차 안내" title="수업 회차 안내">ⓘ</summary><div class="help-popover">종강일을 비우면 선택한 회차와 휴강일을 반영해 예상 종강일을 계산합니다.</div></details></div>
         <select id="lessonCount">
           <option value="">종강일 직접 입력 시 선택 안 함</option>
           <option value="4">4강</option>
@@ -441,7 +454,6 @@
           <option value="12">12강</option>
           <option value="20">20강</option>
         </select>
-        <div class="note small">종강일을 비우면 선택한 회차와 휴강일을 반영해 예상 종강일을 계산합니다.</div>
       </div>
       <div id="expectedEndField">
         <label for="expectedEndPreview">예상 종강일 미리보기</label>
@@ -639,7 +651,31 @@
 
     <div class="row">
       <div>
-        <div class="label-with-help"><label for="closedDate">휴강일 날짜(수동 추가 · 한국 날짜 기준)</label><details class="help-tip"><summary aria-label="한국 기준 휴강 날짜 안내" title="한국 기준 휴강 날짜 안내">ⓘ</summary><div class="help-popover">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></details></div>
+        <div class="label-with-help"><label>한국 공휴일 자동 적용</label><details class="help-tip"><summary aria-label="공휴일 자동 적용 안내" title="공휴일 자동 적용 안내">ⓘ</summary><div class="help-popover">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></details></div>
+        <div class="inline">
+          <button id="fetchHolidays" class="secondary" type="button" hidden>기간 내 공휴일 불러오기</button>
+          <span class="pill"><span class="tag">API</span> Nager.Date (무료)</span>
+        </div>
+        <div class="note small" id="holidayAutoStatus" role="status" aria-live="polite"></div>
+      </div>
+      <div>
+        <label>공휴일 적용 체크 · 쉬지 않는 날은 체크 해제</label>
+        <div id="holidayList" class="list small muted">아직 불러오지 않았습니다.</div>
+      </div>
+    </div>
+
+    <div class="btns" style="margin-top:6px">
+      <div class="holiday-update-control">
+        <button id="addSelectedHolidays" class="secondary" type="button">휴강일 업데이트</button>
+        <details class="help-tip"><summary aria-label="휴강일 업데이트 안내" title="휴강일 업데이트 안내">ⓘ</summary><div class="help-popover">클래스 시작일, 요일, 종강일 또는 수업 회차 입력 후 공휴일이 자동 적용됩니다.</div></details>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <h3 class="holiday-subheading">수강생 요청 휴강 · 직접 추가</h3>
+
+    <div class="row">
+      <div>
+        <div class="label-with-help"><label for="closedDate">휴강일 날짜</label><details class="help-tip"><summary aria-label="한국 기준 휴강 날짜 안내" title="한국 기준 휴강 날짜 안내">ⓘ</summary><div class="help-popover">해외 현지 화요일 수업이 한국에서는 수요일이라면, 휴강은 한국 수요일 날짜로 등록합니다. 현지 날짜는 안내문에 자동 변환됩니다.</div></details></div>
         <input id="closedDate" type="date" />
         
       </div>
@@ -669,26 +705,6 @@
       <button id="clearClosed" class="danger" type="button">휴강·결석 전체 삭제</button>
     </div>
 
-    <div class="divider"></div>
-
-    <div class="row">
-      <div>
-        <div class="label-with-help"><label>한국 공휴일 자동 적용</label><details class="help-tip"><summary aria-label="공휴일 자동 적용 안내" title="공휴일 자동 적용 안내">ⓘ</summary><div class="help-popover">한국 수업 날짜 기준으로 현재 수업 기간과 정기 요일에 겹치는 공휴일만 표시합니다. 종강일 미입력 시 연장 조회 범위는 화면에 노출하지 않습니다.</div></details></div>
-        <div class="inline">
-          <button id="fetchHolidays" class="secondary" type="button" hidden>기간 내 공휴일 불러오기</button>
-          <span class="pill"><span class="tag">API</span> Nager.Date (무료)</span>
-        </div>
-        <div class="note small" id="holidayAutoStatus">수업 기간과 요일을 입력하면 자동으로 불러와 휴강에 적용합니다.</div>
-      </div>
-      <div>
-        <label>공휴일 적용 체크 · 쉬지 않는 날은 체크 해제</label>
-        <div id="holidayList" class="list small muted">아직 불러오지 않았습니다.</div>
-      </div>
-    </div>
-
-    <div class="btns" style="margin-top:6px">
-      <button id="addSelectedHolidays" class="secondary" type="button">휴강일 업데이트</button>
-    </div>
     <div class="divider"></div>
     <h2 class="section-title">현재 등록된 휴강 및 결석 일정</h2>
     <div id="closedPreview" class="note mono">등록된 휴강 및 결석 일정: 없음</div>
@@ -729,7 +745,10 @@
   </section>
 
   <section class="card">
-    <h2>최종 안내 문구</h2>
+    <div class="heading-with-help">
+      <h2>최종 안내 문구</h2>
+      <details class="help-tip"><summary aria-label="최종 안내 문구 확인 안내" title="최종 안내 문구 확인 안내">ⓘ</summary><div class="help-popover">최종 안내 문구를 확인한 뒤 먼데이 등록을 승인합니다.</div></details>
+    </div>
 
     <textarea id="output" class="mono" placeholder="왼쪽에서 정보를 입력하고 [최종 문구 생성] 버튼을 누르면 여기에 표시됩니다."></textarea>
     <div class="divider section-divider"></div>
@@ -743,12 +762,12 @@
       <textarea id="combinedNoticePreview" readonly style="height:170px;min-height:130px" placeholder="그룹 학생 안내문을 저장하면 이곳에 모아서 표시합니다."></textarea>
       <div class="note small">모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개(학생별 메시지 전체 포함)를 최종 등록합니다. 승인 전에는 먼데이 DB가 변경되지 않습니다.</div>
     </div>
-    <div class="note">최종 안내 문구를 확인한 뒤 먼데이 등록을 승인합니다.</div>
     <div class="divider"></div>
-    <h2>먼데이 Infohub 등록</h2>
-    <p class="note integration-intro">대상: AF CLASS INFO HUB · 해당 요일 그룹. 등록 전 학생과 강사를 정확히 선택해야 합니다.</p>
+    <div class="heading-with-help">
+      <h2>먼데이 Infohub 등록</h2>
+      <details class="help-tip"><summary aria-label="먼데이 등록 안내" title="먼데이 등록 안내">ⓘ</summary><div class="help-popover">대상: AF CLASS INFO HUB · 해당 요일 그룹. 등록 전 학생과 강사를 정확히 선택해야 합니다.<p>STUDENT DB를 연결하지 않은 신규 수강생도 안내문을 생성할 수 있습니다. 미연결 상태에서 먼데이에 등록할 때는 별도 확인을 거칩니다.</p></div></details>
+    </div>
     <div class="integration-fields">
-      <div class="note">STUDENT DB를 연결하지 않은 신규 수강생도 안내문을 생성할 수 있습니다. 미연결 상태에서 먼데이에 등록할 때는 별도 확인을 거칩니다.</div>
       <label for="mondayItemName">먼데이 상위아이템명</label>
       <input id="mondayItemName" type="text" placeholder="커리큘럼에 맞는 상위아이템명" />
       <label for="mondayLanguage">상위아이템 언어</label>
@@ -2945,7 +2964,7 @@ Affinity Universe
     }
     $("selectedStudents").textContent = selectedStudentRecords.size
       ? `연결 대상 ${selectedStudentRecords.size}명: ${Array.from(selectedStudentRecords.values()).join(", ")}`
-      : "STUDENT DB 미연결 · 안내문은 먼저 생성할 수 있습니다.";
+      : "";
     if(selectedStudentRecords.size===1){
       const [id,name]=[...selectedStudentRecords][0];
       $("studentName").value=name;
@@ -3319,7 +3338,7 @@ Affinity Universe
       const count=messageType==="TRIAL"?4:Number($("lessonCount").value);
       const explicit=$("endDay").value;
       if(!start || !extra.ready || (!explicit&&![4,8,10,12,20].includes(count))){
-        if(status)status.textContent="클래스 시작일, 요일, 종강일 또는 수업 회차 입력 후 공휴일이 자동 적용됩니다.";
+        if(status)status.textContent="";
         return;
       }
       const end=explicit||getHolidayFetchEndDate(start,$("weekday").value,count);
