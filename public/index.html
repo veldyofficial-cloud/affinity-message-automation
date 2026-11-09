@@ -351,6 +351,51 @@
       .row, .row3 { grid-template-columns: minmax(0, 1fr); }
       .row3 > :nth-child(3) { grid-column: auto; }
     }
+    /* Header signature: aligned across the title and settings. */
+    .topbar { position:relative; padding-bottom:44px; }
+    .topbar::after { content:""; position:absolute; bottom:22px; left:30px; right:30px; border-bottom:1px solid rgba(255,255,255,.8); }
+    .topbar-right { min-width:0; display:flex; flex-direction:column; align-items:flex-end; gap:10px; margin-left:auto; }
+    .topbar-right .status { margin-left:0; justify-content:flex-end; }
+    .brand-wordmark { display:flex; align-items:center; justify-content:flex-end; gap:9px; font:700 14px/1.3 var(--font); color:#fff; letter-spacing:.09em; white-space:nowrap; }
+    .brand-wordmark img { width:27px; height:27px; object-fit:contain; flex:none; }
+    .output-card textarea#output { min-height:220px; }
+    .registration-card .heading-with-help { margin-bottom:18px; }
+    .registration-card { min-width:0; }
+    @media (min-width:1500px) and (min-height:650px) {
+      html, body { height:100%; overflow:hidden; }
+      body { height:100dvh; display:flex; flex-direction:column; }
+      header { max-width:1900px; width:100%; flex:0 0 auto; padding:12px 18px 0; }
+      .topbar { min-height:99px; padding:15px 26px 32px; gap:12px; }
+      .topbar::after { bottom:12px; left:26px; right:26px; }
+      .topbar > div:first-child { flex:1 1 auto; }
+      .topbar-right { gap:5px; }
+      .topbar .sub { font-size:13px; color:#fff; }
+      main.grid { max-width:1900px; width:100%; flex:1 1 auto; min-height:0; 
+        padding:14px 18px 16px; grid-template-columns:minmax(0,1.17fr) minmax(0,1fr) minmax(0,.95fr);
+        gap:16px; align-items:stretch; }
+      main.grid > .card { min-height:0; height:100%; overflow-x:hidden; overflow-y:auto;
+        scrollbar-width:thin; scrollbar-color:#c4d4f0 transparent; overscroll-behavior:contain; }
+      .card:nth-child(2) { position:static; }
+      main.grid > .card { padding:20px; }
+      #output { height:clamp(280px,49dvh,670px); min-height:220px; }
+      .output-card #groupNoticeBox { margin-top:22px; }
+    }
+    @media (min-width:1041px) and (max-width:1499px) {
+      main.grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .registration-card { grid-column:2; }
+      .card:nth-child(2) { position:static; }
+    }
+    @media (max-width:1040px) {
+      .topbar-right { align-items:flex-start; margin-left:0; width:100%; }
+      .topbar-right .status { justify-content:flex-start; }
+      .topbar::after { bottom:15px; left:20px; right:20px; }
+      .topbar { padding-bottom:35px; }
+    }
+    @media (max-width:640px) {
+      .brand-wordmark { font-size:12px; letter-spacing:.06em; }
+      .brand-wordmark img { width:22px; height:22px; }
+      .topbar::after { left:20px; right:20px; }
+    }
   </style>
 </head>
 <body>
@@ -360,15 +405,18 @@
       <h1>안내메시지 자동 생성기</h1>
       <div class="sub">입력 → 안내 문구 생성 → 승인 → 먼데이 자동 등록</div>
     </div>
-    <div class="status">
-      <span class="pill">🇰🇷 한국시간 기준 입력</span>
-      <span id="tzBadge" class="pill muted">해외 설정 시 현지 시간/요일 자동 표시</span>
+    <div class="topbar-right">
+      <div class="brand-wordmark"><img src="/brand-mark.png" alt="" width="27" height="27" /><span>AFFINITY UNIVERSE</span></div>
+      <div class="status">
+        <span class="pill">🇰🇷 한국시간 기준 입력</span>
+        <span id="tzBadge" class="pill muted">해외 설정 시 현지 시간/요일 자동 표시</span>
+      </div>
     </div>
   </div>
 </header>
 
 <main class="grid">
-  <section class="card">
+  <section class="card input-card">
     <h2>입력</h2>
 
     <div class="student-db-setup">
@@ -441,7 +489,7 @@
           <option value="🐰DRAWING ZOEY 조이쌤">🐰DRAWING ZOEY 조이쌤</option>
           <option value="💙DRAWING ELLIE 아룡쌤">💙DRAWING ELLIE 아룡쌤</option>
           <option value="😎DRAWING SELLY 새우쌤">😎DRAWING SELLY 새우쌤</option>
-          <option value="🥕DRAWING SHEAN 션쌤">🥕DRAWING SHEAN 션쌤</option>
+          <option value="🥕DRAWING SARAH 션쌤">🥕DRAWING SARAH 션쌤</option>
           <option value="🎨DRAWING SEONYE 콩써니쌤">🎨DRAWING SEONYE 콩써니쌤</option>
           <option value="🍒DRAWING CHAERI 채리쌤">🍒DRAWING CHAERI 채리쌤</option>
           <option value="💖DRAWING JIMIN 지민쌤">💖DRAWING JIMIN 지민쌤</option>
@@ -762,7 +810,7 @@
 
   </section>
 
-  <section class="card">
+  <section class="card output-card">
     <div class="heading-with-help">
       <h2>최종 안내 문구</h2>
       <div class="help-tip" tabindex="0" role="group" aria-label="최종 안내 문구 확인 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">최종 안내 문구를 확인한 뒤 먼데이 등록을 승인합니다.</div></div>
@@ -780,7 +828,9 @@
       <textarea id="combinedNoticePreview" readonly style="height:170px;min-height:130px" placeholder="그룹 학생 안내문을 저장하면 이곳에 모아서 표시합니다."></textarea>
       <div class="note small">모든 학생의 문구가 저장된 후, 먼데이 상위아이템 1개와 말풍선 1개(학생별 메시지 전체 포함)를 최종 등록합니다. 승인 전에는 먼데이 DB가 변경되지 않습니다.</div>
     </div>
-    <div class="divider"></div>
+  </section>
+
+  <section class="card registration-card">
     <div class="heading-with-help">
       <h2>먼데이 Infohub 등록</h2>
       <div class="help-tip" tabindex="0" role="group" aria-label="먼데이 등록 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">대상: AF CLASS INFO HUB · 해당 요일 그룹. 등록 전 학생과 강사를 정확히 선택해야 합니다.<p>STUDENT DB를 연결하지 않은 신규 수강생도 안내문을 생성할 수 있습니다. 미연결 상태에서 먼데이에 등록할 때는 별도 확인을 거칩니다.</p></div></div>
@@ -2009,7 +2059,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     "62107542":"🐰DRAWING ZOEY 조이쌤",
     "62032527":"💙DRAWING ELLIE 아룡쌤",
     "62107579":"😎DRAWING SELLY 새우쌤",
-    "62107617":"🥕DRAWING SHEAN 션쌤",
+    "62107617":"🥕DRAWING SARAH 션쌤",
     "62270353":"🎨DRAWING SEONYE 콩써니쌤",
     "66891148":"💖DRAWING JIMIN 지민쌤",
     "79016580":"🐶DRAWING LARA 라라쌤"
@@ -2018,7 +2068,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
     "🐰DRAWING ZOEY 조이쌤":"62107542",
     "💙DRAWING ELLIE 아룡쌤":"62032527",
     "😎DRAWING SELLY 새우쌤":"62107579",
-    "🥕DRAWING SHEAN 션쌤":"62107617",
+    "🥕DRAWING SARAH 션쌤":"62107617",
     "🎨DRAWING SEONYE 콩써니쌤":"62270353",
     "🍒DRAWING CHAERI 채리쌤":"62270353",
     "💖DRAWING JIMIN 지민쌤":"66891148",
