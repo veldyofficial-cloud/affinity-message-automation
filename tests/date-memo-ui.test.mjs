@@ -7,7 +7,7 @@ const html=fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'Main inline script must exist');
 const code=script.replace(/^\s*init\(\);\s*$/m,
-  'globalThis.__memoTest={buildRegistrationPlan,renderDateMemoRows,parseSubMemos,approvalFingerprint,registrationFingerprint,dateMemoDrafts};');
+  'globalThis.__memoTest={buildRegistrationPlan,refreshRegistrationPreview,parseSubMemos,approvalFingerprint,registrationFingerprint,dateMemoDrafts};');
 
 function element(tag='div'){
   return {
@@ -58,35 +58,35 @@ test('Scheduled child dates render one editable memo field per lesson',()=>{
   const plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
   assert.equal(plan.items.length,4);
-  h.renderDateMemoRows(plan);
-  const rows=h.get('dateMemoRows').children;
+  h.refreshRegistrationPreview();
+  const rows=h.get('registrationPreview').children[2].children;
   assert.equal(rows.length,4);
   assert.deepEqual(Array.from(rows,row=>row.children[1].dataset.date),
     ['2026-11-02','2026-11-09','2026-11-16','2026-11-23']);
-  assert.match(rows[0].children[0].children[1].textContent,/LESSON 01/);
-  assert.match(h.get('dateMemoStatus').textContent,/4개/);
+  assert.match(rows[0].children[0].textContent,/LESSON 01/);
+  assert.match(h.get('registrationPreview').children[0].textContent,/4강/);
 });
 
 test('Only populated dates are sent, including holiday dates; memos survive temporary schedule edits',()=>{
   const h=harness();
   let plan=h.buildRegistrationPlan();
-  h.renderDateMemoRows(plan);
+  h.refreshRegistrationPreview();
   h.dateMemoDrafts.set('2026-11-02','첫 수업 메모');
   h.dateMemoDrafts.set('2026-11-16','세 번째 수업 메모');
-  h.renderDateMemoRows(plan);
+  h.refreshRegistrationPreview();
   assert.equal(h.parseSubMemos(plan).length,2);
   h.get('endDay').value='2026-11-09';
   h.get('lessonCount').value='2';
   plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
-  h.renderDateMemoRows(plan);
+  h.refreshRegistrationPreview();
   assert.deepEqual(Array.from(h.parseSubMemos(plan),x=>x.date),['2026-11-02']);
   h.get('endDay').value='2026-11-23';
   h.get('lessonCount').value='4';
   plan=h.buildRegistrationPlan();
-  h.renderDateMemoRows(plan);
+  h.refreshRegistrationPreview();
   assert.equal(h.parseSubMemos(plan).length,2,'original memo is restored when date returns');
-  assert.equal(h.get('dateMemoRows').children[2].children[1].value,'세 번째 수업 메모');
+  assert.equal(h.get('registrationPreview').children[2].children[2].children[1].value,'세 번째 수업 메모');
 });
 
 test('Editing child memo does not invalidate generated notice but does change approval payload',()=>{
@@ -106,9 +106,9 @@ test('A single makeup lesson also renders its own memo field',()=>{
     makeupLessonNumber:'7'});
   const plan=h.buildRegistrationPlan();
   assert.equal(plan.ok,true,plan.error);
-  h.renderDateMemoRows(plan);
-  assert.equal(h.get('dateMemoRows').children.length,1);
-  assert.match(h.get('dateMemoRows').children[0].children[0].children[1].textContent,/보강/);
+  h.refreshRegistrationPreview();
+  assert.equal(h.get('registrationPreview').children[2].children.length,1);
+  assert.match(h.get('registrationPreview').children[2].children[0].children[0].textContent,/보강/);
 });
 
 test('Memo length guard follows server column limit',()=>{
@@ -119,9 +119,10 @@ test('Memo length guard follows server column limit',()=>{
 });
 
 test('Desktop has nonedge gutters and main blue remains blue rather than navy',()=>{
-  assert.match(html,/--blue:\s*#2269e8;/);
+  assert.match(html,/--blue:\s*#0b66f2;/);
   assert.match(html,/padding:12px clamp\(26px,2\.2vw,42px\) 0/);
   assert.match(html,/padding:14px clamp\(26px,2\.2vw,42px\) 16px/);
-  assert.match(html,/id="dateMemoRows"/);
+  assert.match(html,/className="registration-session-memo"/);
+  assert.doesNotMatch(html,/id="dateMemoRows"/);
   assert.doesNotMatch(html,/id="subMemos"/);
 });
