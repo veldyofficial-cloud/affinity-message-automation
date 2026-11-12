@@ -2912,6 +2912,7 @@ Affinity Universe
     }
     if(!endDay || endDay < startDay) return {ok:false,error:"시작일과 종료일을 확인해 주세요."};
     if(single){
+      if(extra.frequency!==1)return {ok:false,error:"보강/보충은 추가 정기 일정 없이 1회만 등록할 수 있습니다."};
       if(closures.length||individualAbsences.length)return {ok:false,error:"단일 수업에는 휴강/결석 일정을 지정할 수 없습니다."};
       if(getWeekdayKoFromISO(startDay)!==weekday)return {ok:false,error:"수업일과 요일을 일치시켜 주세요."};
       const num=Number($("makeupLessonNumber").value);
@@ -2919,7 +2920,13 @@ Affinity Universe
       const kst=parseKorTimeTo24h($("amPm").value,$("korTime").value.trim());
       if(!kst)return {ok:false,error:koreanTimeValidationMessage($("amPm").value,$("korTime").value)};
       const label=messageType==="MAKEUP_40"?"보강":"보충";
-      return {ok:true,startDay,endDay:startDay,weekday,kst,items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],lessonCount:1,holidayCount:0};
+      // Match the recurring-class plan shape so preview and approval can always read
+      // slot metadata, even for a one-off makeup/supplement with no extra slots.
+      return {ok:true,startDay,endDay:startDay,weekday,kst,
+        kstSecond:null,kstThird:null,weeklyFrequency:1,extraSlots:[],
+        typeByDay:{[weekday]:$("classType").value},
+        items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],
+        lessonCount:1,holidayCount:0};
     }
     const closedDates = new Map(closures.map(x => [x.date, x.name || "휴강"]));
     const absentMap = new Map();
@@ -3661,10 +3668,10 @@ Affinity Universe
           weeklyFrequency:plan.weeklyFrequency,
           kstTime24Second:plan.kstSecond,
           kstTime24Third:plan.kstThird,
-          classType2:plan.extraSlots[0]?.classType||null,
-          classType3:plan.extraSlots[1]?.classType||null,
-          dstMode2:plan.extraSlots[0]?.dstMode||null,
-          dstMode3:plan.extraSlots[1]?.dstMode||null,
+          classType2:plan.extraSlots?.[0]?.classType||null,
+          classType3:plan.extraSlots?.[1]?.classType||null,
+          dstMode2:plan.extraSlots?.[0]?.dstMode||null,
+          dstMode3:plan.extraSlots?.[1]?.dstMode||null,
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
