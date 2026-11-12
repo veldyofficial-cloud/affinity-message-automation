@@ -247,20 +247,23 @@
     .absentee-option span { color: var(--blue-ink); font-weight: 500; }
     .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: var(--text); background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
     .registration-preview.warn { color: var(--warn); background: #fff7ed; border-color: #fdba74; }
-    /* Inline editor: one compact memo field at the end of each preview date. */
+    /* Keep the preview short by revealing a memo input only for checked sessions. */
     .registration-preview-head { font-weight:600; font-size:13px; line-height:1.6; margin:0 0 8px; }
     .registration-session-list { display:flex; flex-direction:column; gap:0; }
     .registration-session-row { display:flex; align-items:center; flex-wrap:wrap; gap:7px 11px;
       padding:7px 0; border-top:1px solid #e1eaf8; }
     .registration-session-detail { flex:1 1 260px; min-width:0; white-space:normal;
       overflow-wrap:anywhere; font-size:13px; line-height:1.55; }
-    textarea.registration-session-memo { flex:0 1 160px; width:160px; min-width:118px; max-width:100%;
-      height:37px; min-height:37px; padding:7px 10px; border-radius:7px;
-      font-size:12px; line-height:1.5; resize:vertical; background:#fff; }
+    .registration-memo-toggle { display:inline-flex; align-items:center; gap:6px; flex:0 0 auto;
+      margin:0; color:var(--blue-ink); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .registration-memo-check { width:16px; height:16px; flex:none; margin:0; accent-color:var(--blue); cursor:pointer; }
+    textarea.registration-session-memo { flex:1 1 100%; width:100%; max-width:100%;
+      height:52px; min-height:44px; padding:8px 11px; border-radius:7px;
+      font-size:12px; line-height:1.55; resize:vertical; background:#fff; }
     .registration-memo-caption { font-size:12px; color:#536789; margin:0 0 7px; line-height:1.5; }
     @media (max-width:640px) {
       .registration-session-detail { flex-basis:100%; }
-      textarea.registration-session-memo { flex:1 1 100%; width:100%; }
+      textarea.registration-session-memo { flex:1 1 100%; }
     }
     .optional-slot { padding:14px; margin:8px 0 12px; border:1px solid #d9e0ec; border-radius:11px; background:#f5f7fc; }
     .optional-slot[hidden] { display:none !important; }
@@ -392,16 +395,19 @@
     @media (min-width:1500px) and (min-height:650px) {
       html, body { height:100%; overflow:hidden; }
       body { height:100dvh; display:flex; flex-direction:column; }
-      header { max-width:1900px; width:100%; flex:0 0 auto; padding:12px clamp(26px,2.2vw,42px) 0; }
+      header { max-width:1900px; width:100%; flex:0 0 auto; padding:12px clamp(46px,3.6vw,70px) 0; }
       .topbar { min-height:118px; padding:18px 26px 22px; column-gap:16px; row-gap:16px; }
       main.grid { max-width:1900px; width:100%; flex:1 1 auto; min-height:0;
-        padding:14px clamp(26px,2.2vw,42px) 16px; grid-template-columns:minmax(0,1.17fr) minmax(0,1fr) minmax(0,.95fr);
+        padding:14px clamp(46px,3.6vw,70px) 16px; grid-template-columns:minmax(0,1.17fr) minmax(0,1fr) minmax(0,.95fr);
         gap:16px; align-items:stretch; }
       main.grid > .card { min-height:0; height:100%; overflow-x:hidden; overflow-y:auto;
         scrollbar-width:thin; scrollbar-color:#c4d4f0 transparent; overscroll-behavior:contain; }
       .card:nth-child(2) { position:static; }
       main.grid > .card { padding:20px; }
-      #output { height:clamp(280px,49dvh,670px); min-height:220px; }
+      main.grid > .output-card { display:flex; flex-direction:column; }
+      .output-card > .heading-with-help { flex:0 0 auto; }
+      .output-card textarea#output { flex:1 1 auto; height:auto; min-height:220px; }
+      .output-card #groupNoticeBox:not([hidden]) { flex:0 1 auto; max-height:44%; overflow-y:auto; }
     }
     @media (min-width:1041px) and (max-width:1499px) {
       main.grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -864,13 +870,11 @@
 <select id="mondayLanguage"><option value="KR">KR</option><option value="ENG">ENG</option></select>
 <div id="makeupLessonBox" style="display:none"><label for="makeupLessonNumber">보강/보충 회차</label>
 <select id="makeupLessonNumber"><option value="1">LESSON 01</option><option value="2">LESSON 02</option><option value="3">LESSON 03</option><option value="4">LESSON 04</option><option value="5">LESSON 05</option><option value="6">LESSON 06</option><option value="7">LESSON 07</option><option value="8">LESSON 08</option><option value="9">LESSON 09</option><option value="10">LESSON 10</option><option value="11">LESSON 11</option><option value="12">LESSON 12</option><option value="13">LESSON 13</option><option value="14">LESSON 14</option><option value="15">LESSON 15</option><option value="16">LESSON 16</option><option value="17">LESSON 17</option><option value="18">LESSON 18</option><option value="19">LESSON 19</option><option value="20">LESSON 20</option><option value="21">LESSON 21</option><option value="22">LESSON 22</option><option value="23">LESSON 23</option><option value="24">LESSON 24</option></select></div>
-<label for="subMemo">하위아이템 공통 MEMO (선택)</label>
-<textarea id="subMemo" style="height:90px;min-height:75px" placeholder="예: 개인 사정으로 보강 요청"></textarea>
       <label for="mondayTeacher">담당 강사</label>
       <select id="mondayTeacher"><option value="">담당 강사 선택</option></select>
 
     </div>
-    <div id="registrationPreview" class="registration-preview" aria-live="polite">안내 문구 생성 후 등록 일정이 표시됩니다. 날짜별 MEMO는 각 회차 오른쪽에서 입력할 수 있습니다.</div>
+    <div id="registrationPreview" class="registration-preview" aria-live="polite">안내 문구 생성 후 등록 일정이 표시됩니다. 메모를 작성할 회차만 체크해 주세요.</div>
     <div class="output-actions">
       <button id="approve" type="button" aria-label="승인하고 먼데이 Infohub에 등록">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2845,6 +2849,12 @@ Affinity Universe
   ];
 
   const dateMemoDrafts = new Map();
+  const dateMemoEnabled = new Set();
+  function setDateMemoEnabled(date,enabled){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+    if(enabled)dateMemoEnabled.add(date);
+    else dateMemoEnabled.delete(date);
+  }
   function registrationFingerprint(){
     const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","messageType", "studentName", "noticeRecipient", "classType", "templateType",
       "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "classType2", "dstMode2",
@@ -2859,14 +2869,16 @@ Affinity Universe
   function approvalFingerprint(){
     const plan=buildRegistrationPlan();
     const dates=plan.ok?plan.items.map(row=>row.date):[];
-    return JSON.stringify({notice:registrationFingerprint(),commonMemo:$("subMemo").value,
-      dateMemos:dates.map(date=>[date,String(dateMemoDrafts.get(date)||"").trim()])});
+    return JSON.stringify({notice:registrationFingerprint(),
+      dateMemos:dates.map(date=>[date,dateMemoEnabled.has(date)?String(dateMemoDrafts.get(date)||"").trim():""])});
+
   }
   function parseSubMemos(plan){
     if(!plan?.ok)throw new Error(plan?.error||"하위아이템 일정을 확인해 주세요.");
     const limit=plan.weeklyFrequency>1?1470:1500;
     const rows=[];
     for(const item of plan.items){
+      if(!dateMemoEnabled.has(item.date))continue;
       const memo=String(dateMemoDrafts.get(item.date)||"").trim();
       if(memo.length>limit)throw new Error(item.date+" 날짜별 MEMO는 "+limit+"자 이내로 입력해 주세요.");
       if(memo)rows.push({date:item.date,memo});
@@ -3023,6 +3035,17 @@ Affinity Universe
       lessonCount:lessonNo,holidayCount:items.length-lessonNo};
   }
 
+  function createSessionMemoInput(date,name){
+    const input=document.createElement("textarea");
+    input.className="registration-session-memo";
+    input.dataset.date=date;
+    input.rows=2;
+    input.maxLength=1500;
+    input.value=dateMemoDrafts.get(date)||"";
+    input.placeholder="이 회차의 메모를 입력해 주세요.";
+    input.setAttribute("aria-label",date+" "+name+" 날짜별 MEMO");
+    return input;
+  }
   function refreshRegistrationPreview(){
     const r=buildRegistrationPlan();
     const preview=$("registrationPreview");
@@ -3064,7 +3087,7 @@ Affinity Universe
     fragment.appendChild(head);
     const hint=document.createElement("div");
     hint.className="registration-memo-caption";
-    hint.textContent="날짜별 MEMO · 필요한 회차에만 입력하세요. 빈칸은 공통 MEMO가 적용됩니다.";
+    hint.textContent="메모가 필요한 회차만 체크하면 입력칸이 나타납니다.";
     fragment.appendChild(hint);
     const list=document.createElement("div");
     list.className="registration-session-list";
@@ -3074,15 +3097,20 @@ Affinity Universe
       const detail=document.createElement("span");
       detail.className="registration-session-detail";
       detail.textContent=entry.description;
-      const input=document.createElement("textarea");
-      input.className="registration-session-memo";
-      input.dataset.date=entry.date;
-      input.rows=1;
-      input.maxLength=1500;
-      input.value=dateMemoDrafts.get(entry.date)||"";
-      input.placeholder="메모 (선택)";
-      input.setAttribute("aria-label",entry.date+" "+entry.name+" 날짜별 MEMO");
-      row.append(detail,input);
+      const toggle=document.createElement("label");
+      toggle.className="registration-memo-toggle";
+      const check=document.createElement("input");
+      check.type="checkbox";
+      check.className="registration-memo-check";
+      check.dataset.date=entry.date;
+      check.dataset.itemName=entry.name;
+      check.checked=dateMemoEnabled.has(entry.date);
+      check.setAttribute("aria-label",entry.date+" "+entry.name+" 메모 추가");
+      const text=document.createElement("span");
+      text.textContent="메모";
+      toggle.append(check,text);
+      row.append(detail,toggle);
+      if(check.checked)row.appendChild(createSessionMemoInput(entry.date,entry.name));
       list.appendChild(row);
     }
     fragment.appendChild(list);
@@ -3633,7 +3661,26 @@ Affinity Universe
     });
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
     $("makeupLessonNumber").addEventListener("change",()=>{mondayNameWasEdited=false;updateMondayItemName();});
-    ["mondayLanguage","subMemo"].forEach(id=>$(id).addEventListener("input",refreshRegistrationPreview));
+    $("mondayLanguage").addEventListener("input",refreshRegistrationPreview);
+    $("registrationPreview").addEventListener("change",event=>{
+      const check=event.target;
+      if(!check.classList?.contains("registration-memo-check"))return;
+      const date=check.dataset.date;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+      setDateMemoEnabled(date,check.checked);
+      const row=check.closest(".registration-session-row");
+      if(row){
+        const previous=row.querySelector(".registration-session-memo");
+        if(check.checked && !previous){
+          const input=createSessionMemoInput(date,check.dataset.itemName||"");
+          row.appendChild(input);
+          input.focus();
+        }else if(!check.checked && previous)previous.remove();
+      }
+      $("approveFeedback").replaceChildren();
+      if(approvedFingerprint!==approvalFingerprint())
+        $("approve").textContent="승인하고 먼데이에 등록";
+    });
     $("registrationPreview").addEventListener("input",event=>{
       const field=event.target;
       if(!field.classList?.contains("registration-session-memo"))return;
@@ -3750,7 +3797,6 @@ Affinity Universe
           lessonCount:plan.lessonCount,
           makeupLessonNumber:Number($("makeupLessonNumber").value),
           language:$("mondayLanguage").value,
-          subMemo:$("subMemo").value.trim(),
           subMemos,
           explicitLessonCount:Number($("lessonCount").value) || null,
           kstTime24:plan.kst,
@@ -3781,8 +3827,8 @@ Affinity Universe
     $("reset").addEventListener("click", ()=>{
       $("mondayLanguage").value="KR";
       $("makeupLessonNumber").value="1";
-      $("subMemo").value="";
       dateMemoDrafts.clear();
+      dateMemoEnabled.clear();
       $("registrationPreview").dataset.renderSignature="";
       $("messageType").value = "CLASS";
       $("templateType").value = "";
