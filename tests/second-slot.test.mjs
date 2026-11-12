@@ -235,6 +235,45 @@ test('November 19 Thursday 9 AM is valid for a single makeup or supplement class
   assert.equal(p.items[0].date,'2026-11-19');
  }
 });
+test('Single makeup and supplement have a complete approval plan without optional slots',()=>{
+ for(const messageType of ['MAKEUP_40','MAKEUP_30']){
+  const h=harness({
+   messageType,startDay:'2026-11-19',endDay:'',weekday:'목',
+   amPm:'오전',korTime:'9',weekday2:'',amPm2:'',korTime2:'',
+   makeupLessonNumber:'7',lessonCount:''
+  });
+  const plan=h.buildRegistrationPlan();
+  assert.equal(plan.ok,true,plan.error);
+  assert.equal(plan.weeklyFrequency,1);
+  assert.deepEqual(Array.from(plan.extraSlots),[]);
+  assert.equal(plan.kstSecond,null);
+  assert.equal(plan.kstThird,null);
+  assert.equal(plan.typeByDay['목'],'ONE_ON_ONE');
+  assert.equal(plan.items.length,1);
+  assert.doesNotThrow(()=>plan.extraSlots?.[0]?.classType);
+  const notice=h.buildMessage();
+  assert.equal(notice.ok,true,notice.error);
+  const server=derivePlan({
+   messageType,classType:'ONE_ON_ONE',templateType:'PC',
+   studentLocation:'DOMESTIC',weekday:'목',weeklyFrequency:plan.weeklyFrequency,
+   startDay:plan.startDay,endDay:plan.endDay,kstTime24:plan.kst,
+   lessonCount:plan.lessonCount,makeupLessonNumber:7,
+   closures:[],studentIds:[1001],schedule:plan.items
+  });
+  assert.equal(server.lessonCount,1);
+ }
+});
+
+test('Single makeup and supplement reject active additional schedules before registration',()=>{
+ for(const messageType of ['MAKEUP_40','MAKEUP_30']){
+  const h=harness({messageType,startDay:'2026-11-19',weekday:'목',
+   weekday2:'토',amPm2:'오전',korTime2:'9'});
+  const plan=h.buildRegistrationPlan();
+  assert.equal(plan.ok,false);
+  assert.match(plan.error,/추가 정기 일정 없이 1회/);
+ }
+});
+
 test('Korean time entry handles full-width numerals and invisible paste marks safely',()=>{
  const h=harness();
  for(const [value,amPm,hh,mm] of [
