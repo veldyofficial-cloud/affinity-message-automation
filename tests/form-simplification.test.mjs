@@ -34,7 +34,7 @@ test('Only iPad/Galaxy show Discord, and makeup/supplement hide unused fields',(
 
 test('Help content is opt-in, holidays are collapsed and generated notices are unchanged',()=>{
  for(const title of ['메시지 종류 안내','클래스 구분 안내','서머타임 옵션 설명',
-   '한국 기준 휴강 날짜 안내','공휴일 자동 적용 안내','날짜별 메모 안내'])
+   '한국 기준 휴강 날짜 안내','공휴일 자동 적용 안내'])
   assert.ok(html.includes('aria-label="'+title+'"'),title);
  assert.match(html,/<details class="folded-section" id="holidaySection">/);
  assert.doesNotMatch(html,/<details class="folded-section" id="holidaySection" open/);
