@@ -11,10 +11,10 @@
   <style>
     /* Affinity Universe: 블루 단색 계열 / Poppins + Noto Sans KR */
     :root {
-      --blue: #0064ff;
-      --blue-dark: #0048c9;
-      --blue-ink: #193361;
-      --blue-pale: #edf3ff;
+      --blue: #2269e8;
+      --blue-dark: #1558c8;
+      --blue-ink: #193d72;
+      --blue-pale: #eef4ff;
       --blue-soft: #f6f9ff;
       --bg: #f8faff;
       --card: #ffffff;
@@ -127,7 +127,7 @@
     input::placeholder, textarea::placeholder { color: #606060; font-weight: 400; opacity: 1; }
     input:focus, select:focus, textarea:focus {
       border-color: var(--blue);
-      box-shadow: 0 0 0 2px rgba(45,99,255,.095);
+      box-shadow: 0 0 0 2px rgba(34,105,232,.105);
     }
     input:disabled, select:disabled, textarea:disabled {
       color: #333333;
@@ -180,7 +180,7 @@
       transition: background-color .16s ease, transform .1s ease, box-shadow .16s ease;
     }
     button:hover { background: var(--blue-dark); }
-    button:focus-visible { outline: 2px solid rgba(45,99,255,.26); outline-offset: 2px; }
+    button:focus-visible { outline: 2px solid rgba(34,105,232,.27); outline-offset: 2px; }
     button:active { transform: translateY(1px); }
     button.secondary { color: var(--blue-dark); background: var(--blue-pale); border-color: #dce6fa; }
     button.secondary:hover { background: #e3ecff; }
@@ -247,6 +247,23 @@
     .absentee-option span { color: var(--blue-ink); font-weight: 500; }
     .registration-preview { white-space: pre-wrap; margin-top: 15px; border: .75px solid var(--line); border-radius: 9px; padding: 12px 14px; color: var(--text); background: var(--blue-soft); font-size: 14px; line-height: 1.7; }
     .registration-preview.warn { color: var(--warn); background: #fff7ed; border-color: #fdba74; }
+    /* Per-session child memo editor, with one input per scheduled date. */
+    .date-memo-list { display:flex; flex-direction:column; gap:8px; max-height:430px; overflow:auto;
+      padding:11px; border:1px solid var(--line); border-radius:11px; background:var(--blue-soft);
+      scrollbar-width:thin; scrollbar-color:#c6d5ed transparent; }
+    .date-memo-row { display:grid; grid-template-columns:minmax(138px,.56fr) minmax(0,1fr);
+      gap:12px; align-items:center; padding:10px 11px; border:1px solid #dfe7f4; border-radius:9px; background:#fff; }
+    .date-memo-meta { display:flex; flex-direction:column; gap:3px; min-width:0; overflow-wrap:anywhere; }
+    .date-memo-date { color:var(--blue-ink); font-size:13px; font-weight:700; line-height:1.45; }
+    .date-memo-name { color:#66758b; font-size:12px; font-weight:500; line-height:1.4; }
+    textarea.date-memo-input { height:66px; min-height:56px; padding:9px 11px; line-height:1.55;
+      font-size:13px; resize:vertical; }
+    .date-memo-empty { margin:0; padding:9px 3px; color:#66758b; font-size:13px; }
+    #dateMemoStatus { margin:5px 0 8px; color:#66758b; }
+    @media (max-width:640px) {
+      .date-memo-row { grid-template-columns:minmax(0,1fr); gap:7px; }
+      .date-memo-list { max-height:390px; }
+    }
     .optional-slot { padding:14px; margin:8px 0 12px; border:1px solid #d9e0ec; border-radius:11px; background:#f5f7fc; }
     .optional-slot[hidden] { display:none !important; }
     .extra-schedule-actions { display:flex; align-items:center; flex-wrap:wrap; gap:14px; margin:5px 0 16px; }
@@ -377,10 +394,10 @@
     @media (min-width:1500px) and (min-height:650px) {
       html, body { height:100%; overflow:hidden; }
       body { height:100dvh; display:flex; flex-direction:column; }
-      header { max-width:1900px; width:100%; flex:0 0 auto; padding:12px 18px 0; }
+      header { max-width:1900px; width:100%; flex:0 0 auto; padding:12px clamp(26px,2.2vw,42px) 0; }
       .topbar { min-height:118px; padding:18px 26px 22px; column-gap:16px; row-gap:16px; }
       main.grid { max-width:1900px; width:100%; flex:1 1 auto; min-height:0;
-        padding:14px 18px 16px; grid-template-columns:minmax(0,1.17fr) minmax(0,1fr) minmax(0,.95fr);
+        padding:14px clamp(26px,2.2vw,42px) 16px; grid-template-columns:minmax(0,1.17fr) minmax(0,1fr) minmax(0,.95fr);
         gap:16px; align-items:stretch; }
       main.grid > .card { min-height:0; height:100%; overflow-x:hidden; overflow-y:auto;
         scrollbar-width:thin; scrollbar-color:#c4d4f0 transparent; overscroll-behavior:contain; }
@@ -851,8 +868,11 @@
 <select id="makeupLessonNumber"><option value="1">LESSON 01</option><option value="2">LESSON 02</option><option value="3">LESSON 03</option><option value="4">LESSON 04</option><option value="5">LESSON 05</option><option value="6">LESSON 06</option><option value="7">LESSON 07</option><option value="8">LESSON 08</option><option value="9">LESSON 09</option><option value="10">LESSON 10</option><option value="11">LESSON 11</option><option value="12">LESSON 12</option><option value="13">LESSON 13</option><option value="14">LESSON 14</option><option value="15">LESSON 15</option><option value="16">LESSON 16</option><option value="17">LESSON 17</option><option value="18">LESSON 18</option><option value="19">LESSON 19</option><option value="20">LESSON 20</option><option value="21">LESSON 21</option><option value="22">LESSON 22</option><option value="23">LESSON 23</option><option value="24">LESSON 24</option></select></div>
 <label for="subMemo">하위아이템 공통 MEMO (선택)</label>
 <textarea id="subMemo" style="height:90px;min-height:75px" placeholder="예: 개인 사정으로 보강 요청"></textarea>
-<div class="label-with-help"><label for="subMemos">날짜별 MEMO (선택)</label><div class="help-tip" tabindex="0" role="group" aria-label="날짜별 메모 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">한 줄에 YYYY-MM-DD | 메모 형식으로 입력합니다. 날짜별 메모가 공통 메모보다 우선합니다. 그룹 학생은 상단 STUDENT DB에서 연결하며, 합반 합류 학생은 1명만 연결해도 그룹 아이템을 생성할 수 있습니다. 개별 결석 처리는 2명 이상 연결된 그룹에서 가능합니다.</div></div></div>
-<textarea id="subMemos" style="height:100px;min-height:80px" placeholder="2026-11-02 | 개별 메모"></textarea>
+<div class="label-with-help"><label id="dateMemoHeading">하위아이템 날짜별 MEMO (선택)</label><div class="help-tip" tabindex="0" role="group" aria-label="날짜별 메모 안내"><span class="help-icon" aria-hidden="true">i</span><div class="help-popover" role="tooltip">클래스 날짜와 휴강일을 반영하여 하위아이템이 자동 표시됩니다. 각 날짜 오른쪽에 메모를 자유롭게 입력하세요. 빈칸은 공통 MEMO가 있으면 공통 내용을 사용하고, 공통 MEMO도 비어 있으면 빈칸으로 등록됩니다. 입력한 날짜별 메모는 공통 MEMO보다 우선합니다.</div></div></div>
+<div id="dateMemoStatus" class="note small">클래스 일정이 완성되면 날짜별 입력칸이 표시됩니다.</div>
+<div id="dateMemoRows" class="date-memo-list" role="group" aria-labelledby="dateMemoHeading">
+  <p class="date-memo-empty">시작일과 수업 요일·시간을 입력해 주세요.</p>
+</div>
 
       <label for="mondayTeacher">담당 강사</label>
       <select id="mondayTeacher"><option value="">담당 강사 선택</option></select>
@@ -2832,8 +2852,9 @@ Affinity Universe
     {name:"ZOEY",id:62107542},
   ];
 
+  const dateMemoDrafts = new Map();
   function registrationFingerprint(){
-    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","subMemo","subMemos","messageType", "studentName", "noticeRecipient", "classType", "templateType",
+    const ids = ["mondayLanguage","mondayTeacher","makeupLessonNumber","messageType", "studentName", "noticeRecipient", "classType", "templateType",
       "startDay", "endDay", "lessonCount", "weekday", "weekday2", "amPm2", "korTime2", "classType2", "dstMode2",
       "weekday3", "amPm3", "korTime3", "classType3", "dstMode3", "amPm", "korTime", "studentLocation",
       "dstMode", "countryInput", "customFlag", "tzSelect", "discord", "siblingType",
@@ -2842,18 +2863,75 @@ Affinity Universe
       individualAbsences:normalizeIndividualAbsences(individualAbsences)});
   }
 
-  function parseSubMemos(){
+  // Date memos do not alter the announcement or student-specific notice content.
+  function approvalFingerprint(){
+    const plan=buildRegistrationPlan();
+    const dates=plan.ok?plan.items.map(row=>row.date):[];
+    return JSON.stringify({notice:registrationFingerprint(),commonMemo:$("subMemo").value,
+      dateMemos:dates.map(date=>[date,String(dateMemoDrafts.get(date)||"").trim()])});
+  }
+  function parseSubMemos(plan){
+    if(!plan?.ok)throw new Error(plan?.error||"하위아이템 일정을 확인해 주세요.");
+    const limit=plan.weeklyFrequency>1?1470:1500;
     const rows=[];
-    for(const raw of $("subMemos").value.split(/\r?\n/)){
-      if(!raw.trim())continue;
-      const pos=raw.indexOf("|");
-      if(pos<0)throw new Error("날짜별 메모는 날짜 | 내용 형식이어야 합니다.");
-      const date=raw.slice(0,pos).trim(),memo=raw.slice(pos+1).trim();
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!memo)throw new Error("날짜별 MEMO를 확인해 주세요.");
-      rows.push({date,memo});
+    for(const item of plan.items){
+      const memo=String(dateMemoDrafts.get(item.date)||"").trim();
+      if(memo.length>limit)throw new Error(item.date+" 날짜별 MEMO는 "+limit+"자 이내로 입력해 주세요.");
+      if(memo)rows.push({date:item.date,memo});
     }
-    if(rows.length>32||new Set(rows.map(r=>r.date)).size!==rows.length)throw new Error("MEMO 날짜 중복 또는 개수 초과");
     return rows;
+  }
+  function updateDateMemoStatus(plan){
+    const status=$("dateMemoStatus");
+    if(!status)return;
+    if(!plan.ok){
+      status.textContent="클래스 날짜와 요일·시간이 확정되면 날짜별 입력칸이 표시됩니다.";
+      return;
+    }
+    const filled=plan.items.filter(item=>String(dateMemoDrafts.get(item.date)||"").trim()).length;
+    status.textContent="하위아이템 "+plan.items.length+"개 · 날짜별 메모 "+filled+"개 입력됨";
+  }
+  function renderDateMemoRows(plan){
+    const container=$("dateMemoRows");
+    if(!container||typeof container.replaceChildren!=="function")return;
+    updateDateMemoStatus(plan);
+    const signature=plan.ok
+      ?plan.items.map(item=>[item.date,item.kind,item.name,item.durationMinutes||""].join(":")).join("|")
+      :"invalid";
+    if(container.dataset.renderSignature===signature)return;
+    container.dataset.renderSignature=signature;
+    const fragment=document.createDocumentFragment();
+    if(!plan.ok){
+      const empty=document.createElement("p");
+      empty.className="date-memo-empty";
+      empty.textContent="수업 정보 입력이 완료되면 날짜별 메모 입력칸이 나타납니다.";
+      fragment.appendChild(empty);
+    }else{
+      for(const item of plan.items){
+        const row=document.createElement("div");
+        row.className="date-memo-row";
+        const meta=document.createElement("div");
+        meta.className="date-memo-meta";
+        const date=document.createElement("span");
+        date.className="date-memo-date";
+        date.textContent=item.date+" ("+getWeekdayKoFromISO(item.date)+")";
+        const name=document.createElement("span");
+        name.className="date-memo-name";
+        name.textContent=item.name;
+        meta.append(date,name);
+        const input=document.createElement("textarea");
+        input.className="date-memo-input";
+        input.dataset.date=item.date;
+        input.rows=2;
+        input.maxLength=1500;
+        input.value=dateMemoDrafts.get(item.date)||"";
+        input.placeholder="이 날짜의 메모 (선택)";
+        input.setAttribute("aria-label",item.date+" "+item.name+" 날짜별 메모");
+        row.append(meta,input);
+        fragment.appendChild(row);
+      }
+    }
+    container.replaceChildren(fragment);
   }
   // Calculate actual KST for each session while keeping the student's
   // IANA-local clock fixed. Parent TIME remains the first session's KST.
@@ -2912,6 +2990,7 @@ Affinity Universe
     }
     if(!endDay || endDay < startDay) return {ok:false,error:"시작일과 종료일을 확인해 주세요."};
     if(single){
+      if(extra.frequency!==1)return {ok:false,error:"보강/보충은 추가 정기 일정 없이 1회만 등록할 수 있습니다."};
       if(closures.length||individualAbsences.length)return {ok:false,error:"단일 수업에는 휴강/결석 일정을 지정할 수 없습니다."};
       if(getWeekdayKoFromISO(startDay)!==weekday)return {ok:false,error:"수업일과 요일을 일치시켜 주세요."};
       const num=Number($("makeupLessonNumber").value);
@@ -2919,7 +2998,13 @@ Affinity Universe
       const kst=parseKorTimeTo24h($("amPm").value,$("korTime").value.trim());
       if(!kst)return {ok:false,error:koreanTimeValidationMessage($("amPm").value,$("korTime").value)};
       const label=messageType==="MAKEUP_40"?"보강":"보충";
-      return {ok:true,startDay,endDay:startDay,weekday,kst,items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],lessonCount:1,holidayCount:0};
+      // Match the recurring-class plan shape so preview and approval can always read
+      // slot metadata, even for a one-off makeup/supplement with no extra slots.
+      return {ok:true,startDay,endDay:startDay,weekday,kst,
+        kstSecond:null,kstThird:null,weeklyFrequency:1,extraSlots:[],
+        typeByDay:{[weekday]:$("classType").value},
+        items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],
+        lessonCount:1,holidayCount:0};
     }
     const closedDates = new Map(closures.map(x => [x.date, x.name || "휴강"]));
     const absentMap = new Map();
@@ -3002,6 +3087,7 @@ Affinity Universe
     const r=buildRegistrationPlan();
     const preview=$("registrationPreview");
     if(!r.ok){
+      renderDateMemoRows(r);
       const incomplete=/선택해 주세요|입력해 주세요|회차를 선택|설정해야|시간을 입력|시작일을 입력|기기를 선택|종료일이 없으면|추가 일정 입력/.test(r.error);
       preview.textContent=incomplete?"등록 미리보기 · 필수 정보를 입력하면 일정이 표시됩니다.":r.error;
       preview.classList.toggle("pending",incomplete);
@@ -3009,6 +3095,7 @@ Affinity Universe
       return;
     }
     preview.classList.remove("warn","pending");
+    renderDateMemoRows(r);
     const entries = r.items.map(i => `${i.date} · ${i.name} · ${(() => {
       const slot=i.kstTime24||timeForScheduledDate(i.date,r.kst,[r.kstSecond,r.kstThird]);
       const kind=r.typeByDay[getWeekdayKoFromISO(i.date)];
@@ -3545,7 +3632,7 @@ Affinity Universe
       }
       $("output").value = res.text;
       lastGeneratedFingerprint = registrationFingerprint();
-      if(lastGeneratedFingerprint !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
+      if(approvalFingerprint() !== approvedFingerprint) $("approve").textContent = "승인하고 먼데이에 등록";
       $("approveFeedback").replaceChildren();
       refreshRegistrationPreview();
       showAlert($("classType").value==="GROUP" && selectedStudentRecords.size>0
@@ -3563,7 +3650,19 @@ Affinity Universe
     });
     $("mondayItemName").addEventListener("input",()=>{ mondayNameWasEdited = true; });
     $("makeupLessonNumber").addEventListener("change",()=>{mondayNameWasEdited=false;updateMondayItemName();});
-    ["mondayLanguage","subMemo","subMemos"].forEach(id=>$(id).addEventListener("input",refreshRegistrationPreview));
+    ["mondayLanguage","subMemo"].forEach(id=>$(id).addEventListener("input",refreshRegistrationPreview));
+    $("dateMemoRows").addEventListener("input",event=>{
+      const field=event.target;
+      if(!field.classList?.contains("date-memo-input"))return;
+      const date=field.dataset.date;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+      if(field.value.trim())dateMemoDrafts.set(date,field.value);
+      else dateMemoDrafts.delete(date);
+      updateDateMemoStatus(buildRegistrationPlan());
+      $("approveFeedback").replaceChildren();
+      if(approvedFingerprint!==approvalFingerprint())
+        $("approve").textContent="승인하고 먼데이에 등록";
+    });
     $("studentSearch").addEventListener("click", async ()=>{
       const query = $("studentSearchQuery").value.trim() || $("studentName").value.trim();
       if(query.length < 2){ $("studentResults").textContent = "학생 이름을 두 글자 이상 입력해 주세요."; return; }
@@ -3592,11 +3691,10 @@ Affinity Universe
       feedback.classList.remove("ok");
       feedback.replaceChildren();
       if(partialRegistrationLocked){feedback.textContent="이전 등록이 일부 진행되었습니다. 중복 등록을 막기 위해 관리자 확인이 필요합니다.";return;}
-      let subMemos;
-      try{subMemos=parseSubMemos();}catch(e){feedback.textContent=e.message;return;}
       const plan = buildRegistrationPlan();
-      if(plan.ok&&subMemos.some(x=>!plan.items.some(i=>i.date===x.date))){feedback.textContent="날짜별 MEMO의 날짜가 수업 일정에 없습니다.";return;}
       if(!plan.ok){ feedback.textContent=plan.error; return; }
+      let subMemos;
+      try{subMemos=parseSubMemos(plan);}catch(e){feedback.textContent=e.message;return;}
       const batchRequired=$("classType").value==="GROUP" && selectedStudentRecords.size>0 &&
         ["CLASS","TRIAL"].includes($("messageType").value);
       const res=batchRequired?{ok:true,text:combinedStudentNoticeText()}:buildMessage();
@@ -3615,7 +3713,7 @@ Affinity Universe
           return;
         }
       }
-      if(approvedFingerprint === registrationFingerprint()){
+      if(approvedFingerprint === approvalFingerprint()){
         feedback.textContent = "현재 입력값은 이미 승인되었습니다. 중복 등록을 막기 위해 같은 내용을 다시 전송하지 않습니다.";
         return;
       }
@@ -3637,7 +3735,7 @@ Affinity Universe
       if(!teacherId){feedback.textContent="담당 강사를 선택해 주세요.";return;}
       const itemName = $("mondayItemName").value.trim();
       if(!itemName){ feedback.textContent="먼데이 상위아이템명을 입력해 주세요."; return; }
-      const approvalFingerprint = registrationFingerprint();
+      const approvedRequestFingerprint = approvalFingerprint();
       const button = $("approve");
       button.disabled = true;
       feedback.textContent = "먼데이에 상위아이템·하위아이템을 등록하는 중...";
@@ -3661,10 +3759,10 @@ Affinity Universe
           weeklyFrequency:plan.weeklyFrequency,
           kstTime24Second:plan.kstSecond,
           kstTime24Third:plan.kstThird,
-          classType2:plan.extraSlots[0]?.classType||null,
-          classType3:plan.extraSlots[1]?.classType||null,
-          dstMode2:plan.extraSlots[0]?.dstMode||null,
-          dstMode3:plan.extraSlots[1]?.dstMode||null,
+          classType2:plan.extraSlots?.[0]?.classType||null,
+          classType3:plan.extraSlots?.[1]?.classType||null,
+          dstMode2:plan.extraSlots?.[0]?.dstMode||null,
+          dstMode3:plan.extraSlots?.[1]?.dstMode||null,
           startDay:plan.startDay,
           endDay:plan.endDay,
           lessonCount:plan.lessonCount,
@@ -3682,7 +3780,7 @@ Affinity Universe
           })):undefined,
           message:isBatch?combinedStudentNoticeText():$("output").value,
         });
-        approvedFingerprint = approvalFingerprint;
+        approvedFingerprint = approvedRequestFingerprint;
         feedback.classList.add("ok");
         feedback.textContent = `승인 완료: 상위아이템 1개, 수업 ${data.lessons}강 · 전체 휴강 ${data.holidays}건 · 개별 결석 ${data.absenceLessons||0}회차 등록됨. `;
         if(data.itemUrl){
@@ -3702,7 +3800,8 @@ Affinity Universe
       $("mondayLanguage").value="KR";
       $("makeupLessonNumber").value="1";
       $("subMemo").value="";
-      $("subMemos").value="";
+      dateMemoDrafts.clear();
+      $("dateMemoRows").dataset.renderSignature="";
       $("messageType").value = "CLASS";
       $("templateType").value = "";
       $("studentName").value = "";
