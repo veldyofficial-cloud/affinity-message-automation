@@ -92,7 +92,7 @@ test('Discord channel auto-selects the correct Monday instructor for all provide
     ['🐰DRAWING ZOEY 조이쌤','62107542'],
     ['💙DRAWING ELLIE 아룡쌤','62032527'],
     ['😎DRAWING SELLY 새우쌤','62107579'],
-    ['🥕DRAWING SHEAN 션쌤','62107617'],
+    ['🥕DRAWING SARAH 션쌤','62107617'],
     ['🎨DRAWING SEONYE 콩써니쌤','62270353'],
     ['🍒DRAWING CHAERI 채리쌤','62270353'],
     ['💖DRAWING JIMIN 지민쌤','66891148'],
