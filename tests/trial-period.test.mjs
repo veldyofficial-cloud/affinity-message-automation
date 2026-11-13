@@ -12,9 +12,9 @@ assert.match(inline[1],lastInit);
 const code=inline[1].replace(lastInit,
   '\n  globalThis.__trialTest={buildMessage,updateLocalPreview,updateExpectedEndPreview,setClosures(items){closedList=items;},ko:CURRICULUM_KO_LABELS,menu:CURRICULUM_MENU_LABELS,english:CURRICULUM_MAP,groups:CURRICULUM_GROUPS,curriculumForNotice,formatPeriodRange,formatPeriodRangeUsingSlots};\n');
 
-function harness({type='TRIAL',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
+function harness({type='TRIAL',templateType='PC',endDay='',timeZone='America/Vancouver',closures=[],curriculum='[ART BOOK DESIGN] LV.4',courseSlug='Upper-intermediate'}={}){
  const fields={
-   messageType:type, templateType:'PC',studentName:'테스트 수강생',
+   messageType:type, templateType,studentName:'테스트 수강생',
    classType:'GROUP',siblingType:'BROTHER',discord:curriculum.startsWith('[DRAWING]')?'🐰DRAWING ZOEY 조이쌤':'해당없음',
    startDay:'2026-11-02',endDay,weekday:'월',lessonCount:'4',
    amPm:'오전',korTime:'9',curriculumSelect:curriculum,
@@ -192,5 +192,40 @@ test('Video Editor and Creator use the same price-free CapCut Pro notice',()=>{
   assert.match(result.text,/\[촬영 가이드\]/);
   assert.doesNotMatch(result.text,/19,800|월\s*[0-9,]+원|Cap Cut Pro 구독 필수|\[CapCut 사전 안내\]|부모님 계정|18세 미만|유료 결제가 필요/);
   assert.equal(result.text.match(/CapCut Pro 유료 구독/g)?.length,1);
+ }
+});
+
+test('Drawing BASIC class uses identical preparation wording on iPad and Galaxy',()=>{
+ for(const templateType of ['IPAD','GALAXY']){
+  const app=harness({type:'CLASS',templateType,curriculum:'[DRAWING] BASIC',courseSlug:'DrawingBasic',timeZone:'Asia/Seoul'});
+  const msg=app.buildMessage();
+  assert.equal(msg.ok,true,msg.error);
+  assert.match(msg.text,/• 앱 사전 다운로드 및 펜슬\/패드 충전 필수/);
+  assert.doesNotMatch(msg.text,/• 앱 다운로드 및 아이패드와 애플 펜슬 충전 필수|• 앱 다운로드 및 갤럭시 탭과 S펜 충전 필수/);
+ }
+});
+test('Drawing BASIC makeup and supplement use charge-only wording on iPad/Galaxy',()=>{
+ for(const type of ['MAKEUP_40','MAKEUP_30']){
+  for(const templateType of ['IPAD','GALAXY']){
+   const app=harness({type,templateType,curriculum:'[DRAWING] BASIC',courseSlug:'DrawingBasic',timeZone:'Asia/Seoul'});
+   const msg=app.buildMessage();
+   assert.equal(msg.ok,true,msg.error);
+   assert.match(msg.text,/• 사전 펜슬\/패드 충전 필수/);
+   assert.doesNotMatch(msg.text,/앱 사전 다운로드 및 펜슬\/패드 충전 필수|앱 다운로드 및 아이패드|앱 다운로드 및 갤럭시/);
+  }
+ }
+});
+test('Other drawing classes and Drawing BASIC trial retain existing behavior',()=>{
+ for(const templateType of ['IPAD','GALAXY']){
+  const pro=harness({type:'CLASS',templateType,curriculum:'[DRAWING] PRO',courseSlug:'DrawingPro',timeZone:'Asia/Seoul'});
+  const proNotice=pro.buildMessage();
+  assert.equal(proNotice.ok,true,proNotice.error);
+  assert.match(proNotice.text,/• 사전 펜슬\/패드 충전 필수/);
+  const trial=harness({type:'TRIAL',templateType,curriculum:'[DRAWING] BASIC',courseSlug:'DrawingBasic',timeZone:'Asia/Seoul'});
+  const trialNotice=trial.buildMessage();
+  assert.equal(trialNotice.ok,true,trialNotice.error);
+  assert.match(trialNotice.text,templateType==='GALAXY'
+    ? /앱 다운로드 및 갤럭시 탭과 S펜 충전 필수/
+    : /앱 다운로드 및 아이패드와 애플 펜슬 충전 필수/);
  }
 });
