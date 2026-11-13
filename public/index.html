@@ -2141,19 +2141,20 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   /*********************
    * 참여 안내 / 추가 안내
    *********************/
-  function buildDrawingDeviceLine(curriculumName, deviceType){
-    const requiresAppDownload = curriculumName === "[DRAWING] BASIC";
+  function buildDrawingDeviceLine(curriculumName, deviceType, messageType="CLASS"){
     if (deviceType === "PC") return "디지털 드로잉은 디스코드로 진행";
-    const deviceAndPen = deviceType === "GALAXY"
-      ? "갤럭시 탭과 S펜 충전 필수"
-      : "아이패드와 애플 펜슬 충전 필수";
-
-    return requiresAppDownload
-      ? `앱 다운로드 및 ${deviceAndPen}`
-      : "사전 펜슬/패드 충전 필수";
+    if (curriculumName !== "[DRAWING] BASIC") return "사전 펜슬/패드 충전 필수";
+    if (messageType === "MAKEUP_40" || messageType === "MAKEUP_30")
+      return "사전 펜슬/패드 충전 필수";
+    if (messageType === "CLASS")
+      return "앱 사전 다운로드 및 펜슬/패드 충전 필수";
+    // Keep the existing TRIAL text unless its wording is explicitly changed.
+    return deviceType === "GALAXY"
+      ? "앱 다운로드 및 갤럭시 탭과 S펜 충전 필수"
+      : "앱 다운로드 및 아이패드와 애플 펜슬 충전 필수";
   }
 
-  function buildParticipationGuide(curriculumName, discord, deviceType){
+  function buildParticipationGuide(curriculumName, discord, deviceType, messageType="CLASS"){
     const videoCourses = ["[VIDEO] EDITOR","[VIDEO] CREATOR"];
     const hasDiscord = discord && discord !== "해당없음";
     const isDrawingDeviceCourse = DRAWING_DEVICE_COURSES.includes(curriculumName);
@@ -2163,7 +2164,7 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
         ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장`
         : `• 수업 시작 5분 전 접속 권장`;
 
-      const deviceLine = buildDrawingDeviceLine(curriculumName, deviceType);
+      const deviceLine = buildDrawingDeviceLine(curriculumName, deviceType, messageType);
 
       return `[수업 참여 안내]
 ${firstLine}
@@ -2190,14 +2191,14 @@ ${firstLine}
 • 수업 전 카카오톡 알림 발송`;
   }
 
-  function buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType){
-    if(DRAWING_DEVICE_COURSES.includes(curriculumName)) return buildParticipationGuide(curriculumName, discord, deviceType);
+  function buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType, messageType="CLASS"){
+    if(DRAWING_DEVICE_COURSES.includes(curriculumName)) return buildParticipationGuide(curriculumName, discord, deviceType, messageType);
     const hasDiscord = discord && discord !== "해당없음";
     if(templateType === "IPAD" || templateType === "GALAXY"){
       const firstLine = hasDiscord ? `• 수업 시작 5분 전, 디스코드 ${discord} 채널 입장` : "• 수업 시작 5분 전 접속 권장";
       return `[수업 참여 안내]
 ${firstLine}
-• ${buildDrawingDeviceLine(curriculumName, deviceType)}
+• ${buildDrawingDeviceLine(curriculumName, deviceType, messageType)}
 • 수업 전 카카오톡 알림 발송`;
     }
     return `[수업 참여 안내]
@@ -2206,7 +2207,7 @@ ${firstLine}
   }
 
   function buildTrialParticipationGuide(templateType, curriculumName, discord, deviceType){
-    return buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType);
+    return buildSimpleParticipationGuide(templateType, curriculumName, discord, deviceType, "TRIAL");
   }
 
   function formatFullDateLine(flag, isoDate, weekdayKo, amPmKo, timeText){
@@ -2250,7 +2251,7 @@ ${formatFullDateLine("🇰🇷", startDay, krWeekday, amPm, korTimeDisplay)}`;
 [${titleLabel}] (${minutes})
 ${scheduleLines}
 
-${buildSimpleParticipationGuide(templateType, curriculumName, discord, templateType)}
+${buildSimpleParticipationGuide(templateType, curriculumName, discord, templateType, messageType)}
 
 감사합니다.
 Affinity Universe
