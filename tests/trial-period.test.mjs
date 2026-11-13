@@ -182,3 +182,15 @@ test('Cross-year November to April displays full 2027 instead of 27',()=>{
  assert.equal(app.formatPeriodRange('2026-11-04','2027-04-05','Asia/Seoul',{hh:14,mm:0}),
   '2026. 11. 04 - 2027. 04. 05');
 });
+
+test('Video Editor and Creator use the same price-free CapCut Pro notice',()=>{
+ for(const course of ['[VIDEO] EDITOR','[VIDEO] CREATOR']){
+  const app=harness({type:'CLASS',curriculum:course,courseSlug:course==='[VIDEO] EDITOR'?'VideoEditor':'VideoCreator'});
+  const result=app.buildMessage();
+  assert.equal(result.ok,true,result.error);
+  assert.match(result.text,/\[수업 준비 안내\]\n• CapCut Pro 유료 구독/);
+  assert.match(result.text,/\[촬영 가이드\]/);
+  assert.doesNotMatch(result.text,/19,800|월\s*[0-9,]+원|Cap Cut Pro 구독 필수|\[CapCut 사전 안내\]|부모님 계정|18세 미만|유료 결제가 필요/);
+  assert.equal(result.text.match(/CapCut Pro 유료 구독/g)?.length,1);
+ }
+});
