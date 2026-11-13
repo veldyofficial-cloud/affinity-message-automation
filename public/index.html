@@ -2654,7 +2654,7 @@ Step 4. 사진 구성
       siblingType === "SISTER"
         ? `[${studentName} 클래스 일정]`
         : `[클래스 일정]`;
-    const participationGuideText = buildParticipationGuide(curriculumName, discord, templateType);
+    const participationGuideText = buildParticipationGuide(curriculumName, discord, templateType, messageType);
     const additionalGuideText = getAdditionalGuideText(curriculumName);
 
     const introLine = "Affinity Universe: 좋은 소식을 알려드립니다.";
