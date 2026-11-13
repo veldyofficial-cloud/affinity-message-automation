@@ -66,8 +66,14 @@ test('Later tablet courses share a single charging reminder across class, makeup
     assert.match(funcs.buildSimpleParticipationGuide(device,'[DRAWING] PRO','해당없음',device),/• 사전 펜슬\/패드 충전 필수/);
     assert.match(funcs.buildTrialParticipationGuide(device,'[DRAWING] BOOK','해당없음',device),/• 사전 펜슬\/패드 충전 필수/);
   }
-  assert.equal(funcs.buildDrawingDeviceLine('[DRAWING] BASIC','IPAD'),'앱 다운로드 및 아이패드와 애플 펜슬 충전 필수');
-  assert.equal(funcs.buildDrawingDeviceLine('[DRAWING] BASIC','GALAXY'),'앱 다운로드 및 갤럭시 탭과 S펜 충전 필수');
+  for(const device of ['IPAD','GALAXY']){
+    assert.equal(funcs.buildDrawingDeviceLine('[DRAWING] BASIC',device,'CLASS'),'앱 사전 다운로드 및 펜슬/패드 충전 필수');
+    for(const type of ['MAKEUP_40','MAKEUP_30']){
+      assert.equal(funcs.buildDrawingDeviceLine('[DRAWING] BASIC',device,type),'사전 펜슬/패드 충전 필수');
+    }
+  }
+  assert.equal(funcs.buildDrawingDeviceLine('[DRAWING] BASIC','IPAD','TRIAL'),'앱 다운로드 및 아이패드와 애플 펜슬 충전 필수');
+  assert.equal(funcs.buildDrawingDeviceLine('[DRAWING] BASIC','GALAXY','TRIAL'),'앱 다운로드 및 갤럭시 탭과 S펜 충전 필수');
 });
 
 test('Picture book editor notice shows editor only while retaining Monday curriculum code', () => {
