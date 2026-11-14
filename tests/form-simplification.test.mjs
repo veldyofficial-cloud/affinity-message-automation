@@ -18,7 +18,7 @@ test('Student DB first; grouped notices move below message and are group-only',(
  assert.ok(group>output,'Group recipient belongs below generated message');
  assert.match(html,/id="groupNoticeBox" hidden/);
  assert.match(inline,/\$\("groupNoticeBox"\)\.hidden=\$\("classType"\)\.value!=="GROUP"/);
- assert.match(inline,/\$\("studentName"\)\.value=name;/);
+ assert.match(inline,/\$\("studentName"\)\.value=selectedStudentRecords\.get\(nextId\);/);
 });
 
 test('Only iPad/Galaxy show Discord, and makeup/supplement hide unused fields',()=>{
