@@ -31,15 +31,16 @@ function harness(){
      if(!nodes.has(id))nodes.set(id,{
        value:fields[id]??'',options:[],style:{},disabled:false,
        textContent:'',classList:{add(){},remove(){},toggle(){}},
-       innerHTML:'',children:[],
-       replaceChildren(...items){this.options=items;this.children=items;},
+       innerHTML:'',children:[],dataset:{},
+       replaceChildren(...items){this.options=items;this.children=items.flatMap(x=>x.tagName==='FRAGMENT'?x.children:[x]);},
        appendChild(o){this.options.push(o);this.children.push(o)},
        append(...items){this.options.push(...items);this.children.push(...items)},
        querySelectorAll(){return []}
      });
      return nodes.get(id);
    },
-   createElement(tag){return {value:'',textContent:'',style:{},children:[],checked:false,
+   createDocumentFragment(){return {tagName:'FRAGMENT',children:[],appendChild(x){this.children.push(x)}};},
+   createElement(tag){return {value:'',textContent:'',style:{},children:[],dataset:{},checked:false,
       listeners:{},appendChild(x){this.children.push(x)},append(...items){this.children.push(...items)},
       addEventListener(name,cb){this.listeners[name]=cb},setAttribute(){},
       classList:{add(){},remove(){},toggle(){}}}}
