@@ -11,7 +11,7 @@ const instrumented="globalThis.__test={"+
   "setAbsences(rows){individualAbsences=rows;},"+
   "generateAndSave(){const r=buildMessage();if(!r.ok)return r;$('output').value=r.text;lastGeneratedFingerprint=registrationFingerprint();saveStudentNotice();return r;},"+
   "staged:()=>[...stagedStudentNotices],combined:()=>combinedStudentNoticeText(),shared:()=>commonNoticeFingerprint(),"+
-  "renderStagedNotices,plan:buildRegistrationPlan,setValue:(id,value)=>{$(id).value=value;},status:()=>$('savedStudentNotices').textContent};";
+  "renderStagedNotices,displaySelectedStudents,fillLookupResults,chooseNoticeRecipient,plan:buildRegistrationPlan,setValue:(id,value)=>{$(id).value=value;},getValue:id=>$(id).value,status:()=>$('savedStudentNotices').textContent};";
 const script=original.replace(/^\s*init\(\);\s*$/m,instrumented);
 function harness(){
  const fields={
@@ -31,19 +31,26 @@ function harness(){
      if(!nodes.has(id))nodes.set(id,{
        value:fields[id]??'',options:[],style:{},disabled:false,
        textContent:'',classList:{add(){},remove(){},toggle(){}},
-       innerHTML:'',appendChild(o){this.options.push(o)},
-       append(o){this.options.push(o)},querySelectorAll(){return []}
+       innerHTML:'',children:[],dataset:{},
+       replaceChildren(...items){this.options=items;this.children=items.flatMap(x=>x.tagName==='FRAGMENT'?x.children:[x]);},
+       appendChild(o){this.options.push(o);this.children.push(o)},
+       append(...items){this.options.push(...items);this.children.push(...items)},
+       querySelectorAll(){return []}
      });
      return nodes.get(id);
    },
-   createElement(tag){return {value:'',textContent:'',style:{},appendChild(){}}}
+   createDocumentFragment(){return {tagName:'FRAGMENT',children:[],appendChild(x){this.children.push(x)}};},
+   createElement(tag){return {value:'',textContent:'',style:{},children:[],dataset:{},checked:false,
+      listeners:{},appendChild(x){this.children.push(x)},append(...items){this.children.push(...items)},
+      addEventListener(name,cb){this.listeners[name]=cb},setAttribute(){},
+      classList:{add(){},remove(){},toggle(){}}}}
  };
  const ctx={document,Intl,Date,console,URLSearchParams,
    Option:class {constructor(text,value){this.textContent=text;this.value=value}}};
  vm.runInNewContext(script,ctx,{timeout:5000});
  ctx.__test.setStudents([['101','A'],['102','B'],['103','C']]);
  ctx.__test.setAbsences([{date:'2026-11-14',studentIds:[102,103]}]);
- return ctx.__test;
+ return {...ctx.__test,__getNode:id=>nodes.get(id)};
 }
 test('Three student notices are staged separately and joined into one bubble',()=>{
  const h=harness();
@@ -108,4 +115,47 @@ test('Single joining learner stays in GROUP 60m on browser registration preview 
  assert.equal(h.staged().length,1);
  assert.match(h.status(),/1\/1명/);
  assert.match(h.combined(),/\[학생별 안내 1 \| A\]/);
+});
+
+test('GROUP student addition automatically selects newcomer and preserves saved former notice',()=>{
+ const h=harness();
+ h.setStudents([['101','A']]);h.setAbsences([]);h.select('101');
+ assert.equal(h.generateAndSave().ok,true);
+ assert.match(h.status(),/1\/1명/);
+ const before=h.shared(),first=h.staged()[0][1].message;
+ h.fillLookupResults([{id:102,name:'B'}]);
+ const checkbox=h.__getNode('studentResults').children[0].children[0];
+ checkbox.checked=true;
+ checkbox.listeners.change();
+ assert.equal(h.shared(),before);
+ assert.equal(h.getValue('noticeRecipient'),'102');
+ assert.equal(h.getValue('studentName'),'B');
+ assert.equal(h.getValue('output'),'');
+ assert.match(h.status(),/1\/2명/);
+ assert.doesNotMatch(h.status(),/공통 일정 변경/);
+ assert.equal(h.staged()[0][1].message,first);
+ assert.equal(h.generateAndSave().ok,true);
+ assert.match(h.status(),/2\/2명/);
+ assert.match(h.combined(),/\[학생별 안내 1 \| A\]/);
+ assert.match(h.combined(),/\[학생별 안내 2 \| B\]/);
+});
+
+test('Actual shared schedule changes still invalidate previously saved group notices',()=>{
+ const h=harness();
+ h.setStudents([['101','A']]);h.setAbsences([]);h.select('101');
+ assert.equal(h.generateAndSave().ok,true);
+ h.setValue('korTime','10');h.renderStagedNotices();
+ assert.match(h.status(),/0\/1명/);
+});
+
+test('Roster change with individual absences still invalidates notices due to attendance',()=>{
+ const h=harness();
+ h.setStudents([['101','A'],['102','B']]);
+ h.setAbsences([{date:'2026-11-14',studentIds:[102]}]);
+ h.select('101');assert.equal(h.generateAndSave().ok,true);
+ const before=h.shared();
+ h.setStudents([['101','A'],['102','B'],['103','C']]);
+ h.renderStagedNotices();
+ assert.notEqual(h.shared(),before);
+ assert.match(h.status(),/0\/3명/);
 });

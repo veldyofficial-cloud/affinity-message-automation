@@ -2720,11 +2720,14 @@ Affinity Universe
       "weekday2","amPm2","korTime2","classType2",
       "weekday3","amPm3","korTime3","classType3",
       "curriculumSelect","curriculumUrl","customCourseName","discord"];
+    const absences=normalizeIndividualAbsences(individualAbsences);
     return JSON.stringify({
       fields:ids.map(id=>[id,$(id).value]),
-      selectedStudents:[...selectedStudentRecords].sort((a,b)=>a[0].localeCompare(b[0])),
       closures:getEffectiveClosedList(),
-      absences:normalizeIndividualAbsences(individualAbsences),
+      absences,
+      // Adding a classmate does not change the shared class schedule. Only
+      // track the roster size when attendance exceptions can alter duration.
+      attendanceRosterSize:absences.length?selectedStudentRecords.size:null,
       activeExtras:activeWeeklyExtras
     });
   }
@@ -3119,10 +3122,14 @@ Affinity Universe
     preview.dataset.renderSignature=signature;
   }
 
-  function displaySelectedStudents(){
+  function displaySelectedStudents(preferredRecipientId=""){
     const select=$("noticeRecipient");
+    const previous=String(select?.value||"");
+    const preferred=String(preferredRecipientId||"");
+    const nextId=(preferred&&selectedStudentRecords.has(preferred))?preferred:
+      (previous&&selectedStudentRecords.has(previous))?previous:
+      (selectedStudentRecords.keys().next().value||"");
     if(select && typeof select.replaceChildren==="function"){
-      const previous=select.value;
       select.replaceChildren();
       const first=document.createElement("option");
       first.value="";
@@ -3134,18 +3141,26 @@ Affinity Universe
         option.textContent=name;
         select.appendChild(option);
       }
-      if(previous && selectedStudentRecords.has(previous))select.value=previous;
     }
+    if(select)select.value=nextId;
     $("selectedStudents").textContent = selectedStudentRecords.size
       ? `연결 대상 ${selectedStudentRecords.size}명: ${Array.from(selectedStudentRecords.values()).join(", ")}`
       : "";
-    if(selectedStudentRecords.size===1){
-      const [id,name]=[...selectedStudentRecords][0];
-      $("studentName").value=name;
-      if($("classType").value==="GROUP" && $("noticeRecipient").value!==id)
-        $("noticeRecipient").value=id;
-    }
     $("groupNoticeBox").hidden=$("classType").value!=="GROUP" || selectedStudentRecords.size===0;
+    if(nextId){
+      // Always show the linked student's name, never the previously selected
+      // student or an unrelated value manually typed into the name field.
+      $("studentName").value=selectedStudentRecords.get(nextId);
+      if(previous!==nextId || preferred===nextId){
+        // Show this student's saved notice, if any; reset only personal fields
+        // for a newly selected student, not the previously saved group notices.
+        chooseNoticeRecipient();
+      }
+    }else if(previous){
+      $("studentName").value="";
+      $("output").value="";
+      lastGeneratedFingerprint="";
+    }
     renderAbsenteePicker();
     renderClosedPreview();
     renderStagedNotices();
@@ -3197,7 +3212,11 @@ Affinity Universe
           selectedStudentRecords.delete(String(student.id));
           stagedStudentNotices.delete(String(student.id));
         }
-        displaySelectedStudents();
+        // On adding another GROUP member, immediately select that student so
+        // the name, timezone settings, and newly generated notice all match.
+        const newlyAddedGroupStudent=checkbox.checked&&$("classType").value==="GROUP"
+          ? String(student.id):"";
+        displaySelectedStudents(newlyAddedGroupStudent);
       });
       label.append(checkbox,span);
       box.append(label);
