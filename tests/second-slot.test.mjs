@@ -90,13 +90,13 @@ test('An empty optional slot means once weekly, and partially entered slot fails
 test('Discord channel auto-selects the correct Monday instructor for all provided channel aliases',()=>{
   const mapping=[
     ['🐰DRAWING ZOEY 조이쌤','62107542'],
-    ['💙DRAWING ELLIE 아룡쌤','62032527'],
-    ['😎DRAWING SELLY 새우쌤','62107579'],
-    ['🥕DRAWING SARAH 션쌤','62107617'],
-    ['🎨DRAWING SEONYE 콩써니쌤','62270353'],
+    ['💙DRAWING ELLIE 엘리쌤','62032527'],
+    ['😎DRAWING SELLY 셀리쌤','62107579'],
+    ['🥕DRAWING SARAH 세라쌤','62107617'],
+    ['🎨DRAWING SEONYE 선예쌤','62270353'],
     ['🍒DRAWING CHAERI 채리쌤','62270353'],
-    ['💖DRAWING JIMIN 지민쌤','66891148'],
-    ['🐶DRAWING LARA 라라쌤','79016580']
+    ['💖DRAWING MINJI 민지쌤','66891148'],
+    ['🐶DRAWING RARA 라라쌤','79016580']
   ];
   for(const [channel,id] of mapping){
     const h=harness({discord:channel});

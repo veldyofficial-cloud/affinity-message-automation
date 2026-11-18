@@ -516,13 +516,13 @@
         <select id="discord">
           <option value="해당없음">해당없음</option>
           <option value="🐰DRAWING ZOEY 조이쌤">🐰DRAWING ZOEY 조이쌤</option>
-          <option value="💙DRAWING ELLIE 아룡쌤">💙DRAWING ELLIE 아룡쌤</option>
-          <option value="😎DRAWING SELLY 새우쌤">😎DRAWING SELLY 새우쌤</option>
-          <option value="🥕DRAWING SARAH 션쌤">🥕DRAWING SARAH 션쌤</option>
-          <option value="🎨DRAWING SEONYE 콩써니쌤">🎨DRAWING SEONYE 콩써니쌤</option>
+          <option value="💙DRAWING ELLIE 엘리쌤">💙DRAWING ELLIE 엘리쌤</option>
+          <option value="😎DRAWING SELLY 셀리쌤">😎DRAWING SELLY 셀리쌤</option>
+          <option value="🥕DRAWING SARAH 세라쌤">🥕DRAWING SARAH 세라쌤</option>
+          <option value="🎨DRAWING SEONYE 선예쌤">🎨DRAWING SEONYE 선예쌤</option>
           <option value="🍒DRAWING CHAERI 채리쌤">🍒DRAWING CHAERI 채리쌤</option>
-          <option value="💖DRAWING JIMIN 지민쌤">💖DRAWING JIMIN 지민쌤</option>
-          <option value="🐶DRAWING LARA 라라쌤">🐶DRAWING LARA 라라쌤</option>
+          <option value="💖DRAWING MINJI 민지쌤">💖DRAWING MINJI 민지쌤</option>
+          <option value="🐶DRAWING RARA 라라쌤">🐶DRAWING RARA 라라쌤</option>
         </select>
         <div id="discordGuideHint" class="note small">강사별 채널이 필요한 수업은 아래에서 직접 선택해 주세요.</div>
       </div>
@@ -2077,25 +2077,25 @@ ${holidayItems.map(item => `- ${item}`).join("\n")}
   }
 
   // Instructor-to-channel mapping confirmed by the program administrator.
-  // Two distinct Discord channels (콩써니, 채리) belong to SEONYE.
+  // Two distinct Discord channels (선예, 채리) belong to SEONYE.
   const VERIFIED_DRAWING_DISCORD_BY_TEACHER = Object.freeze({
     "62107542":"🐰DRAWING ZOEY 조이쌤",
-    "62032527":"💙DRAWING ELLIE 아룡쌤",
-    "62107579":"😎DRAWING SELLY 새우쌤",
-    "62107617":"🥕DRAWING SARAH 션쌤",
-    "62270353":"🎨DRAWING SEONYE 콩써니쌤",
-    "66891148":"💖DRAWING JIMIN 지민쌤",
-    "79016580":"🐶DRAWING LARA 라라쌤"
+    "62032527":"💙DRAWING ELLIE 엘리쌤",
+    "62107579":"😎DRAWING SELLY 셀리쌤",
+    "62107617":"🥕DRAWING SARAH 세라쌤",
+    "62270353":"🎨DRAWING SEONYE 선예쌤",
+    "66891148":"💖DRAWING MINJI 민지쌤",
+    "79016580":"🐶DRAWING RARA 라라쌤"
   });
   const VERIFIED_DRAWING_TEACHER_BY_DISCORD = Object.freeze({
     "🐰DRAWING ZOEY 조이쌤":"62107542",
-    "💙DRAWING ELLIE 아룡쌤":"62032527",
-    "😎DRAWING SELLY 새우쌤":"62107579",
-    "🥕DRAWING SARAH 션쌤":"62107617",
-    "🎨DRAWING SEONYE 콩써니쌤":"62270353",
+    "💙DRAWING ELLIE 엘리쌤":"62032527",
+    "😎DRAWING SELLY 셀리쌤":"62107579",
+    "🥕DRAWING SARAH 세라쌤":"62107617",
+    "🎨DRAWING SEONYE 선예쌤":"62270353",
     "🍒DRAWING CHAERI 채리쌤":"62270353",
-    "💖DRAWING JIMIN 지민쌤":"66891148",
-    "🐶DRAWING LARA 라라쌤":"79016580"
+    "💖DRAWING MINJI 민지쌤":"66891148",
+    "🐶DRAWING RARA 라라쌤":"79016580"
   });
   function syncTeacherFromDiscord(){
     const teacherId=VERIFIED_DRAWING_TEACHER_BY_DISCORD[$("discord").value];
