@@ -48,7 +48,7 @@ test('Trial fourth class, closure and overseas time shift appear in final notice
  const result=app.buildMessage();
  assert.equal(result.ok,true,result.error);
  assert.match(result.text,/수업 기간 : 2026\. 11\. 01 - 11\. 29/);
- assert.match(result.text,/11\. 08 \(일, 수강생 요청 휴강\)/);
+ assert.match(result.text,/11\. 08 \(일, 수강생 요청\)/);
  assert.match(result.text,/🇨🇦 \(일\) 5 PM/);
  assert.match(result.text,/🇰🇷 \(월\) 9 AM/);
  assert.doesNotMatch(result.text,/수업 기간 : 2026\. 11\. 01 - 11\. 01/);
@@ -227,5 +227,15 @@ test('Other drawing classes and Drawing BASIC trial retain existing behavior',()
   assert.match(trialNotice.text,templateType==='GALAXY'
     ? /앱 다운로드 및 갤럭시 탭과 S펜 충전 필수/
     : /앱 다운로드 및 아이패드와 애플 펜슬 충전 필수/);
+ }
+});
+
+test('Student-requested closure uses short text in Korean and overseas notices',()=>{
+ for(const timeZone of ['Asia/Seoul','America/Vancouver']){
+  const app=harness({type:'CLASS',timeZone,closures:[{date:'2026-11-09',name:'수강생 요청 휴강'}]});
+  const result=app.buildMessage();
+  assert.equal(result.ok,true,result.error);
+  assert.match(result.text,/수강생 요청\)/);
+  assert.doesNotMatch(result.text,/수강생 요청 휴강\)/);
  }
 });

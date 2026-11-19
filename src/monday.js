@@ -260,8 +260,8 @@ export function derivePlan(input) {
       throw new Error('보강/보충의 회차는 LESSON 01~24 중에서 선택해 주세요.');
     }
     if(Number(input.lessonCount)!==1) throw new Error('보강/보충은 한 회차만 등록할 수 있습니다.');
-    const suffix=input.messageType==='MAKEUP_40'?'보강':'보충';
-    const name='LESSON '+String(lessonNo).padStart(2,'0')+' '+suffix;
+    // Makeup/supplement are distinguished by the parent item, not the child.
+    const name='LESSON '+String(lessonNo).padStart(2,'0');
     const schedule=[{date:input.startDay,kind:'LESSON',name,absentStudentIds:[]}];
     const client=Array.isArray(input.schedule)?input.schedule:[];
     if(client.length!==1 || client[0].date!==schedule[0].date ||

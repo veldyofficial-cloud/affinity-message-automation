@@ -1517,12 +1517,15 @@
     const day = String(d.getUTCDate()).padStart(2, "0");
     const weekday = getWeekdayKoFromISO(displayISO);
 
+    // Student-facing notices use the shorter reason; the underlying Infohub
+    // closure label remains unchanged for auditability and Monday registration.
+    const noticeReason=holidayName==="수강생 요청 휴강"?"수강생 요청":holidayName;
     if(studentLocation === "OVERSEAS"){
-      const reason = holidayName === "수강생 요청 휴강" ? holidayName : "한국 공휴일";
+      const reason = holidayName === "수강생 요청 휴강" ? "수강생 요청" : "한국 공휴일";
       return `${m}. ${day} (${weekday}, ${reason})`;
     }
-    return holidayName
-      ? `${m}. ${day} (${weekday}, ${holidayName})`
+    return noticeReason
+      ? `${m}. ${day} (${weekday}, ${noticeReason})`
       : `${m}. ${day} (${weekday})`;
   }
 
@@ -2844,11 +2847,11 @@ Affinity Universe
   // Monday personnel IDs verified read-only against the account's active teacher roster.
   const MONDAY_TEACHERS = [
     {name:"OLIVIA",id:62032468}, {name:"ONYU",id:62421403},
-    {name:"AYEONG",id:62032527}, {name:"DOORI",id:62421627},
-    {name:"HANNAH",id:97420822}, {name:"JIMIN",id:66891148},
+    {name:"ELLIE",id:62032527}, {name:"DOORI",id:62421627},
+    {name:"HANNAH",id:97420822}, {name:"MINJI",id:66891148},
     {name:"JUNWON",id:98185652}, {name:"RARA",id:79016580},
-    {name:"SEONYE",id:62270353}, {name:"SHU",id:62107579},
-    {name:"SION",id:62107534}, {name:"SYEON",id:62107617},
+    {name:"SEONYE",id:62270353}, {name:"SELLY",id:62107579},
+    {name:"SION",id:62107534}, {name:"SARAH",id:62107617},
     {name:"ZOEY",id:62107542},
   ];
 
@@ -2953,13 +2956,13 @@ Affinity Universe
       if(!Number.isInteger(num)||num<1||num>24)return {ok:false,error:"회차를 선택해 주세요."};
       const kst=parseKorTimeTo24h($("amPm").value,$("korTime").value.trim());
       if(!kst)return {ok:false,error:koreanTimeValidationMessage($("amPm").value,$("korTime").value)};
-      const label=messageType==="MAKEUP_40"?"보강":"보충";
+      // Keep makeup/supplement in the parent item only, not the child title.
       // Match the recurring-class plan shape so preview and approval can always read
       // slot metadata, even for a one-off makeup/supplement with no extra slots.
       return {ok:true,startDay,endDay:startDay,weekday,kst,
         kstSecond:null,kstThird:null,weeklyFrequency:1,extraSlots:[],
         typeByDay:{[weekday]:$("classType").value},
-        items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0")+" "+label,absentStudentIds:[]}],
+        items:[{date:startDay,kind:"LESSON",name:"LESSON "+String(num).padStart(2,"0"),absentStudentIds:[]}],
         lessonCount:1,holidayCount:0};
     }
     const closedDates = new Map(closures.map(x => [x.date, x.name || "휴강"]));

@@ -117,7 +117,8 @@ test('Single makeup lesson renders a checkbox without an always-visible memo',()
   h.refreshRegistrationPreview();
   const row=h.get('registrationPreview').children[2].children[0];
   assert.equal(row.children.length,2);
-  assert.match(row.children[0].textContent,/보강/);
+  assert.match(row.children[0].textContent,/LESSON 07/);
+  assert.doesNotMatch(row.children[0].textContent,/보강|보충/);
   h.setDateMemoEnabled(plan.items[0].date,true);
   h.dateMemoDrafts.set(plan.items[0].date,'보강 요청');
   assert.equal(h.parseSubMemos(plan)[0].memo,'보강 요청');

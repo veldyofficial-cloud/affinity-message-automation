@@ -1,5 +1,5 @@
 import { allowedOrigin, allStudentItems, BOARD_ID, STUDENT_DB_ID, COL, derivePlan, infohubDstLabel, infohubItemName, htmlEscape, json, monday } from './monday.js';
-import {TEACHERS, isAllowedTeacher, teacherById} from './teachers.js';
+import {TEACHERS, isAllowedTeacher, matchesAllowedTeacherAccount} from './teachers.js';
 const validId = value => Number.isSafeInteger(value) && value > 0;
 
 export async function lookup(request, env) {
@@ -121,7 +121,7 @@ export async function approve(request, env, email) {
     }))throw new Error('학생별 안내문의 이름이 STUDENT DB 이름과 다릅니다.');
     const users=await monday('query ($ids:[ID!]) { users(ids:$ids) { id name } }',
       {ids:[String(p.teacherId)]},env);
-    if ((users.users||[]).length!==1 || String(users.users[0].name||'').trim().toUpperCase()!==teacherById.get(Number(p.teacherId)).name)
+    if (!matchesAllowedTeacherAccount(p.teacherId,users.users))
       throw new Error('담당 강사 계정 정보가 목록과 일치하지 않습니다. 관리자에게 문의해 주세요.');
     const duration=p.classType==='GROUP'?'60m':'40m';
     const studentEmails=studentIds.map(id=>{

@@ -211,10 +211,10 @@ test('Makeup/supplement are single subitems; trial has exactly four lessons',asy
   for(const [type,suffix] of [['MAKEUP_40','보강'],['MAKEUP_30','보충']]){
     const p={...original,messageType:type,startDay:'2026-11-02',endDay:'2026-11-02',
       makeupLessonNumber:7,lessonCount:1,explicitLessonCount:null,closures:[],absences:[],
-      schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 07 '+suffix,absentStudentIds:[]}]};
+      schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 07',absentStudentIds:[]}]};
     const plan=derivePlan(p);
     assert.equal(plan.lessonCount,1);
-    assert.equal(plan.schedule[0].name,'LESSON 07 '+suffix);
+    assert.equal(plan.schedule[0].name,'LESSON 07');
     assert.equal(plan.schedule.length,1);
     assert.throws(()=>derivePlan({...p,endDay:'2026-11-09'}));
     assert.throws(()=>derivePlan({...p,makeupLessonNumber:25}));
@@ -234,7 +234,7 @@ test('PC emails and subitem notes appear in mocked Monday create_item/create_sub
    messageType:'MAKEUP_40',closures:[],absences:[],
    lessonCount:1,explicitLessonCount:null,makeupLessonNumber:7,endDay:'2026-11-02',
    language:'ENG',subMemo:'공통 메모',subMemos:[{date:'2026-11-02',memo:'보강 요청 사유'}],
-   schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 07 보강',absentStudentIds:[]}]};
+   schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 07',absentStudentIds:[]}]};
  const response=await worker.fetch(request('/api/approve',token,p),env,{});
  assert.equal(response.status,200,await response.clone().text());
  const parent=JSON.parse(currentRequests.filter(x=>x.query.includes('create_item(')).at(-1).variables.values);
@@ -242,6 +242,7 @@ test('PC emails and subitem notes appear in mocked Monday create_item/create_sub
  assert.deepEqual(parent[COL.language],{label:'ENG'});
  assert.equal(parent[COL.email],'student14500123@example.com');
  const lesson=JSON.parse(currentRequests.filter(x=>x.query.includes('create_subitem(')).at(-1).variables.values);
+ assert.equal(currentRequests.filter(x=>x.query.includes('create_subitem(')).at(-1).variables.name,'LESSON 07');
  assert.equal(lesson[COL.subMemo],'보강 요청 사유');
  assert.equal(lesson[COL.subAttendance],'1');
  globalThis.fetch=realFetch;
@@ -550,7 +551,7 @@ test('MAKEUP and supplement titles require course + type + separator + lesson or
    const payload={...base,messageType:type,itemName:'[DRAWING] BOOK 02 '+suffix+' | LESSON 12',
      lessonCount:1,explicitLessonCount:null,makeupLessonNumber:12,
      startDay:'2026-11-02',endDay:'2026-11-02',closures:[],absences:[],
-     schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 12 '+suffix,absentStudentIds:[]}]};
+     schedule:[{date:'2026-11-02',kind:'LESSON',name:'LESSON 12',absentStudentIds:[]}]};
    const response=await worker.fetch(request('/api/approve',token,payload),env,{});
    assert.equal(response.status,200,await response.clone().text());
    const latest=currentRequests.filter(x=>x.query.includes('create_item(')).at(-1);

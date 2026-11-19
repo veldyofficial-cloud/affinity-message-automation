@@ -80,3 +80,20 @@ test('teachers use own verified email plus invite code, with administrator revoc
   assert.equal(r.status,503,'missing durable object fails closed');
  } finally { globalThis.fetch=realFetch; }
 });
+
+test('Approved Monday teacher IDs remain valid when profile display names change',async()=>{
+ const {TEACHERS,isAllowedTeacher,matchesAllowedTeacherAccount}=await import('../src/teachers.js');
+ const renamed=[['62032527','ELLIE'],['62107579','SELLY'],['62107617','SARAH'],['62270353','SEONYE'],['66891148','JIMIN']];
+ for(const [id,actualName] of renamed){
+  assert.equal(isAllowedTeacher(id),true);
+  assert.equal(matchesAllowedTeacherAccount(id,[{id,name:actualName}]),true);
+  assert.equal(matchesAllowedTeacherAccount(id,[{id,name:'OTHER DISPLAY NAME'}]),true,
+    'Allow name changes, but only for the exact preapproved account ID');
+  assert.equal(matchesAllowedTeacherAccount(id,[{id:String(Number(id)+1),name:actualName}]),false);
+ }
+ assert.equal(TEACHERS.length,13);
+ assert.equal(TEACHERS.find(t=>t.id===62107579).name,'SELLY');
+ assert.equal(TEACHERS.find(t=>t.id===66891148).name,'MINJI');
+ assert.equal(matchesAllowedTeacherAccount('123456', [{id:'123456',name:'SELLY'}]),false);
+ assert.equal(matchesAllowedTeacherAccount('62107579',[]),false);
+});
