@@ -133,7 +133,9 @@ test('Memo length guard follows server column limit',()=>{
 });
 
 test('Desktop has nonedge gutters and main blue remains blue rather than navy',()=>{
-  assert.match(html,/--blue:\s*#0b66f2;/);
+  assert.match(html,/--blue:\s*#206EDE;/);
+  assert.match(html,/--blue-dark:\s*var\(--blue\);/);
+  assert.match(html,/--blue-ink:\s*var\(--blue\);/);
   assert.match(html,/padding:12px clamp\(46px,3\.6vw,70px\) 0/);
   assert.match(html,/padding:14px clamp\(46px,3\.6vw,70px\) 16px/);
   assert.match(html,/className="registration-memo-check"/);
@@ -141,4 +143,12 @@ test('Desktop has nonedge gutters and main blue remains blue rather than navy',(
   assert.doesNotMatch(html,/id="subMemo"/);
   assert.doesNotMatch(html,/id="dateMemoRows"/);
   assert.doesNotMatch(html,/id="subMemos"/);
+});
+
+test('All interface pages use canonical #206EDE accents without legacy blue hexes',()=>{
+ for(const path of ['../public/index.html','../public/admin.html','../public/onboarding.html']){
+  const page=fs.readFileSync(new URL(path,import.meta.url),'utf8');
+  assert.match(page,/#206EDE/);
+  assert.doesNotMatch(page,/#(?:0b66f2|0756d4|16417c|2d63ff|154bca|2859d6|0064ff|2269e8)\b/i);
+ }
 });
